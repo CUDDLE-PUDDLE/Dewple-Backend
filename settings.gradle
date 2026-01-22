@@ -1,0 +1,10 @@
+rootProject.name = "dewple-backend"
+
+include(
+        "apps:app-api-auth",
+        "apps:app-worker",
+        "modules:common",
+        "modules:security-common",
+        "modules:notification-client",
+        "modules:auth-server"
+)

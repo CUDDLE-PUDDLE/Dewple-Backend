@@ -1,0 +1,47 @@
+plugins {
+	id 'org.springframework.boot' version '3.5.9'
+}
+
+group = 'com.dewple'
+version = '0.0.1-SNAPSHOT'
+description = 'App Worker Service'
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+dependencies {
+	implementation project(":modules:common")
+	implementation project(":modules:security-common")
+	implementation project(":modules:notification-client")
+
+	// Web
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	// Security
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+
+	// WebSocket
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+	// SQS Listener
+	implementation "io.awspring.cloud:spring-cloud-aws-starter-sqs"
+
+	// SES
+	implementation "io.awspring.cloud:spring-cloud-aws-starter-ses"
+
+	// WebClient
+	implementation "org.springframework.boot:spring-boot-starter-webflux"
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
