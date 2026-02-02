@@ -13,10 +13,12 @@ configurations {
 }
 
 dependencies {
+	// Domain Modules
 	implementation project(":modules:common")
-	implementation project(":modules:security-common")
-	implementation project(":modules:notification-client")
-	implementation project(":modules:auth-server")
+	implementation project(":modules:user")
+	implementation project(":modules:club")
+	implementation project(":modules:activity")
+	implementation project(":modules:federation")
 
 	// Web/API
 	implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -32,7 +34,6 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
-	runtimeOnly 'com.h2database:h2'
 	runtimeOnly 'org.postgresql:postgresql'
 
 	// SQS Sender
