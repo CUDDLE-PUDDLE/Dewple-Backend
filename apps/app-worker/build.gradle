@@ -13,9 +13,12 @@ configurations {
 }
 
 dependencies {
+	// Domain Modules
 	implementation project(":modules:common")
-	implementation project(":modules:security-common")
-	implementation project(":modules:notification-client")
+	implementation project(":modules:user")
+	implementation project(":modules:club")
+	implementation project(":modules:activity")
+	implementation project(":modules:federation")
 
 	// Web
 	implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -36,6 +39,10 @@ dependencies {
 
 	// WebClient
 	implementation "org.springframework.boot:spring-boot-starter-webflux"
+
+	// DB
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	runtimeOnly 'org.postgresql:postgresql'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
