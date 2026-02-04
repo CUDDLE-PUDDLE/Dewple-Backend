@@ -1,4 +1,4 @@
-package com.dewple.app_api_auth.config;
+package com.dewple.app_api_auth.global.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;

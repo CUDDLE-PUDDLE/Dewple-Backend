@@ -1,6 +1,9 @@
 description = 'Common Module - 공통 엔티티, 예외, 유틸리티'
 
 dependencies {
+    // Web (HttpStatus - 컴파일만, 런타임은 apps에서 제공)
+    compileOnly 'org.springframework:spring-web'
+
     // JPA (BaseTimeEntity 등)
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 

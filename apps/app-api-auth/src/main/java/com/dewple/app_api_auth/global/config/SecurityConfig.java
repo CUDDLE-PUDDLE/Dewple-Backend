@@ -1,4 +1,4 @@
-package com.dewple.app_api_auth.config;
+package com.dewple.app_api_auth.global.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
