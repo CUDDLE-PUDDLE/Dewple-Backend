@@ -1,5 +1,13 @@
 spring:
-  application:
-    name: app-worker
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:local}
+  # AWS 자동 설정 비활성화 (로컬 개발용)
+  cloud:
+    aws:
+      region:
+        static: us-east-1
+      credentials:
+        access-key: dummy
+        secret-key: dummy
+      sqs:
+        enabled: false
+      ses:
+        enabled: false

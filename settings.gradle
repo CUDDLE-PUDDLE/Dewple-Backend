@@ -10,5 +10,6 @@ include(
         "modules:user",
         "modules:club",
         "modules:activity",
-        "modules:federation"
+        "modules:organization",
+        "modules:recruitment"
 )
