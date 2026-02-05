@@ -6,9 +6,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dewple.common.entity.BaseEntity;
 import com.dewple.common.entity.Club;
 
@@ -32,10 +29,6 @@ public class ChatRoom extends BaseEntity {
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
-
-
-    @OneToMany(mappedBy = "chatRoom", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ChatMessage> chatMessages = new ArrayList<>();
 
     
     @Builder
