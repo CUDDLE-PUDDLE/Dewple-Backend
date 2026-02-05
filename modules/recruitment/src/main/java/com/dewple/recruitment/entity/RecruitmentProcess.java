@@ -71,4 +71,19 @@ public class RecruitmentProcess extends BaseEntity {
             throw new IllegalArgumentException("종료일시는 시작일시보다 늦어야 합니다");
         }
     }
+
+    // 연관관계 편의 메소드
+    void changePosting(RecruitmentPosting posting) {
+        this.posting = posting;
+    }
+
+    public void addRecruitmentSchema(RecruitmentSchema schema) {
+        this.recruitmentSchemas.add(schema);
+        schema.changeRecruitmentProcess(this);
+    }
+
+    public void removeRecruitmentSchema(RecruitmentSchema schema) {
+        this.recruitmentSchemas.remove(schema);
+        schema.changeRecruitmentProcess(null);
+    }
 }

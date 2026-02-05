@@ -113,4 +113,25 @@ public class RecruitmentPosting extends BaseEntity {
             throw new IllegalArgumentException("종료일시는 시작일시보다 늦어야 합니다");
         }
     }
+
+    // 연관관계 편의 메소드
+    public void addRecruitmentProcess(RecruitmentProcess process) {
+        this.recruitmentProcesses.add(process);
+        process.changePosting(this);
+    }
+
+    public void removeRecruitmentProcess(RecruitmentProcess process) {
+        this.recruitmentProcesses.remove(process);
+        process.changePosting(null);
+    }
+
+    public void addRecruitmentDepartment(RecruitmentDepartment department) {
+        this.recruitmentDepartments.add(department);
+        department.changeRecruitment(this);
+    }
+
+    public void removeRecruitmentDepartment(RecruitmentDepartment department) {
+        this.recruitmentDepartments.remove(department);
+        department.changeRecruitment(null);
+    }
 }

@@ -32,4 +32,9 @@ public class RecruitmentDepartment extends BaseEntity {
         this.recruitment = recruitment;
         this.department = department;
     }
+
+    // 연관관계 편의 메소드
+    void changeRecruitment(RecruitmentPosting recruitment) {
+        this.recruitment = recruitment;
+    }
 }

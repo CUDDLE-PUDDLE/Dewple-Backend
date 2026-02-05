@@ -31,4 +31,9 @@ public class VoteComponent extends BaseEntity {
         this.vote = vote;
         this.content = content;
     }
+
+    // 연관관계 편의 메소드
+    void changeVote(Vote vote) {
+        this.vote = vote;
+    }
 }

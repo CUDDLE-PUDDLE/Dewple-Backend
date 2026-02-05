@@ -71,4 +71,15 @@ public class Vote extends BaseEntity {
         this.startAt = startAt;
         this.endAt = endAt;
     }
+
+    // 연관관계 편의 메소드
+    public void addVoteComponent(VoteComponent component) {
+        this.voteComponents.add(component);
+        component.changeVote(this);
+    }
+
+    public void removeVoteComponent(VoteComponent component) {
+        this.voteComponents.remove(component);
+        component.changeVote(null);
+    }
 }
