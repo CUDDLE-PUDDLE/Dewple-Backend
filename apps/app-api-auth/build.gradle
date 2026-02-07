@@ -18,7 +18,8 @@ dependencies {
 	implementation project(":modules:user")
 	implementation project(":modules:club")
 	implementation project(":modules:activity")
-	implementation project(":modules:federation")
+	implementation project(":modules:organization")
+	implementation project(":modules:recruitment")
 
 	// Web/API
 	implementation 'org.springframework.boot:spring-boot-starter-web'
