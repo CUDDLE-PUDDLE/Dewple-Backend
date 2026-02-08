@@ -5,6 +5,7 @@ plugins {
 
 ext {
     springCloudAwsVersion = "3.4.2"
+    junitVersion = "5.11.4"
 }
 
 allprojects {
@@ -25,6 +26,7 @@ subprojects {
         imports {
             mavenBom "org.springframework.boot:spring-boot-dependencies:3.5.9"
             mavenBom "io.awspring.cloud:spring-cloud-aws-dependencies:${springCloudAwsVersion}"
+            mavenBom "org.junit:junit-bom:${junitVersion}"
         }
     }
 
