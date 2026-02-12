@@ -38,8 +38,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .badRequest()
                 .body(ApiResponse.error(
-                        CommonErrorCode.BAD_REQUEST.getCode(),
-                        CommonErrorCode.BAD_REQUEST.getHttpStatus().value(),
+                        WebErrorCode.BAD_REQUEST.getCode(),
+                        WebErrorCode.BAD_REQUEST.getHttpStatus().value(),
                         errorMessage
                 ));
     }
@@ -50,7 +50,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .badRequest()
-                .body(ApiResponse.error(CommonErrorCode.HTTP_MESSAGE_NOT_READABLE));
+                .body(ApiResponse.error(WebErrorCode.HTTP_MESSAGE_NOT_READABLE));
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
@@ -58,8 +58,8 @@ public class GlobalExceptionHandler {
         log.warn("[HttpRequestMethodNotSupportedException] method={}", e.getMethod());
 
         return ResponseEntity
-                .status(CommonErrorCode.METHOD_NOT_ALLOWED.getHttpStatus())
-                .body(ApiResponse.error(CommonErrorCode.METHOD_NOT_ALLOWED));
+                .status(WebErrorCode.METHOD_NOT_ALLOWED.getHttpStatus())
+                .body(ApiResponse.error(WebErrorCode.METHOD_NOT_ALLOWED));
     }
 
     @ExceptionHandler(NoHandlerFoundException.class)
@@ -67,8 +67,8 @@ public class GlobalExceptionHandler {
         log.warn("[NoHandlerFoundException] url={}", e.getRequestURL());
 
         return ResponseEntity
-                .status(CommonErrorCode.URL_NOT_FOUND.getHttpStatus())
-                .body(ApiResponse.error(CommonErrorCode.URL_NOT_FOUND));
+                .status(WebErrorCode.URL_NOT_FOUND.getHttpStatus())
+                .body(ApiResponse.error(WebErrorCode.URL_NOT_FOUND));
     }
 
     @ExceptionHandler(Exception.class)
@@ -77,6 +77,6 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .internalServerError()
-                .body(ApiResponse.error(CommonErrorCode.SERVER_ERROR));
+                .body(ApiResponse.error(WebErrorCode.SERVER_ERROR));
     }
 }

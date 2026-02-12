@@ -1,6 +1,6 @@
 package com.dewple.app_api_auth.global.response;
 
-import com.dewple.app_api_auth.global.exception.CommonErrorCode;
+import com.dewple.app_api_auth.global.exception.WebErrorCode;
 import com.dewple.common.exception.ErrorCode;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
@@ -26,18 +26,18 @@ public class ApiResponse<T> {
 
     public static <T> ApiResponse<T> ok(T result) {
         return new ApiResponse<>(
-                CommonErrorCode.SUCCESS.getCode(),
-                CommonErrorCode.SUCCESS.getHttpStatus().value(),
-                CommonErrorCode.SUCCESS.getMessage(),
+                WebErrorCode.SUCCESS.getCode(),
+                WebErrorCode.SUCCESS.getHttpStatus().value(),
+                WebErrorCode.SUCCESS.getMessage(),
                 result
         );
     }
 
     public static ApiResponse<Void> ok() {
         return new ApiResponse<>(
-                CommonErrorCode.SUCCESS.getCode(),
-                CommonErrorCode.SUCCESS.getHttpStatus().value(),
-                CommonErrorCode.SUCCESS.getMessage(),
+                WebErrorCode.SUCCESS.getCode(),
+                WebErrorCode.SUCCESS.getHttpStatus().value(),
+                WebErrorCode.SUCCESS.getMessage(),
                 null
         );
     }
