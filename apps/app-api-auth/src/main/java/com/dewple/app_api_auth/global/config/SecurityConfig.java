@@ -30,7 +30,7 @@ public class SecurityConfig {
 					"/swagger-resources/**",
 					"/webjars/**",
 					// Auth APIs (인증 불필요)
-					"/api/auth/**"
+					"/auth/**"
 				).permitAll()
 				.anyRequest().authenticated()
 			);
