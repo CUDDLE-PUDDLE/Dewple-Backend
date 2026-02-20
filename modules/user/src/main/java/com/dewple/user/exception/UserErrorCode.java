@@ -27,6 +27,7 @@ public enum UserErrorCode implements ErrorCode {
     NICKNAME_ALREADY_EXISTS(4103, HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
     EMAIL_ALREADY_EXISTS(4104, HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     WITHDRAWAL_COOLDOWN(4105, HttpStatus.BAD_REQUEST, "탈퇴 후 7일이 지나야 재가입이 가능합니다."),
+    PASSWORD_CONFIRM_MISMATCH(4106, HttpStatus.BAD_REQUEST, "비밀번호 확인이 일치하지 않습니다."),
 
     // 4200: 로그인 관련 오류
     USER_NOT_FOUND(4201, HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
