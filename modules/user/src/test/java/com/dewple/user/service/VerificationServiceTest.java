@@ -261,11 +261,11 @@ class VerificationServiceTest {
     }
 
     @Nested
-    @DisplayName("validateVerificationToken - 인증 토큰 검증")
+    @DisplayName("validateVerificationToken - 본인인증 토큰 검증")
     class ValidateVerificationToken {
 
         @Test
-        @DisplayName("성공: 유효한 인증 토큰")
+        @DisplayName("성공: 유효한 본인인증 토큰")
         void success() {
             // given
             Verification verification = createVerification(TEST_PHONE_NORMALIZED, TEST_CODE);
@@ -282,7 +282,7 @@ class VerificationServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 인증 토큰을 찾을 수 없음")
+        @DisplayName("실패: 본인인증 토큰을 찾을 수 없음")
         void failWithNotFound() {
             // given
             String invalidToken = "invalid-token";
@@ -299,7 +299,7 @@ class VerificationServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 인증 토큰이 만료됨")
+        @DisplayName("실패: 본인인증 토큰이 만료됨")
         void failWithExpired() {
             // given
             Verification verification = createVerification(TEST_PHONE_NORMALIZED, TEST_CODE);
