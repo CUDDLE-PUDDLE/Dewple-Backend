@@ -24,11 +24,6 @@
 dewple-backend/
 ├── apps/                              # 실행 가능한 Spring Boot 애플리케이션
 │   ├── app-api-auth/                  # 인증 & REST API 서버 (port 8080)
-│   │   └── src/main/java/com/dewple/app_api_auth/
-│   │       ├── {domain}/controller/   # REST 컨트롤러
-│   │       ├── {domain}/dto/          # 요청/응답 DTO
-│   │       ├── infra/                 # 외부 서비스 어댑터 구현체
-│   │       └── global/                # 설정, 예외 핸들러, 공통 응답
 │   └── app-worker/                    # 비동기 워커 (SQS, WebSocket, SES)
 │
 └── modules/                           # 공유 도메인 모듈 (java-library)
@@ -38,6 +33,36 @@ dewple-backend/
     ├── activity/                      # 활동 도메인
     ├── organization/                  # 조직 도메인
     └── recruitment/                   # 모집 도메인
+```
+
+### app-api-auth 내부 구조
+
+`auth`(인증)와 `api`(비즈니스)를 패키지 수준에서 분리한다.
+
+- **auth**: 신원 확인, 토큰 발급/검증/폐기 (login, logout, signup, token refresh, verifications)
+- **api**: 비즈니스 리소스 CRUD (users, clubs, activities 등)
+
+```
+app-api-auth/src/main/java/com/dewple/app_api_auth/
+├── auth/                      # 인증 도메인
+│   ├── controller/            #   AuthController (/auth/**)
+│   └── dto/
+├── api/                       # 비즈니스 API 도메인
+│   ├── user/                  #   UserController (/users/**)
+│   │   ├── controller/
+│   │   └── dto/
+│   ├── club/
+│   ├── activity/
+│   └── federation/
+├── infra/                     # Port 구현체 (어댑터)
+│   ├── sms/                   #   SmsVerificationAdapter (SOLAPI)
+│   ├── email/                 #   EmailVerificationAdapter (AWS SES)
+│   └── security/              #   PasswordEncoderAdapter
+└── global/                    # 횡단 관심사
+    ├── config/                #   SecurityConfig, JwtConfig, SwaggerConfig 등
+    ├── exception/             #   GlobalExceptionHandler, WebErrorCode
+    ├── response/              #   ApiResponse
+    └── security/              #   JwtTokenProvider
 ```
 
 ### 모듈 내부 구조 (도메인 모듈 공통)
@@ -112,7 +137,14 @@ modules/{domain}/
   - 도메인 에러코드: `UserErrorCode` 등 (각 도메인 모듈, 4000+)
 - 에러 발생 시 `throw new BusinessException(ErrorCode)` 으로 던지기
 - `@RestControllerAdvice` `GlobalExceptionHandler`에서 `BusinessException`을 잡아 `ApiResponse.error()` 변환
-- 에러코드 범위: 1000 성공, 2000-2999 클라이언트, 3000-3999 서버, 4000+ 도메인별
+- 에러코드 범위
+  - 1000: 성공
+  - 2000~2999: 클라이언트 오류
+  - 3000~3999: 서버 오류
+  - 4000~4099: 본인인증 (verification)
+  - 4100~4199: 회원가입 (signup)
+  - 4200~4299: 로그인 (login)
+  - 4300~4399: 토큰 (refresh token)
 
 ### 테스트 패턴
 
@@ -128,11 +160,32 @@ modules/{domain}/
 - 복잡한 조회: JPQL 대신 QueryDSL 사용 (`RepositoryCustom` + `RepositoryImpl`)
 - `JPAQueryFactory` 빈은 `modules/common` 설정(`QueryDslConfig`)에서 등록
 
+### Port-Adapter 패턴
+
+- Port: `modules/{domain}/port/`에 인터페이스 정의 (예: `SmsVerificationPort`, `EmailVerificationPort`, `PasswordEncoderPort`)
+- Adapter: `apps/app-api-auth/infra/`에 구현체 (예: `SmsVerificationAdapter`, `EmailVerificationAdapter`)
+- 외부 서비스 설정 누락 시 graceful degradation — 로그 경고 후 발송 스킵
+
+### 인증/보안 아키텍처
+
+- JWT: HMAC-SHA256 (HS256), access token + refresh token
+- 토큰 전달: 응답 헤더 (`Authorization`, `Authorization-Refresh`)
+- RTR (Refresh Token Rotation): refresh 사용 시마다 DB에서 교체
+- `RefreshToken` 엔티티로 DB 관리 (멀티 디바이스 동시 로그인 지원)
+- `SecurityConfig`에서 인증 불필요 경로를 `permitAll`로 명시 등록
+
 ### 코드 스타일
 
 - 들여쓰기: 4 spaces
 - 중괄호: K&R 스타일 (같은 줄에 열기)
 - 어노테이션: 한 줄에 하나씩, 선언부 위에 배치
+
+## 설정 파일
+
+- `application.yaml`: 프로필 그룹 정의 (local, dev)
+- `application-local.yaml`: 로컬 환경 설정 (`.gitignore` 대상)
+- `application-dev.yaml`: 개발 환경 설정 (`.gitignore` 대상)
+- 프로필 단위: `Port`, `RDB`, `JPA`, `Aws`, `Secret`, `SMS`, `SES`
 
 ## Git 규칙
 
