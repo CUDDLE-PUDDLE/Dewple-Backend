@@ -1,6 +1,7 @@
 package com.dewple.user.service;
 
 import com.dewple.common.entity.User;
+import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.University;
 import com.dewple.common.exception.BusinessException;
@@ -45,6 +46,23 @@ public class UserService {
         userRepository.save(user);
         log.info("회원가입 완료: userId={}", userId);
 
+        return user;
+    }
+
+    @Transactional(readOnly = true)
+    public User login(String userId, String rawPassword) {
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        if (user.getStatus() != BaseStatus.ACTIVE) {
+            throw new BusinessException(UserErrorCode.USER_INACTIVE);
+        }
+
+        if (!passwordEncoderPort.matches(rawPassword, user.getPassword())) {
+            throw new BusinessException(UserErrorCode.PASSWORD_MISMATCH);
+        }
+
+        log.info("로그인 성공: userId={}", userId);
         return user;
     }
 
