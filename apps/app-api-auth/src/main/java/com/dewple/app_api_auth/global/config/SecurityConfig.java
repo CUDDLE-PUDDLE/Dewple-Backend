@@ -33,7 +33,8 @@ public class SecurityConfig {
                     "/auth/verifications/**",
                     "/auth/signup",
                     "/auth/check-userid",
-                    "/auth/login"
+                    "/auth/login",
+                    "/auth/token/refresh"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
