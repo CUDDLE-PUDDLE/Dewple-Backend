@@ -1,11 +1,16 @@
 package com.dewple.app_api_auth.auth.controller;
 
 import com.dewple.app_api_auth.global.config.SecurityConfig;
+import com.dewple.app_api_auth.global.security.JwtTokenProvider;
+import com.dewple.common.entity.User;
+import com.dewple.common.enums.Gender;
+import com.dewple.common.enums.University;
 import com.dewple.common.enums.VerificationPurpose;
 import com.dewple.common.enums.VerificationType;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.Verification;
 import com.dewple.user.exception.UserErrorCode;
+import com.dewple.user.service.UserService;
 import com.dewple.user.service.VerificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -15,19 +20,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AuthController.class)
 @Import(SecurityConfig.class)
@@ -41,6 +48,15 @@ class AuthControllerTest {
 
     @MockitoBean
     private VerificationService verificationService;
+
+    @MockitoBean
+    private UserService userService;
+
+    @MockitoBean
+    private JwtTokenProvider jwtTokenProvider;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     @Nested
     @DisplayName("POST /auth/verifications/phone - 인증 코드 발송")
@@ -228,6 +244,228 @@ class AuthControllerTest {
         }
     }
 
+    @Nested
+    @DisplayName("POST /auth/signup - 회원가입")
+    class Signup {
+
+        @Test
+        @DisplayName("성공: 유효한 정보로 회원가입")
+        void success() throws Exception {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(userService.signup(eq("vp_test-token"), eq("홍길동"), eq("dewple123"), eq("Password1!")))
+                    .willReturn(user);
+            given(jwtTokenProvider.generateAccessToken(1L)).willReturn("access-token");
+            given(jwtTokenProvider.generateRefreshToken(1L)).willReturn("refresh-token");
+
+            // when & then
+            mockMvc.perform(post("/auth/signup")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "verificationToken", "vp_test-token",
+                                    "name", "홍길동",
+                                    "userId", "dewple123",
+                                    "password", "Password1!",
+                                    "passwordConfirm", "Password1!"
+                            ))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result").doesNotExist())
+                    .andExpect(header().string("Authorization", "Bearer access-token"))
+                    .andExpect(header().string("Authorization-Refresh", "Bearer refresh-token"));
+        }
+
+        @Test
+        @DisplayName("실패: 비밀번호 확인 불일치")
+        void failWithPasswordMismatch() throws Exception {
+            mockMvc.perform(post("/auth/signup")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "verificationToken", "vp_test-token",
+                                    "name", "홍길동",
+                                    "userId", "dewple123",
+                                    "password", "Password1!",
+                                    "passwordConfirm", "DifferentPassword1!"
+                            ))))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value(4106));
+        }
+
+        @Test
+        @DisplayName("실패: 이미 가입된 전화번호")
+        void failWithPhoneAlreadyExists() throws Exception {
+            // given
+            given(userService.signup(eq("vp_test-token"), eq("홍길동"), eq("dewple123"), eq("Password1!")))
+                    .willThrow(new BusinessException(UserErrorCode.PHONE_ALREADY_EXISTS));
+
+            // when & then
+            mockMvc.perform(post("/auth/signup")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "verificationToken", "vp_test-token",
+                                    "name", "홍길동",
+                                    "userId", "dewple123",
+                                    "password", "Password1!",
+                                    "passwordConfirm", "Password1!"
+                            ))))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value(4101));
+        }
+
+        @Test
+        @DisplayName("실패: 이미 사용 중인 아이디")
+        void failWithUserIdAlreadyExists() throws Exception {
+            // given
+            given(userService.signup(eq("vp_test-token"), eq("홍길동"), eq("dewple123"), eq("Password1!")))
+                    .willThrow(new BusinessException(UserErrorCode.USER_ID_ALREADY_EXISTS));
+
+            // when & then
+            mockMvc.perform(post("/auth/signup")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "verificationToken", "vp_test-token",
+                                    "name", "홍길동",
+                                    "userId", "dewple123",
+                                    "password", "Password1!",
+                                    "passwordConfirm", "Password1!"
+                            ))))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value(4102));
+        }
+
+        @Test
+        @DisplayName("실패: 유효하지 않은 아이디 형식")
+        void failWithInvalidUserIdFormat() throws Exception {
+            mockMvc.perform(post("/auth/signup")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "verificationToken", "vp_test-token",
+                                    "name", "홍길동",
+                                    "userId", "ab",
+                                    "password", "Password1!",
+                                    "passwordConfirm", "Password1!"
+                            ))))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("실패: 유효하지 않은 비밀번호 형식")
+        void failWithInvalidPasswordFormat() throws Exception {
+            mockMvc.perform(post("/auth/signup")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "verificationToken", "vp_test-token",
+                                    "name", "홍길동",
+                                    "userId", "dewple123",
+                                    "password", "simple",
+                                    "passwordConfirm", "simple"
+                            ))))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /auth/check-userid - 아이디 중복 확인")
+    class CheckUserId {
+
+        @Test
+        @DisplayName("성공: 사용 가능한 아이디")
+        void available() throws Exception {
+            // given
+            given(userService.isUserIdAvailable("dewple123")).willReturn(true);
+
+            // when & then
+            mockMvc.perform(get("/auth/check-userid")
+                            .param("userId", "dewple123"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.isAvailable").value(true));
+        }
+
+        @Test
+        @DisplayName("성공: 이미 사용 중인 아이디")
+        void notAvailable() throws Exception {
+            // given
+            given(userService.isUserIdAvailable("existing")).willReturn(false);
+
+            // when & then
+            mockMvc.perform(get("/auth/check-userid")
+                            .param("userId", "existing"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.isAvailable").value(false));
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /auth/signup/profile - 프로필 설정")
+    class UpdateProfile {
+
+        @Test
+        @DisplayName("성공: 프로필 업데이트")
+        void success() throws Exception {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+            user.updateProfile("듀플러", "test@example.com",
+                    LocalDate.of(2000, 1, 1), Gender.MALE,
+                    University.SEOUL_NATIONAL, false, "듀플");
+
+            given(userService.updateProfile(eq(1L), eq("듀플러"), eq("test@example.com"),
+                    eq(LocalDate.of(2000, 1, 1)), eq(Gender.MALE),
+                    eq(University.SEOUL_NATIONAL), eq(false), eq("듀플")))
+                    .willReturn(user);
+
+            // when & then
+            mockMvc.perform(patch("/auth/signup/profile")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "nickname", "듀플러",
+                                    "email", "test@example.com",
+                                    "birthdate", "2000-01-01",
+                                    "gender", "MALE",
+                                    "university", "SEOUL_NATIONAL",
+                                    "isGraduated", false,
+                                    "workplace", "듀플"
+                            ))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.nickname").value("듀플러"))
+                    .andExpect(jsonPath("$.result.email").value("test@example.com"));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuth() throws Exception {
+            mockMvc.perform(patch("/auth/signup/profile")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "nickname", "듀플러"
+                            ))))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 이미 사용 중인 닉네임")
+        void failWithNicknameAlreadyExists() throws Exception {
+            // given
+            given(userService.updateProfile(eq(1L), eq("듀플러"), isNull(),
+                    isNull(), isNull(), isNull(), isNull(), isNull()))
+                    .willThrow(new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS));
+
+            // when & then
+            mockMvc.perform(patch("/auth/signup/profile")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"nickname\":\"듀플러\"}"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value(4103));
+        }
+    }
+
     private Verification createVerification() {
         Verification verification = Verification.builder()
                 .type(VerificationType.PHONE)
@@ -237,5 +475,14 @@ class AuthControllerTest {
                 .build();
         ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now());
         return verification;
+    }
+
+    private User createUser() {
+        return User.builder()
+                .userId("dewple123")
+                .password("encoded-password")
+                .name("홍길동")
+                .phone("01012345678")
+                .build();
     }
 }
