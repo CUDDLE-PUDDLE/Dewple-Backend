@@ -15,6 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.util.Optional;
@@ -229,6 +230,77 @@ class UserServiceTest {
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
                         assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("login - 로그인")
+    class Login {
+
+        @Test
+        @DisplayName("성공: 유효한 자격증명으로 로그인")
+        void success() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+            given(userRepository.findByUserId(TEST_USER_ID)).willReturn(Optional.of(user));
+            given(passwordEncoderPort.matches(TEST_PASSWORD, "encoded-password")).willReturn(true);
+
+            // when
+            User result = userService.login(TEST_USER_ID, TEST_PASSWORD);
+
+            // then
+            assertThat(result).isNotNull();
+            assertThat(result.getUserId()).isEqualTo(TEST_USER_ID);
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 사용자")
+        void failWithUserNotFound() {
+            // given
+            given(userRepository.findByUserId("nonexistent")).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> userService.login("nonexistent", TEST_PASSWORD))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 비밀번호 불일치")
+        void failWithPasswordMismatch() {
+            // given
+            User user = createUser();
+            given(userRepository.findByUserId(TEST_USER_ID)).willReturn(Optional.of(user));
+            given(passwordEncoderPort.matches("wrong-password", "encoded-password")).willReturn(false);
+
+            // when & then
+            assertThatThrownBy(() -> userService.login(TEST_USER_ID, "wrong-password"))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.PASSWORD_MISMATCH);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 비활성화된 계정")
+        void failWithInactiveUser() {
+            // given
+            User user = createUser();
+            user.inactivate();
+            given(userRepository.findByUserId(TEST_USER_ID)).willReturn(Optional.of(user));
+
+            // when & then
+            assertThatThrownBy(() -> userService.login(TEST_USER_ID, TEST_PASSWORD))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_INACTIVE);
                     });
         }
     }
