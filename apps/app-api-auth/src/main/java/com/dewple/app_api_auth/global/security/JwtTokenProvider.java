@@ -18,19 +18,19 @@ public class JwtTokenProvider {
     private final JwtEncoder jwtEncoder;
     private final JwtProperties jwtProperties;
 
-    public String generateAccessToken(Long userId) {
-        return generateToken(userId, jwtProperties.accessTokenExpiry(), "access");
+    public String generateAccessToken(Long id) {
+        return generateToken(id, jwtProperties.accessTokenExpiry(), "access");
     }
 
-    public String generateRefreshToken(Long userId) {
-        return generateToken(userId, jwtProperties.refreshTokenExpiry(), "refresh");
+    public String generateRefreshToken(Long id) {
+        return generateToken(id, jwtProperties.refreshTokenExpiry(), "refresh");
     }
 
-    private String generateToken(Long userId, long expirySeconds, String tokenType) {
+    private String generateToken(Long id, long expirySeconds, String tokenType) {
         Instant now = Instant.now();
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
-                .subject(userId.toString())
+                .subject(id.toString())
                 .issuedAt(now)
                 .expiresAt(now.plusSeconds(expirySeconds))
                 .claim("type", tokenType)

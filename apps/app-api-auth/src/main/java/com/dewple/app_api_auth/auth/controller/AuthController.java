@@ -58,7 +58,7 @@ public class AuthController {
 
     @Operation(summary = "회원가입 (1단계)", description = "필수 정보를 입력하여 계정을 생성하고 JWT를 헤더로 발급합니다.")
     @PostMapping("/signup")
-    public ApiResponse<SignupResponse> signup(
+    public ApiResponse<Void> signup(
             @Valid @RequestBody SignupRequest request,
             HttpServletResponse response
     ) {
@@ -79,7 +79,7 @@ public class AuthController {
         response.setHeader("Authorization", "Bearer " + accessToken);
         response.setHeader("Authorization-Refresh", "Bearer " + refreshToken);
 
-        return ApiResponse.ok(new SignupResponse(user.getUserId()));
+        return ApiResponse.ok();
     }
 
     @Operation(summary = "아이디 중복 확인", description = "사용 가능한 아이디인지 확인합니다.")
@@ -97,10 +97,10 @@ public class AuthController {
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody UpdateProfileRequest request
     ) {
-        Long userId = Long.parseLong(jwt.getSubject());
+        Long id = Long.parseLong(jwt.getSubject());
 
         User user = userService.updateProfile(
-                userId,
+                id,
                 request.nickname(),
                 request.email(),
                 request.birthdate(),
@@ -111,7 +111,6 @@ public class AuthController {
         );
 
         return ApiResponse.ok(new UpdateProfileResponse(
-                user.getUserId(),
                 user.getNickname(),
                 user.getEmail()
         ));
