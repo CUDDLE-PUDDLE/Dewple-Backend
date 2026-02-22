@@ -171,37 +171,4 @@ public class AuthController {
         return ApiResponse.ok();
     }
 
-    @Operation(summary = "아이디 중복 확인", description = "사용 가능한 아이디인지 확인합니다.")
-    @GetMapping("/check-userid")
-    public ApiResponse<CheckUserIdResponse> checkUserId(
-            @RequestParam String userId
-    ) {
-        boolean isAvailable = userService.isUserIdAvailable(userId);
-        return ApiResponse.ok(new CheckUserIdResponse(isAvailable));
-    }
-
-    @Operation(summary = "프로필 설정 (2단계)", description = "선택 정보를 입력하여 프로필을 설정합니다.")
-    @PatchMapping("/signup/profile")
-    public ApiResponse<UpdateProfileResponse> updateProfile(
-            @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody UpdateProfileRequest request
-    ) {
-        Long id = Long.parseLong(jwt.getSubject());
-
-        User user = userService.updateProfile(
-                id,
-                request.nickname(),
-                request.email(),
-                request.birthdate(),
-                request.gender(),
-                request.university(),
-                request.isGraduated(),
-                request.workplace()
-        );
-
-        return ApiResponse.ok(new UpdateProfileResponse(
-                user.getNickname(),
-                user.getEmail()
-        ));
-    }
 }

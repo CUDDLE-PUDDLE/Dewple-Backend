@@ -1,4 +1,4 @@
-package com.dewple.app_api_auth.auth.dto;
+package com.dewple.app_api_auth.api.user.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

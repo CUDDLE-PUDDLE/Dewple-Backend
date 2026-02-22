@@ -32,9 +32,10 @@ public class SecurityConfig {
                     // Auth APIs (인증 불필요)
                     "/auth/verifications/**",
                     "/auth/signup",
-                    "/auth/check-userid",
                     "/auth/login",
-                    "/auth/token/refresh"
+                    "/auth/token/refresh",
+                    // User APIs (인증 불필요)
+                    "/users/check-userid"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

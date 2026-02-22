@@ -4,8 +4,6 @@ import com.dewple.app_api_auth.global.config.JwtProperties;
 import com.dewple.app_api_auth.global.config.SecurityConfig;
 import com.dewple.app_api_auth.global.security.JwtTokenProvider;
 import com.dewple.common.entity.User;
-import com.dewple.common.enums.Gender;
-import com.dewple.common.enums.University;
 import com.dewple.common.enums.VerificationPurpose;
 import com.dewple.common.enums.VerificationType;
 import com.dewple.common.exception.BusinessException;
@@ -31,7 +29,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Optional;
@@ -446,106 +443,6 @@ class AuthControllerTest {
                                     "passwordConfirm", "simple"
                             ))))
                     .andExpect(status().isBadRequest());
-        }
-    }
-
-    @Nested
-    @DisplayName("GET /auth/check-userid - 아이디 중복 확인")
-    class CheckUserId {
-
-        @Test
-        @DisplayName("성공: 사용 가능한 아이디")
-        void available() throws Exception {
-            // given
-            given(userService.isUserIdAvailable("dewple123")).willReturn(true);
-
-            // when & then
-            mockMvc.perform(get("/auth/check-userid")
-                            .param("userId", "dewple123"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(1000))
-                    .andExpect(jsonPath("$.result.isAvailable").value(true));
-        }
-
-        @Test
-        @DisplayName("성공: 이미 사용 중인 아이디")
-        void notAvailable() throws Exception {
-            // given
-            given(userService.isUserIdAvailable("existing")).willReturn(false);
-
-            // when & then
-            mockMvc.perform(get("/auth/check-userid")
-                            .param("userId", "existing"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(1000))
-                    .andExpect(jsonPath("$.result.isAvailable").value(false));
-        }
-    }
-
-    @Nested
-    @DisplayName("PATCH /auth/signup/profile - 프로필 설정")
-    class UpdateProfile {
-
-        @Test
-        @DisplayName("성공: 프로필 업데이트")
-        void success() throws Exception {
-            // given
-            User user = createUser();
-            ReflectionTestUtils.setField(user, "id", 1L);
-            user.updateProfile("듀플러", "test@example.com",
-                    LocalDate.of(2000, 1, 1), Gender.MALE,
-                    University.SEOUL_NATIONAL, false, "듀플");
-
-            given(userService.updateProfile(eq(1L), eq("듀플러"), eq("test@example.com"),
-                    eq(LocalDate.of(2000, 1, 1)), eq(Gender.MALE),
-                    eq(University.SEOUL_NATIONAL), eq(false), eq("듀플")))
-                    .willReturn(user);
-
-            // when & then
-            mockMvc.perform(patch("/auth/signup/profile")
-                            .with(jwt().jwt(j -> j.subject("1")))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(Map.of(
-                                    "nickname", "듀플러",
-                                    "email", "test@example.com",
-                                    "birthdate", "2000-01-01",
-                                    "gender", "MALE",
-                                    "university", "SEOUL_NATIONAL",
-                                    "isGraduated", false,
-                                    "workplace", "듀플"
-                            ))))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(1000))
-                    .andExpect(jsonPath("$.result.nickname").value("듀플러"))
-                    .andExpect(jsonPath("$.result.email").value("test@example.com"));
-        }
-
-        @Test
-        @DisplayName("실패: 인증 없이 요청")
-        void failWithoutAuth() throws Exception {
-            mockMvc.perform(patch("/auth/signup/profile")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(Map.of(
-                                    "nickname", "듀플러"
-                            ))))
-                    .andExpect(status().isUnauthorized());
-        }
-
-        @Test
-        @DisplayName("실패: 이미 사용 중인 닉네임")
-        void failWithNicknameAlreadyExists() throws Exception {
-            // given
-            given(userService.updateProfile(eq(1L), eq("듀플러"), isNull(),
-                    isNull(), isNull(), isNull(), isNull(), isNull()))
-                    .willThrow(new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS));
-
-            // when & then
-            mockMvc.perform(patch("/auth/signup/profile")
-                            .with(jwt().jwt(j -> j.subject("1")))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"nickname\":\"듀플러\"}"))
-                    .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.code").value(4103));
         }
     }
 

@@ -1,4 +1,4 @@
-package com.dewple.app_api_auth.auth.dto;
+package com.dewple.app_api_auth.api.user.dto;
 
 import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.University;
@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
-@Schema(description = "프로필 설정 요청 (2단계)")
+@Schema(description = "프로필 설정 요청")
 public record UpdateProfileRequest(
         @Schema(description = "닉네임", example = "듀플러")
         @Size(min = 2, max = 20, message = "닉네임은 2~20자 이내여야 합니다.")
