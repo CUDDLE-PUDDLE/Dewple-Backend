@@ -5,6 +5,7 @@ import com.dewple.common.enums.VerificationType;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.Verification;
 import com.dewple.user.exception.UserErrorCode;
+import com.dewple.user.port.EmailVerificationPort;
 import com.dewple.user.port.SmsVerificationPort;
 import com.dewple.user.repository.VerificationRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -37,11 +38,15 @@ class VerificationServiceTest {
     @Mock
     private SmsVerificationPort smsVerificationPort;
 
+    @Mock
+    private EmailVerificationPort emailVerificationPort;
+
     @InjectMocks
     private VerificationService verificationService;
 
     private static final String TEST_PHONE = "010-1234-5678";
     private static final String TEST_PHONE_NORMALIZED = "01012345678";
+    private static final String TEST_EMAIL = "user@example.com";
     private static final String TEST_CODE = "A1B2C3";
 
     @Nested
@@ -156,6 +161,82 @@ class VerificationServiceTest {
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
                         assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.SMS_SEND_FAILED);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("sendEmailVerificationCode - 이메일 인증 코드 발송")
+    class SendEmailVerificationCode {
+
+        @Test
+        @DisplayName("성공: 새로운 이메일 인증 코드 발송")
+        void success() {
+            // given
+            given(verificationRepository.findLatestByDataAndType(TEST_EMAIL, VerificationType.EMAIL))
+                    .willReturn(Optional.empty());
+            given(verificationRepository.save(any(Verification.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
+
+            // when
+            Verification result = verificationService.sendEmailVerificationCode(TEST_EMAIL, VerificationPurpose.SIGN_UP);
+
+            // then
+            assertThat(result).isNotNull();
+            assertThat(result.getPublicId()).isNotNull();
+
+            ArgumentCaptor<Verification> captor = ArgumentCaptor.forClass(Verification.class);
+            verify(verificationRepository).save(captor.capture());
+
+            Verification saved = captor.getValue();
+            assertThat(saved.getTarget()).isEqualTo(TEST_EMAIL);
+            assertThat(saved.getType()).isEqualTo(VerificationType.EMAIL);
+            assertThat(saved.getPurpose()).isEqualTo(VerificationPurpose.SIGN_UP);
+            assertThat(saved.getCode()).hasSize(6);
+            assertThat(saved.getCode()).matches("^[A-Z0-9]{6}$");
+
+            verify(emailVerificationPort).sendVerificationCode(eq(TEST_EMAIL), any());
+        }
+
+        @Test
+        @DisplayName("실패: 60초 이내 재요청 불가")
+        void failWithTooManyRequests() {
+            // given
+            Verification recentVerification = createEmailVerification(TEST_EMAIL, TEST_CODE);
+            ReflectionTestUtils.setField(recentVerification, "createdAt", OffsetDateTime.now().minusSeconds(30));
+
+            given(verificationRepository.findLatestByDataAndType(TEST_EMAIL, VerificationType.EMAIL))
+                    .willReturn(Optional.of(recentVerification));
+
+            // when & then
+            assertThatThrownBy(() -> verificationService.sendEmailVerificationCode(TEST_EMAIL, VerificationPurpose.SIGN_UP))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.TOO_MANY_VERIFICATION_REQUESTS);
+                    });
+
+            verify(verificationRepository, never()).save(any());
+            verify(emailVerificationPort, never()).sendVerificationCode(any(), any());
+        }
+
+        @Test
+        @DisplayName("실패: 이메일 발송 오류")
+        void failWithEmailSendError() {
+            // given
+            given(verificationRepository.findLatestByDataAndType(TEST_EMAIL, VerificationType.EMAIL))
+                    .willReturn(Optional.empty());
+            given(verificationRepository.save(any(Verification.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
+            doThrow(new RuntimeException("이메일 발송 실패"))
+                    .when(emailVerificationPort).sendVerificationCode(any(), any());
+
+            // when & then
+            assertThatThrownBy(() -> verificationService.sendEmailVerificationCode(TEST_EMAIL, VerificationPurpose.SIGN_UP))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.EMAIL_SEND_FAILED);
                     });
         }
     }
@@ -323,6 +404,17 @@ class VerificationServiceTest {
         Verification verification = Verification.builder()
                 .type(VerificationType.PHONE)
                 .target(phone)
+                .code(code)
+                .purpose(VerificationPurpose.SIGN_UP)
+                .build();
+        ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now());
+        return verification;
+    }
+
+    private Verification createEmailVerification(String email, String code) {
+        Verification verification = Verification.builder()
+                .type(VerificationType.EMAIL)
+                .target(email)
                 .code(code)
                 .purpose(VerificationPurpose.SIGN_UP)
                 .build();
