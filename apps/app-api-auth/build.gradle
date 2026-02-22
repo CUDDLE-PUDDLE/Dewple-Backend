@@ -37,8 +37,9 @@ dependencies {
 	implementation 'org.flywaydb:flyway-database-postgresql'
 	runtimeOnly 'org.postgresql:postgresql'
 
-	// SQS Sender
+	// AWS
 	implementation "io.awspring.cloud:spring-cloud-aws-starter-sqs"
+	implementation "io.awspring.cloud:spring-cloud-aws-starter-ses"
 
 	// Swagger
 	implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.15"
