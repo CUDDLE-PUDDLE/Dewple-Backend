@@ -5,6 +5,7 @@ import com.dewple.common.enums.VerificationType;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.Verification;
 import com.dewple.user.exception.UserErrorCode;
+import com.dewple.user.port.EmailVerificationPort;
 import com.dewple.user.port.SmsVerificationPort;
 import com.dewple.user.repository.VerificationRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class VerificationService {
 
     private final VerificationRepository verificationRepository;
     private final SmsVerificationPort smsVerificationPort;
+    private final EmailVerificationPort emailVerificationPort;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
@@ -52,6 +54,32 @@ public class VerificationService {
         } catch (Exception e) {
             log.error("SMS 발송 실패: phone={}", maskPhone(normalizedPhone), e);
             throw new BusinessException(UserErrorCode.SMS_SEND_FAILED, e);
+        }
+
+        return verification;
+    }
+
+    @Transactional
+    public Verification sendEmailVerificationCode(String email, VerificationPurpose purpose) {
+        validateRequestCooldown(email, VerificationType.EMAIL);
+
+        String verificationCode = generateVerificationCode();
+
+        Verification verification = Verification.builder()
+                .type(VerificationType.EMAIL)
+                .target(email)
+                .code(verificationCode)
+                .purpose(purpose)
+                .build();
+
+        verificationRepository.save(verification);
+
+        try {
+            emailVerificationPort.sendVerificationCode(email, verificationCode);
+            log.info("이메일 인증 코드 발송 완료: email={}", maskEmail(email));
+        } catch (Exception e) {
+            log.error("이메일 발송 실패: email={}", maskEmail(email), e);
+            throw new BusinessException(UserErrorCode.EMAIL_SEND_FAILED, e);
         }
 
         return verification;
@@ -117,5 +145,17 @@ public class VerificationService {
             return "****";
         }
         return phone.substring(0, phone.length() - 4) + "****";
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) {
+            return "****";
+        }
+        String[] parts = email.split("@");
+        String local = parts[0];
+        if (local.length() <= 2) {
+            return "**@" + parts[1];
+        }
+        return local.substring(0, 2) + "****@" + parts[1];
     }
 }
