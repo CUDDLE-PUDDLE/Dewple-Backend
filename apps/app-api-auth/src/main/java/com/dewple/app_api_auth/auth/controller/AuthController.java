@@ -50,6 +50,21 @@ public class AuthController {
         ));
     }
 
+    @Operation(summary = "이메일 인증 코드 발송", description = "이메일로 영숫자 대문자 6자리 인증 코드를 발송합니다.")
+    @PostMapping("/verifications/email")
+    public ApiResponse<SendVerificationCodeResponse> sendEmailVerificationCode(
+            @Valid @RequestBody SendEmailVerificationCodeRequest request
+    ) {
+        Verification verification = verificationService.sendEmailVerificationCode(
+                request.email(), request.purpose());
+
+        return ApiResponse.ok(new SendVerificationCodeResponse(
+                verification.getPublicId().toString(),
+                verification.getTokenExpireAt(),
+                60
+        ));
+    }
+
     @Operation(summary = "인증 코드 확인", description = "발송된 인증 코드를 확인하고 본인인증 토큰을 발급합니다.")
     @PostMapping("/verifications/{verificationId}/confirm")
     public ApiResponse<ConfirmVerificationCodeResponse> confirmVerificationCode(
