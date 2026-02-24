@@ -15,11 +15,10 @@ import com.dewple.common.enums.Plan;
 import com.dewple.common.enums.University;
 
 @Entity
-@Table(name = "user")
+@Table(name = "users")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseEntity {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -30,23 +29,23 @@ public class User extends BaseEntity {
     @Column(name = "password", length = 255)
     private String password;
 
-    @Column(name = "profile_img", nullable = false, length = 255)
+    @Column(name = "profile_img", length = 255)
     private String profileImg;
 
     @Column(name = "name", nullable = false, length = 255)
     private String name;
 
-    @Column(name = "nickname", nullable = false, length = 255)
+    @Column(name = "nickname", length = 255)
     private String nickname;
 
-    @Column(name = "birthdate", nullable = false)
+    @Column(name = "birthdate")
     private LocalDate birthdate;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "gender", nullable = false, length = 20)
+    @Column(name = "gender", length = 20)
     private Gender gender;
 
-    @Column(name = "email", nullable = false, length = 50)
+    @Column(name = "email", length = 50)
     private String email;
 
     @Enumerated(EnumType.STRING)
@@ -66,11 +65,11 @@ public class User extends BaseEntity {
     @Column(name = "plan", nullable = false, length = 20)
     private Plan plan = Plan.FREE;
 
-    @Column(name = "self_introduction", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "self_introduction", columnDefinition = "TEXT")
     private String selfIntroduction;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "mbti", nullable = false)
+    @Column(name = "mbti")
     private Mbti mbti;
 
     @Column(name = "reputation_score", precision = 2, scale = 1)
@@ -98,5 +97,17 @@ public class User extends BaseEntity {
         this.selfIntroduction = selfIntroduction;
         this.mbti = mbti;
         this.reputationScore = reputationScore != null ? reputationScore : BigDecimal.valueOf(5.0);
+    }
+
+    public void updateProfile(String nickname, String email, LocalDate birthdate,
+                              Gender gender, University university, Boolean isGraduated,
+                              String workplace) {
+        this.nickname = nickname;
+        this.email = email;
+        this.birthdate = birthdate;
+        this.gender = gender;
+        this.university = university;
+        this.isGraduated = isGraduated;
+        this.workplace = workplace;
     }
 }

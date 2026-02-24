@@ -1,0 +1,156 @@
+package com.dewple.app_api_auth.api.user.controller;
+
+import com.dewple.app_api_auth.global.config.SecurityConfig;
+import com.dewple.common.entity.User;
+import com.dewple.common.enums.Gender;
+import com.dewple.common.enums.University;
+import com.dewple.common.exception.BusinessException;
+import com.dewple.user.exception.UserErrorCode;
+import com.dewple.user.service.UserService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDate;
+import java.util.Map;
+
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(UserController.class)
+@Import(SecurityConfig.class)
+class UserControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockitoBean
+    private UserService userService;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
+
+    @Nested
+    @DisplayName("GET /users/check-userid - 아이디 중복 확인")
+    class CheckUserId {
+
+        @Test
+        @DisplayName("성공: 사용 가능한 아이디")
+        void available() throws Exception {
+            // given
+            given(userService.isUserIdAvailable("dewple123")).willReturn(true);
+
+            // when & then
+            mockMvc.perform(get("/users/check-userid")
+                            .param("userId", "dewple123"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.isAvailable").value(true));
+        }
+
+        @Test
+        @DisplayName("성공: 이미 사용 중인 아이디")
+        void notAvailable() throws Exception {
+            // given
+            given(userService.isUserIdAvailable("existing")).willReturn(false);
+
+            // when & then
+            mockMvc.perform(get("/users/check-userid")
+                            .param("userId", "existing"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.isAvailable").value(false));
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /users/me/profile - 프로필 설정")
+    class UpdateProfile {
+
+        @Test
+        @DisplayName("성공: 프로필 업데이트")
+        void success() throws Exception {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+            user.updateProfile("듀플러", "test@example.com",
+                    LocalDate.of(2000, 1, 1), Gender.MALE,
+                    University.SEOUL_NATIONAL, false, "듀플");
+
+            given(userService.updateProfile(eq(1L), eq("듀플러"), eq("test@example.com"),
+                    eq(LocalDate.of(2000, 1, 1)), eq(Gender.MALE),
+                    eq(University.SEOUL_NATIONAL), eq(false), eq("듀플")))
+                    .willReturn(user);
+
+            // when & then
+            mockMvc.perform(patch("/users/me/profile")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "nickname", "듀플러",
+                                    "email", "test@example.com",
+                                    "birthdate", "2000-01-01",
+                                    "gender", "MALE",
+                                    "university", "SEOUL_NATIONAL",
+                                    "isGraduated", false,
+                                    "workplace", "듀플"
+                            ))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.nickname").value("듀플러"))
+                    .andExpect(jsonPath("$.result.email").value("test@example.com"));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuth() throws Exception {
+            mockMvc.perform(patch("/users/me/profile")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "nickname", "듀플러"
+                            ))))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 이미 사용 중인 닉네임")
+        void failWithNicknameAlreadyExists() throws Exception {
+            // given
+            given(userService.updateProfile(eq(1L), eq("듀플러"), isNull(),
+                    isNull(), isNull(), isNull(), isNull(), isNull()))
+                    .willThrow(new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS));
+
+            // when & then
+            mockMvc.perform(patch("/users/me/profile")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"nickname\":\"듀플러\"}"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value(4103));
+        }
+    }
+
+    private User createUser() {
+        return User.builder()
+                .userId("dewple123")
+                .password("encoded-password")
+                .name("홍길동")
+                .phone("01012345678")
+                .build();
+    }
+}

@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 @RequiredArgsConstructor
-public enum CommonErrorCode implements ErrorCode {
+public enum WebErrorCode implements ErrorCode {
 
     /**
      * 1000: 요청 성공 (OK)
@@ -29,12 +29,6 @@ public enum CommonErrorCode implements ErrorCode {
     DB_TEMPORARY_UNAVAILABLE(3001, HttpStatus.SERVICE_UNAVAILABLE, "일시적으로 데이터를 처리할 수 없습니다."),
     DB_CONSTRAINT_VIOLATE(3004, HttpStatus.BAD_REQUEST, "DB 무결성에 적합하지 않습니다."),
 
-    /**
-     * 4000: Authentication 오류
-     */
-    UNSUPPORTED_TOKEN_TYPE(4001, HttpStatus.UNAUTHORIZED, "지원되지 않는 토큰 형식입니다."),
-    INVALID_TOKEN(4002, HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다."),
-    EXPIRED_TOKEN(4003, HttpStatus.UNAUTHORIZED, "만료된 token 입니다."),
     ;
 
     private final int code;
