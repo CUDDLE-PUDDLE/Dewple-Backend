@@ -18,16 +18,6 @@ jobs:
           java-version: '21'
           distribution: 'corretto'
 
-      - name: Set application-dev.yaml for app-api-auth
-        env:
-          APPLICATION_DEV_YML: ${{ secrets.APPLICATION_DEV_API_YML }}
-        run: echo "$APPLICATION_DEV_YML" > apps/app-api-auth/src/main/resources/application-dev.yaml
-
-      - name: Set application-dev.yaml for app-worker
-        env:
-          APPLICATION_WORKER_YML: ${{ secrets.APPLICATION_DEV_WORKER_YML }}
-        run: echo "$APPLICATION_WORKER_YML" > apps/app-worker/src/main/resources/application-dev.yaml
-
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -44,4 +34,16 @@ jobs:
       - name: Run tests
         env:
           SPRING_PROFILES_ACTIVE: dev
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SOLAPI_API_KEY: ${{ secrets.SOLAPI_API_KEY }}
+          SOLAPI_API_SECRET: ${{ secrets.SOLAPI_API_SECRET }}
+          SOLAPI_SENDER_PHONE: ${{ secrets.SOLAPI_SENDER_PHONE }}
+          SES_SENDER_EMAIL: ${{ secrets.SES_SENDER_EMAIL }}
         run: ./gradlew test

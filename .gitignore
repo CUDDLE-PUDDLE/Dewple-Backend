@@ -38,8 +38,4 @@ Thumbs.db
 *.log
 logs/
 
-# Application - 환경별 설정 파일
-# 로컬 개발 환경 설정은 git에 포함하지 않음
 application-local.yaml
-application-dev.yaml
-application-prod.yaml
