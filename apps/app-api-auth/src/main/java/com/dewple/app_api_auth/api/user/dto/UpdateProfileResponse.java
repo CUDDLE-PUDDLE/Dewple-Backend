@@ -1,0 +1,13 @@
+package com.dewple.app_api_auth.api.user.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "프로필 설정 응답")
+public record UpdateProfileResponse(
+        @Schema(description = "닉네임")
+        String nickname,
+
+        @Schema(description = "이메일")
+        String email
+) {
+}

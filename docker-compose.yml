@@ -1,0 +1,18 @@
+services:
+  app-api-auth:
+    image: ${ECR_REGISTRY}/dewple-api-auth:latest
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    restart: unless-stopped
+
+  app-worker:
+    image: ${ECR_REGISTRY}/dewple-worker:latest
+    ports:
+      - "8081:8081"
+    env_file: .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    restart: unless-stopped

@@ -1,0 +1,34 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'Common Module - 공통 엔티티, 예외, 유틸리티'
+
+dependencies {
+    // Spring Data JPA
+    api 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // Jakarta Persistence API
+    api 'jakarta.persistence:jakarta.persistence-api'
+
+    // Hibernate (for JSONB support)
+    implementation 'org.hibernate.orm:hibernate-core'
+
+    // PostgreSQL Driver (optional, for runtime)
+    runtimeOnly 'org.postgresql:postgresql'
+    
+    // Web (HttpStatus - 컴파일만, 런타임은 apps에서 제공)
+    compileOnly 'org.springframework:spring-web'
+
+    // JPA (BaseTimeEntity 등)
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // Validation
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // QueryDSL
+    api 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
+    annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jakarta'
+    annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
+    annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
+}

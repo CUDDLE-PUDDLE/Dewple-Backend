@@ -1,0 +1,13 @@
+description = 'Recruitment Module - 모집 도메인 (모집 공고, 지원서, 버전 관리)'
+
+dependencies {
+    implementation project(":modules:common")
+    implementation project(":modules:club")
+    implementation project(":modules:activity")
+
+    // JPA
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // Validation
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+}

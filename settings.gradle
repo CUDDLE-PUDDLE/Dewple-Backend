@@ -1,10 +1,15 @@
 rootProject.name = "dewple-backend"
 
 include(
+        // Apps (실행 가능한 애플리케이션)
         "apps:app-api-auth",
         "apps:app-worker",
+
+        // Modules (도메인 모듈)
         "modules:common",
-        "modules:security-common",
-        "modules:notification-client",
-        "modules:auth-server"
+        "modules:user",
+        "modules:club",
+        "modules:activity",
+        "modules:organization",
+        "modules:recruitment"
 )

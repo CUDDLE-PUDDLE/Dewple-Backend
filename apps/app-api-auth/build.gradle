@@ -13,10 +13,13 @@ configurations {
 }
 
 dependencies {
+	// Domain Modules
 	implementation project(":modules:common")
-	implementation project(":modules:security-common")
-	implementation project(":modules:notification-client")
-	implementation project(":modules:auth-server")
+	implementation project(":modules:user")
+	implementation project(":modules:club")
+	implementation project(":modules:activity")
+	implementation project(":modules:organization")
+	implementation project(":modules:recruitment")
 
 	// Web/API
 	implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -32,14 +35,17 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
-	runtimeOnly 'com.h2database:h2'
 	runtimeOnly 'org.postgresql:postgresql'
 
-	// SQS Sender
+	// AWS
 	implementation "io.awspring.cloud:spring-cloud-aws-starter-sqs"
+	implementation "io.awspring.cloud:spring-cloud-aws-starter-ses"
 
 	// Swagger
 	implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.15"
+
+	// SOLAPI SMS
+	implementation "net.nurigo:sdk:4.2.7"
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
