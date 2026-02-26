@@ -4,3 +4,8 @@ spring:
     group:
       "local": "localPort, localRDB, localJPA, localAws, localSecret, localSMS, localSES"
       "dev": "devPort, devRDB, devJPA, devAws, devSecret, devSMS, devSES"
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC

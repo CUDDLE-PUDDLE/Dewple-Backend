@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +47,12 @@ public class RecruitmentProcess extends BaseEntity {
     @Column(name = "end_at", columnDefinition = "timestamptz")
     private OffsetDateTime endAt;
 
+    @Column(name = "interview_start_time")
+    private LocalTime interviewStartTime;
+
+    @Column(name = "interview_end_time")
+    private LocalTime interviewEndTime;
+
 
     @OneToMany(mappedBy = "recruitmentProcess", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RecruitmentSchema> recruitmentSchemas = new ArrayList<>();
@@ -54,7 +61,8 @@ public class RecruitmentProcess extends BaseEntity {
     @Builder
     public RecruitmentProcess(RecruitmentPosting posting, Integer processOrder, String name,
                               String description, ProcessType processType,
-                              OffsetDateTime startAt, OffsetDateTime endAt) {
+                              OffsetDateTime startAt, OffsetDateTime endAt,
+                              LocalTime interviewStartTime, LocalTime interviewEndTime) {
         
         validatePeriod(startAt, endAt);
         this.posting = posting;
@@ -64,6 +72,8 @@ public class RecruitmentProcess extends BaseEntity {
         this.processType = processType;
         this.startAt = startAt;
         this.endAt = endAt;
+        this.interviewStartTime = interviewStartTime;
+        this.interviewEndTime = interviewEndTime;
     }
 
     private void validatePeriod(OffsetDateTime startAt, OffsetDateTime endAt) {

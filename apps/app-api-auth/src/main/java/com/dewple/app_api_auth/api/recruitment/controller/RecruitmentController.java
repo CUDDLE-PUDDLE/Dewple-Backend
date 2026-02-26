@@ -1,0 +1,117 @@
+package com.dewple.app_api_auth.api.recruitment.controller;
+
+import com.dewple.app_api_auth.api.recruitment.dto.CreateRecruitmentRequest;
+import com.dewple.app_api_auth.api.recruitment.dto.RecruitmentPostingResponse;
+import com.dewple.app_api_auth.api.recruitment.dto.UpdateRecruitmentRequest;
+import com.dewple.app_api_auth.global.response.ApiResponse;
+import com.dewple.recruitment.entity.RecruitmentPosting;
+import com.dewple.recruitment.service.RecruitmentService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.*;
+
+@Tag(name = "Recruitment", description = "공고 API")
+@RestController
+@RequiredArgsConstructor
+public class RecruitmentController {
+
+    private final RecruitmentService recruitmentService;
+    private final ObjectMapper objectMapper;
+
+    @Operation(summary = "모집 공고 생성", description = "모집 공고를 생성하고 즉시 발행합니다.")
+    @PostMapping("/clubs/{clubId}/recruitment-posts")
+    public ResponseEntity<ApiResponse<RecruitmentPostingResponse>> createRecruitment(
+            @PathVariable Long clubId,
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody CreateRecruitmentRequest request) throws JsonProcessingException {
+
+        Long creatorId = Long.parseLong(jwt.getSubject());
+
+        RecruitmentPosting posting = recruitmentService.createRecruitment(clubId, creatorId, request.toCommand(objectMapper));
+
+        return ResponseEntity.ok(ApiResponse.ok(toResponse(posting)));
+    }
+
+    @Operation(summary = "모집 공고 임시 저장", description = "모집 공고를 초안 상태로 임시 저장합니다. postingId가 없으면 새 초안을 생성하고, 있으면 기존 초안을 업데이트합니다.")
+    @PutMapping("/clubs/{clubId}/recruitment-posts")
+    public ResponseEntity<ApiResponse<RecruitmentPostingResponse>> temporaryStorageRecruitment(
+            @PathVariable Long clubId,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) Long postingId,
+            @Valid @RequestBody CreateRecruitmentRequest request) throws JsonProcessingException {
+
+        Long creatorId = Long.parseLong(jwt.getSubject());
+
+        RecruitmentPosting posting = recruitmentService.temporaryStorageRecruitment(clubId, creatorId, postingId, request.toCommand(objectMapper));
+
+        return ResponseEntity.ok(ApiResponse.ok(toResponse(posting)));
+    }
+
+    @Operation(summary = "모집 공고 발행", description = "임시 저장된 초안 공고를 발행합니다.")
+    @PostMapping("/clubs/{clubId}/recruitment-posts/{postingId}/publish")
+    public ResponseEntity<ApiResponse<RecruitmentPostingResponse>> publishRecruitment(
+            @PathVariable Long clubId,
+            @PathVariable Long postingId,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long creatorId = Long.parseLong(jwt.getSubject());
+
+        RecruitmentPosting posting = recruitmentService.publishRecruitment(clubId, creatorId, postingId);
+
+        return ResponseEntity.ok(ApiResponse.ok(toResponse(posting)));
+    }
+
+    @Operation(summary = "모집 공고 수정", description = "발행된 모집 공고의 제목, 본문, 지원서 양식을 수정합니다.\n사용자가 작성자랑 달라도, 공고 권한이 있으면 수정 가능합니다.\n컴포넌트의 삭제는 불가합니다.")
+    @PatchMapping("/clubs/{clubId}/recruitment-posts/{postingId}")
+    public ResponseEntity<ApiResponse<RecruitmentPostingResponse>> updateRecruitment(
+            @PathVariable Long clubId,
+            @PathVariable Long postingId,
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody UpdateRecruitmentRequest request) throws JsonProcessingException {
+
+        Long creatorId = Long.parseLong(jwt.getSubject());
+
+        RecruitmentPosting posting = recruitmentService.updateRecruitment(clubId, creatorId, postingId, request.toCommand(objectMapper));
+
+        return ResponseEntity.ok(ApiResponse.ok(toResponse(posting)));
+    }
+
+    @Operation(summary = "모집 공고 조기 마감", description = "마감 기한 전에 모집 공고를 조기 마감합니다.")
+    @PostMapping("/clubs/{clubId}/recruitment-posts/{postingId}/close")
+    public ResponseEntity<ApiResponse<RecruitmentPostingResponse>> closeRecruitment(
+            @PathVariable Long clubId,
+            @PathVariable Long postingId,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long userId = Long.parseLong(jwt.getSubject());
+
+        RecruitmentPosting posting = recruitmentService.closeRecruitment(clubId, userId, postingId);
+
+        return ResponseEntity.ok(ApiResponse.ok(toResponse(posting)));
+    }
+
+    @Operation(summary = "모집 공고 삭제", description = "모집 공고를 삭제합니다. 사용자가 작성자랑 달라도, 공고 권한이 있으면 삭제 가능합니다.")
+    @DeleteMapping("/clubs/{clubId}/recruitment-posts/{postingId}")
+    public ResponseEntity<ApiResponse<RecruitmentPostingResponse>> deleteRecruitment(
+            @PathVariable Long clubId,
+            @PathVariable Long postingId,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long creatorId = Long.parseLong(jwt.getSubject());
+
+        RecruitmentPosting posting = recruitmentService.deleteRecruitment(clubId, creatorId, postingId);
+
+        return ResponseEntity.ok(ApiResponse.ok(toResponse(posting)));
+    }
+
+    private RecruitmentPostingResponse toResponse(RecruitmentPosting posting) {
+        return new RecruitmentPostingResponse(posting.getId(), posting.getRecentRecruitmentVersion());
+    }
+}
