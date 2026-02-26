@@ -1,11 +1,14 @@
 package com.dewple.user.service;
 
+import com.dewple.common.entity.Category;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.University;
 import com.dewple.common.exception.BusinessException;
+import com.dewple.user.entity.UserCategory;
 import com.dewple.user.exception.UserErrorCode;
 import com.dewple.user.port.PasswordEncoderPort;
+import com.dewple.user.repository.UserCategoryRepository;
 import com.dewple.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -18,6 +21,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,6 +36,9 @@ class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private UserCategoryRepository userCategoryRepository;
 
     @Mock
     private VerificationService verificationService;
@@ -301,6 +309,105 @@ class UserServiceTest {
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
                         assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_INACTIVE);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("getMyProfile - 내 프로필 조회")
+    class GetMyProfile {
+
+        @Test
+        @DisplayName("성공: 모든 필드가 채워진 사용자 + 관심 분야 포함")
+        void successWithFullProfile() {
+            // given
+            User user = User.builder()
+                    .userId(TEST_USER_ID)
+                    .password("encoded-password")
+                    .name(TEST_NAME)
+                    .phone(TEST_PHONE)
+                    .nickname("듀플러")
+                    .email("test@example.com")
+                    .birthdate(LocalDate.of(2000, 1, 1))
+                    .build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            Category category1 = Category.builder().name("개발").build();
+            Category category2 = Category.builder().name("디자인").build();
+            UserCategory uc1 = UserCategory.builder().user(user).category(category1).build();
+            UserCategory uc2 = UserCategory.builder().user(user).category(category2).build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userCategoryRepository.findByUserId(1L)).willReturn(List.of(uc1, uc2));
+
+            // when
+            MyProfileResult result = userService.getMyProfile(1L);
+
+            // then
+            assertThat(result.user().getName()).isEqualTo(TEST_NAME);
+            assertThat(result.user().getNickname()).isEqualTo("듀플러");
+            assertThat(result.user().getEmail()).isEqualTo("test@example.com");
+            assertThat(result.user().getPhone()).isEqualTo(TEST_PHONE);
+            assertThat(result.user().getBirthdate()).isEqualTo(LocalDate.of(2000, 1, 1));
+            assertThat(result.interests()).containsExactly("개발", "디자인");
+        }
+
+        @Test
+        @DisplayName("성공: 선택 필드가 null인 사용자 (회원가입 직후)")
+        void successWithMinimalProfile() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userCategoryRepository.findByUserId(1L)).willReturn(Collections.emptyList());
+
+            // when
+            MyProfileResult result = userService.getMyProfile(1L);
+
+            // then
+            assertThat(result.user().getName()).isEqualTo(TEST_NAME);
+            assertThat(result.user().getPhone()).isEqualTo(TEST_PHONE);
+            assertThat(result.user().getNickname()).isNull();
+            assertThat(result.user().getEmail()).isNull();
+            assertThat(result.user().getBirthdate()).isNull();
+            assertThat(result.user().getGender()).isNull();
+            assertThat(result.user().getUniversity()).isNull();
+            assertThat(result.user().getIsGraduated()).isNull();
+            assertThat(result.user().getWorkplace()).isNull();
+            assertThat(result.user().getSelfIntroduction()).isNull();
+            assertThat(result.user().getMbti()).isNull();
+            assertThat(result.user().getProfileImg()).isNull();
+            assertThat(result.interests()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("성공: 관심 분야가 없는 사용자")
+        void successWithNoInterests() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userCategoryRepository.findByUserId(1L)).willReturn(Collections.emptyList());
+
+            // when
+            MyProfileResult result = userService.getMyProfile(1L);
+
+            // then
+            assertThat(result.interests()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 사용자")
+        void failWithUserNotFound() {
+            // given
+            given(userRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> userService.getMyProfile(999L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
                     });
         }
     }
