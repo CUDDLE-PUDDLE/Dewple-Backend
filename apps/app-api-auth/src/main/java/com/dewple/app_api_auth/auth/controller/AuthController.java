@@ -138,7 +138,6 @@ public class AuthController {
     }
 
     @Operation(summary = "토큰 재발급", description = "리프레시 토큰으로 새로운 액세스 토큰과 리프레시 토큰을 발급합니다. (RTR)")
-    @SecurityRequirement(name = BEARER_AUTH)
     @PostMapping("/token/refresh")
     public ApiResponse<Void> refreshToken(
             @Valid @RequestBody RefreshTokenRequest request,

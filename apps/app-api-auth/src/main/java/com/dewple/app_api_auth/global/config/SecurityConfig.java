@@ -33,6 +33,7 @@ public class SecurityConfig {
                     "/auth/verifications/**",
                     "/auth/signup",
                     "/auth/login",
+                    "/auth/token/refresh",
                     // User APIs (인증 불필요)
                     "/users/check-userid"
                 ).permitAll()
