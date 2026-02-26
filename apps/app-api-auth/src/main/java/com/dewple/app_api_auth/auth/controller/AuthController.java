@@ -19,7 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.dewple.app_api_auth.global.security.CurrentUserId;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
@@ -131,8 +131,7 @@ public class AuthController {
     @Operation(summary = "로그아웃", description = "해당 사용자의 모든 리프레시 토큰을 삭제합니다.")
     @SecurityRequirement(name = BEARER_AUTH)
     @PostMapping("/logout")
-    public ApiResponse<Void> logout(@AuthenticationPrincipal Jwt jwt) {
-        Long userId = Long.parseLong(jwt.getSubject());
+    public ApiResponse<Void> logout(@CurrentUserId Long userId) {
         refreshTokenService.deleteAllByUserId(userId);
 
         return ApiResponse.ok();

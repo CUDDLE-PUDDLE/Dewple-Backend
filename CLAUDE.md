@@ -174,7 +174,21 @@ modules/{domain}/
 - `RefreshToken` 엔티티로 DB 관리 (멀티 디바이스 동시 로그인 지원)
 - `SecurityConfig`에서 인증 불필요 경로를 `permitAll`로 명시 등록
 - **API 인증 규칙**: `/auth/**` 로 시작하는 엔드포인트(로그아웃 제외)와 일부 공개 엔드포인트(`/users/check-userid`)를 제외한 모든 API는 요청 헤더에 `Authorization: Bearer {accessToken}`이 필수
-- **Swagger 인증 표시**: 인증이 필요한 엔드포인트에는 `@SecurityRequirement(name = BEARER_AUTH)` 어노테이션을 반드시 추가
+- **Swagger 인증 표시**: 인증이 필요한 엔드포인트에는 `@SecurityRequirement(name = BEARER_AUTH)` 어노테이션을 반드시 추가하여 Swagger UI에서 자물쇠 아이콘이 표시되도록 할 것
+
+#### `@CurrentUserId` 커스텀 어노테이션
+
+컨트롤러에서 인증된 사용자 ID를 간편하게 주입받기 위한 커스텀 어노테이션:
+
+```java
+// 사용 예시
+@GetMapping("/me")
+public ApiResponse<?> getMyProfile(@CurrentUserId Long userId) { ... }
+```
+
+- `CurrentUserId` (어노테이션): `global/security/CurrentUserId.java`
+- `CurrentUserIdResolver` (리졸버): `global/security/CurrentUserIdResolver.java` — `SecurityContextHolder`에서 JWT의 `sub` claim을 `Long`으로 변환
+- `WebMvcConfig`에서 리졸버 등록
 
 ### 코드 스타일
 
