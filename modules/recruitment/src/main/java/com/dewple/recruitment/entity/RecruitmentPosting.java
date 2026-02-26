@@ -90,6 +90,9 @@ public class RecruitmentPosting extends BaseEntity {
     @Column(name = "is_interview_required", nullable = false)
     private Boolean isInterviewRequired = false;
 
+    @Column(name = "view_count", nullable = false)
+    private Long viewCount = 0L;
+
 
     @OneToMany(mappedBy = "posting", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RecruitmentProcess> recruitmentProcesses = new ArrayList<>();
@@ -106,7 +109,7 @@ public class RecruitmentPosting extends BaseEntity {
                               RecruitmentStatus recruitmentStatus, Long recentRecruitmentVersion,
                               OffsetDateTime startAt, OffsetDateTime endAt,
                               LocalDate resultDate, LocalDate endOfGenerationDate,
-                              Boolean isInterviewRequired) {
+                              Boolean isInterviewRequired, Long viewCount) {
         validatePeriod(startAt, endAt);
         this.club = club;
         this.activity = activity;
@@ -125,6 +128,7 @@ public class RecruitmentPosting extends BaseEntity {
         this.resultDate = resultDate;
         this.endOfGenerationDate = endOfGenerationDate;
         this.isInterviewRequired = isInterviewRequired != null ? isInterviewRequired : false;
+        this.viewCount = viewCount != null ? viewCount : 0L;
     }
 
     private void validatePeriod(OffsetDateTime startAt, OffsetDateTime endAt) {

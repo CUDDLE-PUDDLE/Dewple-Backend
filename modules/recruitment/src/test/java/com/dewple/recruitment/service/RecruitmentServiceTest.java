@@ -818,6 +818,40 @@ class RecruitmentServiceTest {
         }
     }
 
+    // ========== incrementViewCount ==========
+
+    @Nested
+    @DisplayName("incrementViewCount - 공고 조회수 증가")
+    class IncrementViewCount {
+
+        @Test
+        @DisplayName("성공: 조회수 1 증가")
+        void success() {
+            // given - 업데이트 성공 (1행 변경)
+            given(recruitmentPostingRepository.incrementViewCount(POSTING_ID)).willReturn(1);
+
+            // when - 조회수 증가
+            recruitmentService.incrementViewCount(POSTING_ID);
+
+            // then - incrementViewCount가 호출됨
+            verify(recruitmentPostingRepository).incrementViewCount(POSTING_ID);
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 공고")
+        void fail_postingNotFound() {
+            // given - 업데이트 실패 (0행 변경)
+            given(recruitmentPostingRepository.incrementViewCount(999L)).willReturn(0);
+
+            // when - 존재하지 않는 공고 조회수 증가 시도
+            // then - POSTING_NOT_FOUND 예외 발생
+            assertThatThrownBy(() -> recruitmentService.incrementViewCount(999L))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorCode())
+                    .isEqualTo(RecruitmentErrorCode.POSTING_NOT_FOUND);
+        }
+    }
+
     // ========== deleteRecruitment ==========
 
     @Nested

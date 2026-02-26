@@ -356,6 +356,35 @@ class RecruitmentControllerTest {
     }
 
     @Nested
+    @DisplayName("POST /recruitment-posts/{postingId}/view — 공고 조회수 증가")
+    class IncrementViewCount {
+
+        @Test
+        @DisplayName("성공: 인증 없이 조회수 증가")
+        void success() throws Exception {
+            // when & then
+            mockMvc.perform(post("/recruitment-posts/{postingId}/view", 10L))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+
+            verify(recruitmentService).incrementViewCount(10L);
+        }
+
+        @Test
+        @DisplayName("실패: 서비스에서 POSTING_NOT_FOUND → 404, code=5007")
+        void failWithPostingNotFound() throws Exception {
+            // given
+            willThrow(new BusinessException(RecruitmentErrorCode.POSTING_NOT_FOUND))
+                    .given(recruitmentService).incrementViewCount(999L);
+
+            // when & then
+            mockMvc.perform(post("/recruitment-posts/{postingId}/view", 999L))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(5007));
+        }
+    }
+
+    @Nested
     @DisplayName("DELETE /clubs/{clubId}/recruitment-posts/{postingId} — 공고 삭제")
     class DeleteRecruitment {
 
