@@ -1,5 +1,7 @@
 package com.dewple.app_api_auth.auth.controller;
 
+import static com.dewple.app_api_auth.global.config.SwaggerConfig.BEARER_AUTH;
+
 import com.dewple.app_api_auth.auth.dto.*;
 import com.dewple.app_api_auth.global.config.JwtProperties;
 import com.dewple.app_api_auth.global.response.ApiResponse;
@@ -12,6 +14,7 @@ import com.dewple.user.service.RefreshTokenService;
 import com.dewple.user.service.UserService;
 import com.dewple.user.service.VerificationService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -126,6 +129,7 @@ public class AuthController {
     }
 
     @Operation(summary = "로그아웃", description = "해당 사용자의 모든 리프레시 토큰을 삭제합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
     @PostMapping("/logout")
     public ApiResponse<Void> logout(@AuthenticationPrincipal Jwt jwt) {
         Long userId = Long.parseLong(jwt.getSubject());
@@ -135,6 +139,7 @@ public class AuthController {
     }
 
     @Operation(summary = "토큰 재발급", description = "리프레시 토큰으로 새로운 액세스 토큰과 리프레시 토큰을 발급합니다. (RTR)")
+    @SecurityRequirement(name = BEARER_AUTH)
     @PostMapping("/token/refresh")
     public ApiResponse<Void> refreshToken(
             @Valid @RequestBody RefreshTokenRequest request,
