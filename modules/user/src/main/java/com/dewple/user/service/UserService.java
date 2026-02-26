@@ -6,7 +6,9 @@ import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.University;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
+import com.dewple.user.entity.UserCategory;
 import com.dewple.user.port.PasswordEncoderPort;
+import com.dewple.user.repository.UserCategoryRepository;
 import com.dewple.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -21,6 +24,7 @@ import java.time.LocalDate;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final UserCategoryRepository userCategoryRepository;
     private final VerificationService verificationService;
     private final PasswordEncoderPort passwordEncoderPort;
 
@@ -96,5 +100,17 @@ public class UserService {
     public User findById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+    }
+
+    @Transactional(readOnly = true)
+    public MyProfileResult getMyProfile(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        List<String> interests = userCategoryRepository.findByUserId(id).stream()
+                .map(uc -> uc.getCategory().getName())
+                .toList();
+
+        return new MyProfileResult(user, interests);
     }
 }
