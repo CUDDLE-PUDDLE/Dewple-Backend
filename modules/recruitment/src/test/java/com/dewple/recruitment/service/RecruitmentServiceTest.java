@@ -887,6 +887,131 @@ class RecruitmentServiceTest {
         }
     }
 
+    // ========== getPublicPostingList ==========
+
+    @Nested
+    @DisplayName("getPublicPostingList - 공개 공고 목록 조회")
+    class GetPublicPostingList {
+
+        @Test
+        @DisplayName("성공: OPEN 상태 공고 목록 조회 (마감 임박순 정렬)")
+        void success_openStatus() {
+            // given - OPEN 상태의 공고 2개 준비 (endAt이 다른)
+            RecruitmentPosting posting1 = createPostingWithStatusAndEndAt(
+                    RecruitmentStatus.OPEN, 1L,
+                    toUtcEndOfDay(LocalDate.of(2026, 4, 15)));
+            ReflectionTestUtils.setField(posting1, "id", 101L);
+
+            RecruitmentPosting posting2 = createPostingWithStatusAndEndAt(
+                    RecruitmentStatus.OPEN, 1L,
+                    toUtcEndOfDay(LocalDate.of(2026, 3, 31)));
+            ReflectionTestUtils.setField(posting2, "id", 102L);
+
+            given(recruitmentPostingRepository.findPostingsForPublicList(
+                    eq(CLUB_ID), eq(List.of(RecruitmentStatus.OPEN)), eq(BaseStatus.ACTIVE)))
+                    .willReturn(new java.util.ArrayList<>(List.of(posting1, posting2)));
+
+            // when - OPEN 상태 목록 조회
+            List<PublicPostingListResult> result = recruitmentService.getPublicPostingList(CLUB_ID, "OPEN");
+
+            // then - 마감 임박순(endAt ASC) 정렬: posting2(3/31)이 먼저
+            assertThat(result).hasSize(2);
+            assertThat(result.get(0).postingId()).isEqualTo(102L);
+            assertThat(result.get(1).postingId()).isEqualTo(101L);
+        }
+
+        @Test
+        @DisplayName("성공: CLOSED 상태 공고 목록 조회 (최근순 정렬)")
+        void success_closedStatus() {
+            // given - CLOSED/ARCHIVED 상태의 공고 2개 준비
+            RecruitmentPosting posting1 = createPostingWithStatusAndEndAt(
+                    RecruitmentStatus.CLOSED, 1L,
+                    toUtcEndOfDay(LocalDate.of(2026, 2, 28)));
+            ReflectionTestUtils.setField(posting1, "id", 101L);
+
+            RecruitmentPosting posting2 = createPostingWithStatusAndEndAt(
+                    RecruitmentStatus.ARCHIVED, 1L,
+                    toUtcEndOfDay(LocalDate.of(2026, 3, 15)));
+            ReflectionTestUtils.setField(posting2, "id", 102L);
+
+            given(recruitmentPostingRepository.findPostingsForPublicList(
+                    eq(CLUB_ID), eq(List.of(RecruitmentStatus.CLOSED, RecruitmentStatus.ARCHIVED)), eq(BaseStatus.ACTIVE)))
+                    .willReturn(new java.util.ArrayList<>(List.of(posting1, posting2)));
+
+            // when - CLOSED 상태 목록 조회
+            List<PublicPostingListResult> result = recruitmentService.getPublicPostingList(CLUB_ID, "CLOSED");
+
+            // then - 최근순(endAt DESC) 정렬: posting2(3/15)가 먼저
+            assertThat(result).hasSize(2);
+            assertThat(result.get(0).postingId()).isEqualTo(102L);
+            assertThat(result.get(1).postingId()).isEqualTo(101L);
+        }
+
+        @Test
+        @DisplayName("성공: 결과가 빈 리스트")
+        void success_emptyList() {
+            // given - 공고 없음
+            given(recruitmentPostingRepository.findPostingsForPublicList(
+                    eq(CLUB_ID), eq(List.of(RecruitmentStatus.OPEN)), eq(BaseStatus.ACTIVE)))
+                    .willReturn(new java.util.ArrayList<>());
+
+            // when - OPEN 상태 목록 조회
+            List<PublicPostingListResult> result = recruitmentService.getPublicPostingList(CLUB_ID, "OPEN");
+
+            // then - 빈 리스트 반환
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("실패: 잘못된 status 필터")
+        void fail_invalidStatusFilter() {
+            // when - 잘못된 status로 목록 조회
+            // then - INVALID_STATUS_FILTER 예외 발생
+            assertThatThrownBy(() -> recruitmentService.getPublicPostingList(CLUB_ID, "INVALID"))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorCode())
+                    .isEqualTo(RecruitmentErrorCode.INVALID_STATUS_FILTER);
+        }
+    }
+
+    // ========== getPublicPostingDetail ==========
+
+    @Nested
+    @DisplayName("getPublicPostingDetail - 공개 공고 상세 조회")
+    class GetPublicPostingDetail {
+
+        @Test
+        @DisplayName("성공: 공고 상세 조회")
+        void success() {
+            // given - OPEN 상태의 공고 준비
+            RecruitmentPosting posting = createPostingWithStatus(RecruitmentStatus.OPEN, 1L);
+            given(recruitmentPostingRepository.findPostingDetailForPublic(POSTING_ID, CLUB_ID, BaseStatus.ACTIVE))
+                    .willReturn(Optional.of(posting));
+
+            // when - 공고 상세 조회
+            PublicPostingDetailResult result = recruitmentService.getPublicPostingDetail(CLUB_ID, POSTING_ID);
+
+            // then - 조회 결과 반환
+            assertThat(result.postingId()).isEqualTo(POSTING_ID);
+            assertThat(result.title()).isEqualTo("기존 공고");
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 공고")
+        void fail_postingNotFound() {
+            // given - 공고 조회 결과 없음
+            given(recruitmentPostingRepository.findPostingDetailForPublic(999L, CLUB_ID, BaseStatus.ACTIVE))
+                    .willReturn(Optional.empty());
+
+            // when - 존재하지 않는 공고 상세 조회
+            // then - POSTING_NOT_FOUND 예외 발생
+            assertThatThrownBy(() -> recruitmentService.getPublicPostingDetail(CLUB_ID, 999L))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorCode())
+                    .isEqualTo(RecruitmentErrorCode.POSTING_NOT_FOUND);
+        }
+    }
+
     // ── Timezone Helper ──
 
     private static OffsetDateTime toUtcStartOfDay(LocalDate date) {
@@ -895,5 +1020,26 @@ class RecruitmentServiceTest {
 
     private static OffsetDateTime toUtcEndOfDay(LocalDate date) {
         return date.atTime(23, 59, 59).atZone(KST).toOffsetDateTime().withOffsetSameInstant(ZoneOffset.UTC);
+    }
+
+    private RecruitmentPosting createPostingWithStatusAndEndAt(RecruitmentStatus status, Long version, OffsetDateTime endAt) {
+        RecruitmentPosting posting = RecruitmentPosting.builder()
+                .club(club)
+                .generation(generation)
+                .creator(creator)
+                .title("공고")
+                .content("[{\"text\":\"본문\"}]")
+                .editWindowBasis(com.dewple.common.enums.EditWindowBasis.SUBMITTED)
+                .editWindowDays(0)
+                .capacity(5)
+                .recruitmentStatus(status)
+                .recentRecruitmentVersion(version)
+                .startAt(toUtcStartOfDay(LocalDate.of(2026, 1, 1)))
+                .endAt(endAt)
+                .resultDate(LocalDate.of(2026, 5, 1))
+                .endOfGenerationDate(LocalDate.of(2026, 8, 31))
+                .isInterviewRequired(false)
+                .build();
+        return posting;
     }
 }

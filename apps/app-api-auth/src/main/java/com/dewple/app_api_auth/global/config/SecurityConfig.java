@@ -2,6 +2,7 @@ package com.dewple.app_api_auth.global.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -39,6 +40,11 @@ public class SecurityConfig {
                     // Recruitment APIs (인증 불필요)
                     "/recruitment-posts/*/view"
                 ).permitAll()
+                // previous-form은 인증 필요 (permitAll보다 먼저 매칭)
+                .requestMatchers(HttpMethod.GET, "/clubs/*/recruitment-posts/previous-form").authenticated()
+                // 공개 조회 API (GET만 허용)
+                .requestMatchers(HttpMethod.GET, "/clubs/*/recruitment-posts").permitAll()
+                .requestMatchers(HttpMethod.GET, "/clubs/*/recruitment-posts/*").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

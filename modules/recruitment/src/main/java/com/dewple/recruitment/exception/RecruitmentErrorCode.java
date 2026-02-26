@@ -24,6 +24,7 @@ public enum RecruitmentErrorCode implements ErrorCode {
     POSTING_NOT_OPEN(5010, HttpStatus.BAD_REQUEST, "게시된 상태의 공고만 수정할 수 있습니다."),
     POSTING_ALREADY_CLOSED(5011, HttpStatus.BAD_REQUEST, "이미 마감된 공고입니다."),
     POSTING_NOT_EXPIRED(5012, HttpStatus.BAD_REQUEST, "마감 기한이 지난 공고는 조기 마감할 수 없습니다."),
+    INVALID_STATUS_FILTER(5013, HttpStatus.BAD_REQUEST, "상태 필터는 OPEN 또는 CLOSED만 가능합니다."),
     ;
 
     private final int code;

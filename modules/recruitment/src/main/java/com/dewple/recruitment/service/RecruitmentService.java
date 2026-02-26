@@ -7,6 +7,7 @@ import com.dewple.club.repository.ClubDepartmentRepository;
 import com.dewple.club.repository.ClubGenerationRepository;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.User;
+import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.enums.EditWindowBasis;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.enums.ProcessType;
@@ -247,6 +248,102 @@ public class RecruitmentService {
         if (updated == 0) {
             throw new BusinessException(RecruitmentErrorCode.POSTING_NOT_FOUND);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<PublicPostingListResult> getPublicPostingList(Long clubId, String status) {
+        List<RecruitmentStatus> statuses;
+        if ("OPEN".equalsIgnoreCase(status)) {
+            statuses = List.of(RecruitmentStatus.OPEN);
+        } else if ("CLOSED".equalsIgnoreCase(status)) {
+            statuses = List.of(RecruitmentStatus.CLOSED, RecruitmentStatus.ARCHIVED);
+        } else {
+            throw new BusinessException(RecruitmentErrorCode.INVALID_STATUS_FILTER);
+        }
+
+        List<RecruitmentPosting> postings = recruitmentPostingRepository
+                .findPostingsForPublicList(clubId, statuses, BaseStatus.ACTIVE);
+
+        if ("OPEN".equalsIgnoreCase(status)) {
+            postings.sort((a, b) -> a.getEndAt().compareTo(b.getEndAt()));
+        } else {
+            postings.sort((a, b) -> b.getEndAt().compareTo(a.getEndAt()));
+        }
+
+        return postings.stream()
+                .map(this::toPublicListResult)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PublicPostingDetailResult getPublicPostingDetail(Long clubId, Long postingId) {
+        RecruitmentPosting posting = recruitmentPostingRepository
+                .findPostingDetailForPublic(postingId, clubId, BaseStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.POSTING_NOT_FOUND));
+
+        return toPublicDetailResult(posting);
+    }
+
+    private PublicPostingListResult toPublicListResult(RecruitmentPosting posting) {
+        List<String> departments = posting.getRecruitmentDepartments().stream()
+                .map(rd -> rd.getDepartment().getName())
+                .toList();
+
+        return new PublicPostingListResult(
+                posting.getId(),
+                posting.getGeneration().getGenerationNo(),
+                posting.getTitle(),
+                posting.getEndAt(),
+                departments,
+                posting.getViewCount(),
+                posting.getRecruitmentStatus()
+        );
+    }
+
+    private PublicPostingDetailResult toPublicDetailResult(RecruitmentPosting posting) {
+        List<PublicPostingDetailResult.DepartmentInfo> departments = posting.getRecruitmentDepartments().stream()
+                .map(rd -> new PublicPostingDetailResult.DepartmentInfo(
+                        rd.getDepartment().getName(),
+                        rd.getCount()))
+                .toList();
+
+        List<PublicPostingDetailResult.ProcessInfo> processes = posting.getRecruitmentProcesses().stream()
+                .map(rp -> new PublicPostingDetailResult.ProcessInfo(
+                        rp.getProcessOrder(),
+                        rp.getName(),
+                        rp.getProcessType().name(),
+                        rp.getStartAt(),
+                        rp.getEndAt()))
+                .toList();
+
+        String applicationForm = posting.getRecruitmentProcesses().stream()
+                .filter(p -> p.getProcessType() == ProcessType.DOCUMENT)
+                .findFirst()
+                .flatMap(process -> process.getRecruitmentSchemas().stream()
+                        .reduce((a, b) -> a.getVersion() > b.getVersion() ? a : b))
+                .map(RecruitmentSchema::getApplicationForm)
+                .orElse(null);
+
+        return new PublicPostingDetailResult(
+                posting.getId(),
+                posting.getClub().getId(),
+                posting.getClub().getName(),
+                posting.getGeneration().getGenerationNo(),
+                posting.getTitle(),
+                posting.getContent(),
+                posting.getThemeColor(),
+                posting.getCapacity(),
+                posting.getStartAt(),
+                posting.getEndAt(),
+                posting.getResultDate(),
+                posting.getEndOfGenerationDate(),
+                posting.getIsInterviewRequired(),
+                departments,
+                processes,
+                applicationForm,
+                posting.getViewCount(),
+                posting.getRecruitmentStatus()
+        );
     }
 
     @RequireClubPermission(Permission.MANAGE_RECRUITMENT)

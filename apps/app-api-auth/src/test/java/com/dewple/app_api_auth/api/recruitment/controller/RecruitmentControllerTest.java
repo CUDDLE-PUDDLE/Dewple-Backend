@@ -385,6 +385,76 @@ class RecruitmentControllerTest {
     }
 
     @Nested
+    @DisplayName("GET /clubs/{clubId}/recruitment-posts — 공개 공고 목록 조회")
+    class GetPublicPostingList {
+
+        @Test
+        @DisplayName("성공: 인증 없이 OPEN 상태 공고 목록 조회")
+        void successWithoutAuth() throws Exception {
+            // given
+            given(recruitmentService.getPublicPostingList(1L, "OPEN"))
+                    .willReturn(List.of());
+
+            // when & then
+            mockMvc.perform(get("/clubs/{clubId}/recruitment-posts", 1L)
+                            .param("status", "OPEN"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result").isArray());
+
+            verify(recruitmentService).getPublicPostingList(1L, "OPEN");
+        }
+
+        @Test
+        @DisplayName("실패: 잘못된 status 필터 → 400, code=5013")
+        void failWithInvalidStatus() throws Exception {
+            // given
+            willThrow(new BusinessException(RecruitmentErrorCode.INVALID_STATUS_FILTER))
+                    .given(recruitmentService).getPublicPostingList(1L, "INVALID");
+
+            // when & then
+            mockMvc.perform(get("/clubs/{clubId}/recruitment-posts", 1L)
+                            .param("status", "INVALID"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value(5013));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /clubs/{clubId}/recruitment-posts/{postingId} — 공개 공고 상세 조회")
+    class GetPublicPostingDetail {
+
+        @Test
+        @DisplayName("성공: 인증 없이 공고 상세 조회")
+        void successWithoutAuth() throws Exception {
+            // given
+            com.dewple.recruitment.service.PublicPostingDetailResult result = createMockDetailResult(10L);
+            given(recruitmentService.getPublicPostingDetail(1L, 10L)).willReturn(result);
+
+            // when & then
+            mockMvc.perform(get("/clubs/{clubId}/recruitment-posts/{postingId}", 1L, 10L))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.postingId").value(10));
+
+            verify(recruitmentService).getPublicPostingDetail(1L, 10L);
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 공고 → 404, code=5007")
+        void failWithPostingNotFound() throws Exception {
+            // given
+            willThrow(new BusinessException(RecruitmentErrorCode.POSTING_NOT_FOUND))
+                    .given(recruitmentService).getPublicPostingDetail(1L, 999L);
+
+            // when & then
+            mockMvc.perform(get("/clubs/{clubId}/recruitment-posts/{postingId}", 1L, 999L))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(5007));
+        }
+    }
+
+    @Nested
     @DisplayName("DELETE /clubs/{clubId}/recruitment-posts/{postingId} — 공고 삭제")
     class DeleteRecruitment {
 
@@ -436,6 +506,17 @@ class RecruitmentControllerTest {
                 .build();
         ReflectionTestUtils.setField(posting, "id", id);
         return posting;
+    }
+
+    private com.dewple.recruitment.service.PublicPostingDetailResult createMockDetailResult(Long id) {
+        return new com.dewple.recruitment.service.PublicPostingDetailResult(
+                id, 1L, "테스트 동아리", 1, "테스트 공고",
+                "[{\"text\":\"본문\"}]", null, 5,
+                java.time.OffsetDateTime.now(), java.time.OffsetDateTime.now().plusDays(30),
+                java.time.LocalDate.of(2026, 4, 5), java.time.LocalDate.of(2026, 8, 31),
+                false, List.of(), List.of(), null, 0L,
+                com.dewple.common.enums.RecruitmentStatus.OPEN
+        );
     }
 
     private Map<String, Object> createValidRequest() {
