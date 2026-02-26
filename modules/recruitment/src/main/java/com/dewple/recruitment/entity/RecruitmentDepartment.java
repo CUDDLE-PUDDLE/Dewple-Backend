@@ -27,10 +27,14 @@ public class RecruitmentDepartment extends BaseEntity {
     @JoinColumn(name = "department_id", nullable = false)
     private ClubDepartment department;
 
+    @Column(name = "count", nullable = false)
+    private Integer count;
+
     @Builder
-    public RecruitmentDepartment(RecruitmentPosting recruitment, ClubDepartment department) {
+    public RecruitmentDepartment(RecruitmentPosting recruitment, ClubDepartment department, Integer count) {
         this.recruitment = recruitment;
         this.department = department;
+        this.count = count;
     }
 
     // 연관관계 편의 메소드

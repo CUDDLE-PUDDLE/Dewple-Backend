@@ -38,6 +38,10 @@ public class RecruitmentSchema extends BaseEntity {
         this.applicationForm = applicationForm;
     }
 
+    public void updateVersion(Long version) {
+        this.version = version;
+    }
+
     // 연관관계 편의 메소드
     void changeRecruitmentProcess(RecruitmentProcess recruitmentProcess) {
         this.recruitmentProcess = recruitmentProcess;

@@ -10,4 +10,14 @@ dependencies {
 
     // Validation
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Jackson (JSON 파싱 - 지원서 양식 검증에 필요)
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+    // Web (HttpStatus - ErrorCode 구현에 필요, 런타임은 apps에서 제공)
+    compileOnly 'org.springframework:spring-web'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework:spring-web'
 }
