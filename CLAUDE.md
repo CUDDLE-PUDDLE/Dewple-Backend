@@ -173,6 +173,8 @@ modules/{domain}/
 - RTR (Refresh Token Rotation): refresh 사용 시마다 DB에서 교체
 - `RefreshToken` 엔티티로 DB 관리 (멀티 디바이스 동시 로그인 지원)
 - `SecurityConfig`에서 인증 불필요 경로를 `permitAll`로 명시 등록
+- **API 인증 규칙**: `/auth/**` 로 시작하는 엔드포인트(로그아웃 제외)와 일부 공개 엔드포인트(`/users/check-userid`)를 제외한 모든 API는 요청 헤더에 `Authorization: Bearer {accessToken}`이 필수
+- **Swagger 인증 표시**: 인증이 필요한 엔드포인트에는 `@SecurityRequirement(name = BEARER_AUTH)` 어노테이션을 반드시 추가
 
 ### 코드 스타일
 
