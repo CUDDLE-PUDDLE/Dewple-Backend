@@ -1,10 +1,14 @@
 package com.dewple.app_api_auth.api.recruitment.controller;
 
 import com.dewple.app_api_auth.api.recruitment.dto.CreateRecruitmentRequest;
+import com.dewple.app_api_auth.api.recruitment.dto.RecruitmentPostingDetailResponse;
+import com.dewple.app_api_auth.api.recruitment.dto.RecruitmentPostingListResponse;
 import com.dewple.app_api_auth.api.recruitment.dto.RecruitmentPostingResponse;
 import com.dewple.app_api_auth.api.recruitment.dto.UpdateRecruitmentRequest;
 import com.dewple.app_api_auth.global.response.ApiResponse;
 import com.dewple.recruitment.entity.RecruitmentPosting;
+import com.dewple.recruitment.service.PublicPostingDetailResult;
+import com.dewple.recruitment.service.PublicPostingListResult;
 import com.dewple.recruitment.service.RecruitmentService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,6 +20,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Tag(name = "Recruitment", description = "공고 API")
 @RestController
@@ -120,6 +126,32 @@ public class RecruitmentController {
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
+    @Operation(summary = "모집 공고 목록 조회", description = "동아리의 모집 공고 목록을 조회합니다. status=OPEN(모집 중) 또는 status=CLOSED(마감)로 필터링합니다. 인증 불필요.")
+    @GetMapping("/clubs/{clubId}/recruitment-posts")
+    public ResponseEntity<ApiResponse<List<RecruitmentPostingListResponse>>> getPublicPostingList(
+            @PathVariable Long clubId,
+            @RequestParam String status) {
+
+        List<PublicPostingListResult> results = recruitmentService.getPublicPostingList(clubId, status);
+
+        List<RecruitmentPostingListResponse> response = results.stream()
+                .map(this::toListResponse)
+                .toList();
+
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @Operation(summary = "모집 공고 상세 조회", description = "동아리의 특정 모집 공고를 상세 조회합니다. DRAFT 상태는 조회 불가. 인증 불필요.")
+    @GetMapping("/clubs/{clubId}/recruitment-posts/{postingId}")
+    public ResponseEntity<ApiResponse<RecruitmentPostingDetailResponse>> getPublicPostingDetail(
+            @PathVariable Long clubId,
+            @PathVariable Long postingId) {
+
+        PublicPostingDetailResult result = recruitmentService.getPublicPostingDetail(clubId, postingId);
+
+        return ResponseEntity.ok(ApiResponse.ok(toDetailResponse(result)));
+    }
+
     @Operation(summary = "모집 공고 삭제", description = "모집 공고를 삭제합니다. 사용자가 작성자랑 달라도, 공고 권한이 있으면 삭제 가능합니다.")
     @DeleteMapping("/clubs/{clubId}/recruitment-posts/{postingId}")
     public ResponseEntity<ApiResponse<RecruitmentPostingResponse>> deleteRecruitment(
@@ -136,5 +168,49 @@ public class RecruitmentController {
 
     private RecruitmentPostingResponse toResponse(RecruitmentPosting posting) {
         return new RecruitmentPostingResponse(posting.getId(), posting.getRecentRecruitmentVersion());
+    }
+
+    private RecruitmentPostingListResponse toListResponse(PublicPostingListResult result) {
+        return new RecruitmentPostingListResponse(
+                result.postingId(),
+                result.generationNo(),
+                result.title(),
+                result.endAt(),
+                result.departments(),
+                result.viewCount(),
+                result.recruitmentStatus()
+        );
+    }
+
+    private RecruitmentPostingDetailResponse toDetailResponse(PublicPostingDetailResult result) {
+        List<RecruitmentPostingDetailResponse.DepartmentInfo> departments = result.departments().stream()
+                .map(d -> new RecruitmentPostingDetailResponse.DepartmentInfo(d.name(), d.count()))
+                .toList();
+
+        List<RecruitmentPostingDetailResponse.ProcessInfo> processes = result.processes().stream()
+                .map(p -> new RecruitmentPostingDetailResponse.ProcessInfo(
+                        p.processOrder(), p.name(), p.processType(), p.startAt(), p.endAt()))
+                .toList();
+
+        return new RecruitmentPostingDetailResponse(
+                result.postingId(),
+                result.clubId(),
+                result.clubName(),
+                result.generationNo(),
+                result.title(),
+                result.content(),
+                result.themeColor(),
+                result.capacity(),
+                result.startAt(),
+                result.endAt(),
+                result.resultDate(),
+                result.endOfGenerationDate(),
+                result.isInterviewRequired(),
+                departments,
+                processes,
+                result.applicationForm(),
+                result.viewCount(),
+                result.recruitmentStatus()
+        );
     }
 }
