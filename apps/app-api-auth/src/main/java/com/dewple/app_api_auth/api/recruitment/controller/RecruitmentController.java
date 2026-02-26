@@ -110,6 +110,16 @@ public class RecruitmentController {
         return ResponseEntity.ok(ApiResponse.ok(toResponse(posting)));
     }
 
+    @Operation(summary = "모집 공고 조회수 증가", description = "모집 공고 조회수를 1 증가시킵니다. 클라이언트가 5초 이상 페이지에 머문 뒤 호출합니다. 인증 불필요.")
+    @PostMapping("/recruitment-posts/{postingId}/view")
+    public ResponseEntity<ApiResponse<Void>> incrementViewCount(
+            @PathVariable Long postingId) {
+
+        recruitmentService.incrementViewCount(postingId);
+
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
     @Operation(summary = "모집 공고 삭제", description = "모집 공고를 삭제합니다. 사용자가 작성자랑 달라도, 공고 권한이 있으면 삭제 가능합니다.")
     @DeleteMapping("/clubs/{clubId}/recruitment-posts/{postingId}")
     public ResponseEntity<ApiResponse<RecruitmentPostingResponse>> deleteRecruitment(

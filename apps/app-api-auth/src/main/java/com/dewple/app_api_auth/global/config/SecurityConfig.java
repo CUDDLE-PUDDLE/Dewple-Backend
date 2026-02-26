@@ -35,7 +35,9 @@ public class SecurityConfig {
                     "/auth/login",
                     "/auth/token/refresh",
                     // User APIs (인증 불필요)
-                    "/users/check-userid"
+                    "/users/check-userid",
+                    // Recruitment APIs (인증 불필요)
+                    "/recruitment-posts/*/view"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

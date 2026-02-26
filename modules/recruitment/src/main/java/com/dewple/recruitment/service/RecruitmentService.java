@@ -242,6 +242,13 @@ public class RecruitmentService {
                 .orElse(null);
     }
 
+    public void incrementViewCount(Long postingId) {
+        int updated = recruitmentPostingRepository.incrementViewCount(postingId);
+        if (updated == 0) {
+            throw new BusinessException(RecruitmentErrorCode.POSTING_NOT_FOUND);
+        }
+    }
+
     @RequireClubPermission(Permission.MANAGE_RECRUITMENT)
     public RecruitmentPosting deleteRecruitment(Long clubId, Long userId, Long postingId) {
         RecruitmentPosting posting = recruitmentPostingRepository.findById(postingId)
