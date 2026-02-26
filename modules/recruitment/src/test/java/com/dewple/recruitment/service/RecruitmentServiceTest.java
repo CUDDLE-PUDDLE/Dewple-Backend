@@ -752,6 +752,72 @@ class RecruitmentServiceTest {
         }
     }
 
+    // ========== getPreviousApplicationForm ==========
+
+    @Nested
+    @DisplayName("getPreviousApplicationForm - 이전 공고 지원 양식 불러오기")
+    class GetPreviousApplicationForm {
+
+        private static final String APPLICATION_FORM_V1 = "{\"textarea\":[{\"key\":\"k1\",\"question\":\"자기소개\"}],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}";
+        private static final String APPLICATION_FORM_V2 = "{\"textarea\":[{\"key\":\"k1\",\"question\":\"자기소개\"},{\"key\":\"k2\",\"question\":\"지원동기\"}],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}";
+
+        @Test
+        @DisplayName("성공: 이전 공고의 최신 버전 지원 양식 반환")
+        void success() {
+            // given - OPEN 상태의 이전 공고 + 서류 접수 프로세스 + 스키마(버전 1) 준비
+            RecruitmentPosting posting = createOpenPostingWithSchema(APPLICATION_FORM_V1);
+            given(recruitmentPostingRepository.findFirstByClubIdAndRecruitmentStatusNotOrderByCreatedAtDesc(
+                    CLUB_ID, RecruitmentStatus.DRAFT))
+                    .willReturn(Optional.of(posting));
+
+            // when - 이전 공고 지원 양식 조회
+            String result = recruitmentService.getPreviousApplicationForm(CLUB_ID, CREATOR_ID);
+
+            // then - 지원 양식 JSON 반환
+            assertThat(result).isEqualTo(APPLICATION_FORM_V1);
+        }
+
+        @Test
+        @DisplayName("성공: 여러 버전이 있을 때 최신 버전의 지원 양식 반환")
+        void success_latestVersion() {
+            // given - 서류 접수 프로세스에 버전 1, 2 두 개의 스키마가 있는 공고 준비
+            RecruitmentPosting posting = createOpenPostingWithSchema(APPLICATION_FORM_V1);
+            RecruitmentProcess documentProcess = posting.getRecruitmentProcesses().get(0);
+
+            RecruitmentSchema schemaV2 = RecruitmentSchema.builder()
+                    .recruitmentProcess(documentProcess)
+                    .version(2L)
+                    .applicationForm(APPLICATION_FORM_V2)
+                    .build();
+            documentProcess.addRecruitmentSchema(schemaV2);
+
+            given(recruitmentPostingRepository.findFirstByClubIdAndRecruitmentStatusNotOrderByCreatedAtDesc(
+                    CLUB_ID, RecruitmentStatus.DRAFT))
+                    .willReturn(Optional.of(posting));
+
+            // when - 이전 공고 지원 양식 조회
+            String result = recruitmentService.getPreviousApplicationForm(CLUB_ID, CREATOR_ID);
+
+            // then - 최신 버전(v2)의 지원 양식 반환
+            assertThat(result).isEqualTo(APPLICATION_FORM_V2);
+        }
+
+        @Test
+        @DisplayName("성공: 이전 공고가 없으면 null 반환")
+        void success_noPreviousPosting() {
+            // given - 해당 동아리에 이전 공고 없음
+            given(recruitmentPostingRepository.findFirstByClubIdAndRecruitmentStatusNotOrderByCreatedAtDesc(
+                    CLUB_ID, RecruitmentStatus.DRAFT))
+                    .willReturn(Optional.empty());
+
+            // when - 이전 공고 지원 양식 조회
+            String result = recruitmentService.getPreviousApplicationForm(CLUB_ID, CREATOR_ID);
+
+            // then - null 반환
+            assertThat(result).isNull();
+        }
+    }
+
     // ========== deleteRecruitment ==========
 
     @Nested

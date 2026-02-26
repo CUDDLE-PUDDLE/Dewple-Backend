@@ -228,6 +228,20 @@ public class RecruitmentService {
         return posting;
     }
 
+    @Transactional(readOnly = true)
+    @RequireClubPermission(Permission.MANAGE_RECRUITMENT)
+    public String getPreviousApplicationForm(Long clubId, Long userId) {
+        return recruitmentPostingRepository
+                .findFirstByClubIdAndRecruitmentStatusNotOrderByCreatedAtDesc(clubId, RecruitmentStatus.DRAFT)
+                .flatMap(posting -> posting.getRecruitmentProcesses().stream()
+                        .filter(p -> p.getProcessType() == ProcessType.DOCUMENT)
+                        .findFirst())
+                .flatMap(process -> process.getRecruitmentSchemas().stream()
+                        .reduce((a, b) -> a.getVersion() > b.getVersion() ? a : b))
+                .map(RecruitmentSchema::getApplicationForm)
+                .orElse(null);
+    }
+
     @RequireClubPermission(Permission.MANAGE_RECRUITMENT)
     public RecruitmentPosting deleteRecruitment(Long clubId, Long userId, Long postingId) {
         RecruitmentPosting posting = recruitmentPostingRepository.findById(postingId)

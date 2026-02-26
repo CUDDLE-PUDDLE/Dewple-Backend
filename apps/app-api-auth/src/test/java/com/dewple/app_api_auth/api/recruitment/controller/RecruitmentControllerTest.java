@@ -274,6 +274,51 @@ class RecruitmentControllerTest {
     }
 
     @Nested
+    @DisplayName("GET /clubs/{clubId}/recruitment-posts/previous-form — 이전 공고 지원 양식 불러오기")
+    class GetPreviousApplicationForm {
+
+        @Test
+        @DisplayName("성공: 이전 공고의 지원 양식 반환")
+        void success() throws Exception {
+            // given
+            String applicationForm = "{\"textarea\":[{\"key\":\"q1\",\"question\":\"자기소개\"}],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}";
+            given(recruitmentService.getPreviousApplicationForm(1L, 1L)).willReturn(applicationForm);
+
+            // when & then
+            mockMvc.perform(get("/clubs/{clubId}/recruitment-posts/previous-form", 1L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result").isNotEmpty());
+
+            verify(recruitmentService).getPreviousApplicationForm(1L, 1L);
+        }
+
+        @Test
+        @DisplayName("성공: 이전 공고가 없으면 result가 null")
+        void successWithNoPreviousPosting() throws Exception {
+            // given
+            given(recruitmentService.getPreviousApplicationForm(1L, 1L)).willReturn(null);
+
+            // when & then
+            mockMvc.perform(get("/clubs/{clubId}/recruitment-posts/previous-form", 1L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result").doesNotExist());
+
+            verify(recruitmentService).getPreviousApplicationForm(1L, 1L);
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청 → 401")
+        void failWithoutAuth() throws Exception {
+            mockMvc.perform(get("/clubs/{clubId}/recruitment-posts/previous-form", 1L))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
     @DisplayName("POST /clubs/{clubId}/recruitment-posts/{postingId}/close — 공고 마감")
     class CloseRecruitment {
 

@@ -83,6 +83,19 @@ public class RecruitmentController {
         return ResponseEntity.ok(ApiResponse.ok(toResponse(posting)));
     }
 
+    @Operation(summary = "이전 공고 지원 양식 불러오기", description = "해당 동아리의 가장 최근 공고(DRAFT 제외)에서 최신 버전의 지원 양식을 반환합니다.")
+    @GetMapping("/clubs/{clubId}/recruitment-posts/previous-form")
+    public ResponseEntity<ApiResponse<String>> getPreviousApplicationForm(
+            @PathVariable Long clubId,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long userId = Long.parseLong(jwt.getSubject());
+
+        String applicationForm = recruitmentService.getPreviousApplicationForm(clubId, userId);
+
+        return ResponseEntity.ok(ApiResponse.ok(applicationForm));
+    }
+
     @Operation(summary = "모집 공고 조기 마감", description = "마감 기한 전에 모집 공고를 조기 마감합니다.")
     @PostMapping("/clubs/{clubId}/recruitment-posts/{postingId}/close")
     public ResponseEntity<ApiResponse<RecruitmentPostingResponse>> closeRecruitment(
