@@ -5,6 +5,7 @@ import static com.dewple.app_api_auth.global.config.SwaggerConfig.BEARER_AUTH;
 import com.dewple.app_api_auth.api.user.dto.CheckUserIdResponse;
 import com.dewple.app_api_auth.api.user.dto.EditMyProfileRequest;
 import com.dewple.app_api_auth.api.user.dto.GetMyProfileResponse;
+import com.dewple.app_api_auth.api.user.dto.GetUserProfileResponse;
 import com.dewple.app_api_auth.api.user.dto.UpdateProfileRequest;
 import com.dewple.app_api_auth.api.user.dto.UpdateProfileResponse;
 import com.dewple.app_api_auth.global.response.ApiResponse;
@@ -13,6 +14,7 @@ import com.dewple.common.entity.User;
 import com.dewple.user.service.EditMyProfileParam;
 import com.dewple.user.service.MyProfileResult;
 import com.dewple.user.service.UpdateProfileParam;
+import com.dewple.user.service.UserProfileResult;
 import com.dewple.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -85,6 +87,23 @@ public class UserController {
                 user.getWorkplace(),
                 user.getSelfIntroduction(),
                 user.getMbti(),
+                profile.interests()
+        ));
+    }
+
+    @Operation(summary = "회원 프로필 조회", description = "특정 회원의 공개 프로필을 조회합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/{id}")
+    public ApiResponse<GetUserProfileResponse> getUserProfile(
+            @PathVariable Long id
+    ) {
+        UserProfileResult profile = userService.getUserProfile(id);
+
+        return ApiResponse.ok(new GetUserProfileResponse(
+                profile.name(),
+                profile.profileImg(),
+                profile.selfIntroduction(),
+                profile.mbti(),
                 profile.interests()
         ));
     }
