@@ -37,6 +37,9 @@ public enum UserErrorCode implements ErrorCode {
     // 4300: 토큰 관련 오류
     REFRESH_TOKEN_INVALID(4301, HttpStatus.UNAUTHORIZED, "유효하지 않은 리프레시 토큰입니다."),
     REFRESH_TOKEN_EXPIRED(4302, HttpStatus.UNAUTHORIZED, "리프레시 토큰이 만료되었습니다."),
+
+    // 4400: 프로필 수정 관련 오류
+    CATEGORY_NOT_FOUND(4400, HttpStatus.NOT_FOUND, "존재하지 않는 카테고리입니다."),
     ;
 
     private final int code;

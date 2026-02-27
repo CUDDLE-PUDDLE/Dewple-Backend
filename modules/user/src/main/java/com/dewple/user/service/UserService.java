@@ -1,5 +1,6 @@
 package com.dewple.user.service;
 
+import com.dewple.common.entity.Category;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.enums.Gender;
@@ -8,6 +9,7 @@ import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
 import com.dewple.user.entity.UserCategory;
 import com.dewple.user.port.PasswordEncoderPort;
+import com.dewple.user.repository.CategoryRepository;
 import com.dewple.user.repository.UserCategoryRepository;
 import com.dewple.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserCategoryRepository userCategoryRepository;
+    private final CategoryRepository categoryRepository;
     private final VerificationService verificationService;
     private final PasswordEncoderPort passwordEncoderPort;
 
@@ -94,6 +97,53 @@ public class UserService {
         log.info("프로필 업데이트 완료: userId={}", user.getUserId());
 
         return user;
+    }
+
+    @Transactional
+    public MyProfileResult editMyProfile(Long userId, EditMyProfileCommand command) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        if (command.nickname() != null && userRepository.existsByNicknameAndIdNot(command.nickname(), userId)) {
+            throw new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
+
+        if (command.email() != null && userRepository.existsByEmailAndIdNot(command.email(), userId)) {
+            throw new BusinessException(UserErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        user.editProfile(
+                command.nickname(), command.email(), command.birthdate(),
+                command.gender(), command.university(), command.isGraduated(),
+                command.workplace(), command.profileImg(), command.selfIntroduction(),
+                command.mbti()
+        );
+
+        if (command.categoryIds() != null) {
+            userCategoryRepository.deleteByUserId(userId);
+
+            if (!command.categoryIds().isEmpty()) {
+                List<Category> categories = categoryRepository.findAllById(command.categoryIds());
+                if (categories.size() != command.categoryIds().size()) {
+                    throw new BusinessException(UserErrorCode.CATEGORY_NOT_FOUND);
+                }
+
+                List<UserCategory> userCategories = categories.stream()
+                        .map(category -> UserCategory.builder()
+                                .user(user)
+                                .category(category)
+                                .build())
+                        .toList();
+                userCategoryRepository.saveAll(userCategories);
+            }
+        }
+
+        List<String> interests = userCategoryRepository.findByUserId(userId).stream()
+                .map(uc -> uc.getCategory().getName())
+                .toList();
+
+        log.info("프로필 수정 완료: userId={}", user.getUserId());
+        return new MyProfileResult(user, interests);
     }
 
     @Transactional(readOnly = true)

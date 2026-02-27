@@ -110,4 +110,20 @@ public class User extends BaseEntity {
         this.isGraduated = isGraduated;
         this.workplace = workplace;
     }
+
+    public void editProfile(String nickname, String email, LocalDate birthdate,
+                            Gender gender, University university, Boolean isGraduated,
+                            String workplace, String profileImg, String selfIntroduction,
+                            Mbti mbti) {
+        if (nickname != null) this.nickname = nickname;
+        if (email != null) this.email = email;
+        if (birthdate != null) this.birthdate = birthdate;
+        if (gender != null) this.gender = gender;
+        if (university != null) this.university = university;
+        if (isGraduated != null) this.isGraduated = isGraduated;
+        if (workplace != null) this.workplace = workplace;
+        if (profileImg != null) this.profileImg = profileImg;
+        if (selfIntroduction != null) this.selfIntroduction = selfIntroduction;
+        if (mbti != null) this.mbti = mbti;
+    }
 }
