@@ -149,6 +149,26 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    public UserProfileResult getUserProfile(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        List<String> interests = userCategoryRepository.findByUserId(id).stream()
+                .map(uc -> uc.getCategory().getName())
+                .toList();
+
+        String mbti = user.getMbti() != null ? user.getMbti().name() : null;
+
+        return new UserProfileResult(
+                user.getName(),
+                user.getProfileImg(),
+                user.getSelfIntroduction(),
+                mbti,
+                interests
+        );
+    }
+
+    @Transactional(readOnly = true)
     public MyProfileResult getMyProfile(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
