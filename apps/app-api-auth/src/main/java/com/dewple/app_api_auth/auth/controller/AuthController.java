@@ -10,7 +10,9 @@ import com.dewple.common.entity.User;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.Verification;
 import com.dewple.user.exception.UserErrorCode;
+import com.dewple.user.service.LoginParam;
 import com.dewple.user.service.RefreshTokenService;
+import com.dewple.user.service.SignupParam;
 import com.dewple.user.service.UserService;
 import com.dewple.user.service.VerificationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -91,12 +93,12 @@ public class AuthController {
             throw new BusinessException(UserErrorCode.PASSWORD_CONFIRM_MISMATCH);
         }
 
-        User user = userService.signup(
+        User user = userService.signup(new SignupParam(
                 request.verificationToken(),
                 request.name(),
                 request.userId(),
                 request.password()
-        );
+        ));
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
@@ -115,7 +117,8 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse response
     ) {
-        User user = userService.login(request.userId(), request.password());
+        User user = userService.login(new LoginParam(
+                request.userId(), request.password()));
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());

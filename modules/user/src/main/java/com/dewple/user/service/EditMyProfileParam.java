@@ -7,7 +7,7 @@ import com.dewple.common.enums.University;
 import java.time.LocalDate;
 import java.util.List;
 
-public record EditMyProfileCommand(
+public record EditMyProfileParam(
         String nickname,
         String email,
         LocalDate birthdate,

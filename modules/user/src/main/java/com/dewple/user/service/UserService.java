@@ -3,8 +3,6 @@ package com.dewple.user.service;
 import com.dewple.common.entity.Category;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.BaseStatus;
-import com.dewple.common.enums.Gender;
-import com.dewple.common.enums.University;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
 import com.dewple.user.entity.UserCategory;
@@ -17,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -32,44 +29,44 @@ public class UserService {
     private final PasswordEncoderPort passwordEncoderPort;
 
     @Transactional
-    public User signup(String verificationToken, String name, String userId, String password) {
-        String phone = verificationService.validateVerificationToken(verificationToken);
+    public User signup(SignupParam param) {
+        String phone = verificationService.validateVerificationToken(param.verificationToken());
 
         if (userRepository.existsByPhone(phone)) {
             throw new BusinessException(UserErrorCode.PHONE_ALREADY_EXISTS);
         }
 
-        if (userRepository.existsByUserId(userId)) {
+        if (userRepository.existsByUserId(param.userId())) {
             throw new BusinessException(UserErrorCode.USER_ID_ALREADY_EXISTS);
         }
 
         User user = User.builder()
-                .userId(userId)
-                .password(passwordEncoderPort.encode(password))
-                .name(name)
+                .userId(param.userId())
+                .password(passwordEncoderPort.encode(param.password()))
+                .name(param.name())
                 .phone(phone)
                 .build();
 
         userRepository.save(user);
-        log.info("회원가입 완료: userId={}", userId);
+        log.info("회원가입 완료: userId={}", param.userId());
 
         return user;
     }
 
     @Transactional(readOnly = true)
-    public User login(String userId, String rawPassword) {
-        User user = userRepository.findByUserId(userId)
+    public User login(LoginParam param) {
+        User user = userRepository.findByUserId(param.userId())
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
         if (user.getStatus() != BaseStatus.ACTIVE) {
             throw new BusinessException(UserErrorCode.USER_INACTIVE);
         }
 
-        if (!passwordEncoderPort.matches(rawPassword, user.getPassword())) {
+        if (!passwordEncoderPort.matches(param.rawPassword(), user.getPassword())) {
             throw new BusinessException(UserErrorCode.PASSWORD_MISMATCH);
         }
 
-        log.info("로그인 성공: userId={}", userId);
+        log.info("로그인 성공: userId={}", param.userId());
         return user;
     }
 
@@ -79,52 +76,51 @@ public class UserService {
     }
 
     @Transactional
-    public User updateProfile(Long id, String nickname, String email, LocalDate birthdate,
-                              Gender gender, University university, Boolean isGraduated,
-                              String workplace) {
+    public User updateProfile(Long id, UpdateProfileParam param) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
-        if (nickname != null && userRepository.existsByNickname(nickname)) {
+        if (param.nickname() != null && userRepository.existsByNickname(param.nickname())) {
             throw new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS);
         }
 
-        if (email != null && userRepository.existsByEmail(email)) {
+        if (param.email() != null && userRepository.existsByEmail(param.email())) {
             throw new BusinessException(UserErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        user.updateProfile(nickname, email, birthdate, gender, university, isGraduated, workplace);
+        user.updateProfile(param.nickname(), param.email(), param.birthdate(),
+                param.gender(), param.university(), param.isGraduated(), param.workplace());
         log.info("프로필 업데이트 완료: userId={}", user.getUserId());
 
         return user;
     }
 
     @Transactional
-    public MyProfileResult editMyProfile(Long userId, EditMyProfileCommand command) {
+    public MyProfileResult editMyProfile(Long userId, EditMyProfileParam param) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
-        if (command.nickname() != null && userRepository.existsByNicknameAndIdNot(command.nickname(), userId)) {
+        if (param.nickname() != null && userRepository.existsByNicknameAndIdNot(param.nickname(), userId)) {
             throw new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS);
         }
 
-        if (command.email() != null && userRepository.existsByEmailAndIdNot(command.email(), userId)) {
+        if (param.email() != null && userRepository.existsByEmailAndIdNot(param.email(), userId)) {
             throw new BusinessException(UserErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
         user.editProfile(
-                command.nickname(), command.email(), command.birthdate(),
-                command.gender(), command.university(), command.isGraduated(),
-                command.workplace(), command.profileImg(), command.selfIntroduction(),
-                command.mbti()
+                param.nickname(), param.email(), param.birthdate(),
+                param.gender(), param.university(), param.isGraduated(),
+                param.workplace(), param.profileImg(), param.selfIntroduction(),
+                param.mbti()
         );
 
-        if (command.categoryIds() != null) {
+        if (param.categoryIds() != null) {
             userCategoryRepository.deleteByUserId(userId);
 
-            if (!command.categoryIds().isEmpty()) {
-                List<Category> categories = categoryRepository.findAllById(command.categoryIds());
-                if (categories.size() != command.categoryIds().size()) {
+            if (!param.categoryIds().isEmpty()) {
+                List<Category> categories = categoryRepository.findAllById(param.categoryIds());
+                if (categories.size() != param.categoryIds().size()) {
                     throw new BusinessException(UserErrorCode.CATEGORY_NOT_FOUND);
                 }
 
