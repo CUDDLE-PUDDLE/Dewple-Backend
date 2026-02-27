@@ -142,6 +142,25 @@ public class UserService {
         return new MyProfileResult(user, interests);
     }
 
+    @Transactional
+    public void changePhone(Long userId, String verificationToken) {
+        String newPhone = verificationService.validateVerificationToken(verificationToken);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        if (newPhone.equals(user.getPhone())) {
+            throw new BusinessException(UserErrorCode.PHONE_SAME_AS_CURRENT);
+        }
+
+        if (userRepository.existsByPhone(newPhone)) {
+            throw new BusinessException(UserErrorCode.PHONE_ALREADY_EXISTS);
+        }
+
+        user.changePhone(newPhone);
+        log.info("전화번호 변경 완료: userId={}", user.getUserId());
+    }
+
     @Transactional(readOnly = true)
     public User findById(Long id) {
         return userRepository.findById(id)

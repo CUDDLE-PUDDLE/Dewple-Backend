@@ -40,6 +40,7 @@ public enum UserErrorCode implements ErrorCode {
 
     // 4400: 프로필 수정 관련 오류
     CATEGORY_NOT_FOUND(4400, HttpStatus.NOT_FOUND, "존재하지 않는 카테고리입니다."),
+    PHONE_SAME_AS_CURRENT(4401, HttpStatus.BAD_REQUEST, "현재 사용 중인 전화번호와 동일합니다."),
     ;
 
     private final int code;

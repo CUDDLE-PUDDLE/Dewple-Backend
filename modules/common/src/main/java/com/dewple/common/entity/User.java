@@ -111,6 +111,10 @@ public class User extends BaseEntity {
         this.workplace = workplace;
     }
 
+    public void changePhone(String phone) {
+        this.phone = phone;
+    }
+
     public void editProfile(String nickname, String email, LocalDate birthdate,
                             Gender gender, University university, Boolean isGraduated,
                             String workplace, String profileImg, String selfIntroduction,
