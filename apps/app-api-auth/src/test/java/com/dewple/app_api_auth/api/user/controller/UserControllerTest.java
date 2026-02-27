@@ -10,6 +10,7 @@ import com.dewple.user.exception.UserErrorCode;
 import com.dewple.user.service.EditMyProfileParam;
 import com.dewple.user.service.MyProfileResult;
 import com.dewple.user.service.UpdateProfileParam;
+import com.dewple.user.service.UserProfileResult;
 import com.dewple.user.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -177,6 +178,100 @@ class UserControllerTest {
             // when & then
             mockMvc.perform(get("/users/me")
                             .with(jwt().jwt(j -> j.subject("999"))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(4201));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /users/{id} - 회원 프로필 조회")
+    class GetUserProfile {
+
+        @Test
+        @DisplayName("성공: 모든 공개 필드가 채워진 회원")
+        void successWithFullProfile() throws Exception {
+            // given
+            given(userService.getUserProfile(1L))
+                    .willReturn(new UserProfileResult(
+                            "홍길동",
+                            "https://example.com/img.jpg",
+                            "안녕하세요",
+                            "INTJ",
+                            List.of("개발", "디자인")
+                    ));
+
+            // when & then
+            mockMvc.perform(get("/users/1")
+                            .with(jwt().jwt(j -> j.subject("99"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.name").value("홍길동"))
+                    .andExpect(jsonPath("$.result.profileImg").value("https://example.com/img.jpg"))
+                    .andExpect(jsonPath("$.result.selfIntroduction").value("안녕하세요"))
+                    .andExpect(jsonPath("$.result.mbti").value("INTJ"))
+                    .andExpect(jsonPath("$.result.interests").isArray())
+                    .andExpect(jsonPath("$.result.interests.length()").value(2))
+                    .andExpect(jsonPath("$.result.interests[0]").value("개발"))
+                    .andExpect(jsonPath("$.result.interests[1]").value("디자인"));
+        }
+
+        @Test
+        @DisplayName("성공: 선택 필드가 모두 null인 회원 (회원가입 직후)")
+        void successWithMinimalProfile() throws Exception {
+            // given
+            given(userService.getUserProfile(1L))
+                    .willReturn(new UserProfileResult(
+                            "홍길동", null, null, null, Collections.emptyList()
+                    ));
+
+            // when & then
+            mockMvc.perform(get("/users/1")
+                            .with(jwt().jwt(j -> j.subject("99"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.name").value("홍길동"))
+                    .andExpect(jsonPath("$.result.profileImg").doesNotExist())
+                    .andExpect(jsonPath("$.result.selfIntroduction").doesNotExist())
+                    .andExpect(jsonPath("$.result.mbti").doesNotExist())
+                    .andExpect(jsonPath("$.result.interests").isArray())
+                    .andExpect(jsonPath("$.result.interests").isEmpty());
+        }
+
+        @Test
+        @DisplayName("성공: 관심 분야만 없는 회원")
+        void successWithNoInterests() throws Exception {
+            // given
+            given(userService.getUserProfile(1L))
+                    .willReturn(new UserProfileResult(
+                            "홍길동", null, "자기소개입니다", "ENFP", Collections.emptyList()
+                    ));
+
+            // when & then
+            mockMvc.perform(get("/users/1")
+                            .with(jwt().jwt(j -> j.subject("99"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.result.selfIntroduction").value("자기소개입니다"))
+                    .andExpect(jsonPath("$.result.mbti").value("ENFP"))
+                    .andExpect(jsonPath("$.result.interests").isEmpty());
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuth() throws Exception {
+            mockMvc.perform(get("/users/1"))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 회원")
+        void failWithUserNotFound() throws Exception {
+            // given
+            given(userService.getUserProfile(999L))
+                    .willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+            // when & then
+            mockMvc.perform(get("/users/999")
+                            .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.code").value(4201));
         }
