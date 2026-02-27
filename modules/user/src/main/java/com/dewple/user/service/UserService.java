@@ -161,6 +161,19 @@ public class UserService {
         log.info("전화번호 변경 완료: userId={}", user.getUserId());
     }
 
+    @Transactional
+    public void withdraw(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        if (user.getStatus() != BaseStatus.ACTIVE) {
+            throw new BusinessException(UserErrorCode.USER_INACTIVE);
+        }
+
+        user.inactivate();
+        log.info("회원 탈퇴 완료: userId={}", user.getUserId());
+    }
+
     @Transactional(readOnly = true)
     public User findById(Long id) {
         return userRepository.findById(id)

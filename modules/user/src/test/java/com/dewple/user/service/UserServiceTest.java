@@ -635,6 +635,59 @@ class UserServiceTest {
     }
 
     @Nested
+    @DisplayName("withdraw - 회원 탈퇴")
+    class Withdraw {
+
+        @Test
+        @DisplayName("성공: 활성 사용자 탈퇴")
+        void success() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+            // when
+            userService.withdraw(1L);
+
+            // then
+            assertThat(user.getStatus()).isEqualTo(com.dewple.common.enums.BaseStatus.INACTIVE);
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 사용자")
+        void failWithUserNotFound() {
+            // given
+            given(userRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> userService.withdraw(999L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 이미 비활성화된 계정")
+        void failWithAlreadyInactive() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+            user.inactivate();
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+            // when & then
+            assertThatThrownBy(() -> userService.withdraw(1L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_INACTIVE);
+                    });
+        }
+    }
+
+    @Nested
     @DisplayName("editMyProfile - 프로필 수정")
     class EditMyProfile {
 
