@@ -112,6 +112,9 @@ modules/{domain}/
 - `@Getter` + `@NoArgsConstructor(access = AccessLevel.PROTECTED)` 조합
 - 생성자에 `@Builder` 적용
 - JSONB 컬럼: `@JdbcTypeCode(SqlTypes.JSON)` + `@Column(columnDefinition = "jsonb")`
+- Soft Delete: `BaseEntity.inactivate()`로 status를 `INACTIVE`로 변경 (물리 삭제 X)
+  - `BaseEntity`에 `status` (`ACTIVE`/`INACTIVE`) + `inactivate()`/`activate()` 메서드 내장
+  - 로그인 등에서 `INACTIVE` 상태 체크하여 접근 차단
 
 ### 서비스 패턴
 
@@ -121,8 +124,11 @@ modules/{domain}/
 ### DTO 패턴
 
 - Java `record` 사용
-- Jakarta Validation 어노테이션 (`@NotBlank`, `@NotNull`, `@Pattern`)
-- OpenAPI `@Schema` 어노테이션으로 문서화
+- 레이어별 네이밍 규칙:
+  - Controller: `Request` / `Response` (예: `SignupRequest`, `GetMyProfileResponse`)
+  - Service: `Param` / `Result` (예: `SignupParam`, `MyProfileResult`)
+- Controller DTO: Jakarta Validation 어노테이션 (`@NotBlank`, `@NotNull`, `@Pattern`) + OpenAPI `@Schema` 어노테이션으로 문서화
+- Service DTO: 순수 데이터 전달 목적, Validation/Swagger 어노테이션 없음
 
 ### API 응답
 
@@ -145,6 +151,7 @@ modules/{domain}/
   - 4100~4199: 회원가입 (signup)
   - 4200~4299: 로그인 (login)
   - 4300~4399: 토큰 (refresh token)
+  - 4400~4499: 프로필 수정 (profile edit)
 
 ### 테스트 패턴
 
@@ -153,6 +160,10 @@ modules/{domain}/
 - `@Nested` + `@DisplayName`으로 계층적 테스트 구성
 - Given-When-Then 패턴
 - 한글 `@DisplayName` 사용 (예: `"성공: 인증 코드 발송"`)
+- API 개발 시 서비스 테스트 + 컨트롤러 테스트를 함께 작성, 성공뿐 아니라 엣지 케이스(값 누락, 중복, 권한 없음 등)도 포함
+- void 메서드 mocking: `willThrow(...).given(mock).method()` (BDDMockito)
+- 반환값 있는 메서드 mocking: `given(mock.method()).willReturn(...)` / `.willThrow(...)`
+- 컨트롤러 테스트에서 인증: `.with(jwt().jwt(j -> j.subject("userId")))` 사용
 
 ### Repository 패턴
 
@@ -196,6 +207,7 @@ public ApiResponse<?> getMyProfile(@CurrentUserId Long userId) { ... }
 - 들여쓰기: 4 spaces
 - 중괄호: K&R 스타일 (같은 줄에 열기)
 - 어노테이션: 한 줄에 하나씩, 선언부 위에 배치
+- 상수 참조 시 클래스 전체 import보다 `import static` 선호 (예: `import static ...SwaggerConfig.BEARER_AUTH`)
 
 ## 설정 파일
 
