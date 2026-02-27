@@ -2,6 +2,7 @@ package com.dewple.app_api_auth.api.user.controller;
 
 import static com.dewple.app_api_auth.global.config.SwaggerConfig.BEARER_AUTH;
 
+import com.dewple.app_api_auth.api.user.dto.ChangePhoneRequest;
 import com.dewple.app_api_auth.api.user.dto.CheckUserIdResponse;
 import com.dewple.app_api_auth.api.user.dto.EditMyProfileRequest;
 import com.dewple.app_api_auth.api.user.dto.GetMyProfileResponse;
@@ -106,6 +107,17 @@ public class UserController {
                 profile.mbti(),
                 profile.interests()
         ));
+    }
+
+    @Operation(summary = "내 전화번호 변경", description = "인증된 새 전화번호로 변경합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/me/phone")
+    public ApiResponse<Void> changePhone(
+            @CurrentUserId Long userId,
+            @Valid @RequestBody ChangePhoneRequest request
+    ) {
+        userService.changePhone(userId, request.verificationToken());
+        return ApiResponse.ok();
     }
 
     @Operation(summary = "아이디 중복 확인", description = "사용 가능한 아이디인지 확인합니다.")
