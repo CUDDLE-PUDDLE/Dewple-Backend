@@ -396,6 +396,56 @@ class UserControllerTest {
     }
 
     @Nested
+    @DisplayName("DELETE /users/me - 회원 탈퇴")
+    class Withdraw {
+
+        @Test
+        @DisplayName("성공: 회원 탈퇴")
+        void success() throws Exception {
+            // when & then
+            mockMvc.perform(delete("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuth() throws Exception {
+            mockMvc.perform(delete("/users/me"))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 이미 비활성화된 계정")
+        void failWithAlreadyInactive() throws Exception {
+            // given
+            willThrow(new BusinessException(UserErrorCode.USER_INACTIVE))
+                    .given(userService).withdraw(eq(1L));
+
+            // when & then
+            mockMvc.perform(delete("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value(4203));
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 사용자")
+        void failWithUserNotFound() throws Exception {
+            // given
+            willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND))
+                    .given(userService).withdraw(eq(999L));
+
+            // when & then
+            mockMvc.perform(delete("/users/me")
+                            .with(jwt().jwt(j -> j.subject("999"))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(4201));
+        }
+    }
+
+    @Nested
     @DisplayName("PATCH /users/me/profile - 프로필 설정")
     class UpdateProfile {
 

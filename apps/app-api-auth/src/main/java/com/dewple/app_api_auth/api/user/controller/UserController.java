@@ -120,6 +120,16 @@ public class UserController {
         return ApiResponse.ok();
     }
 
+    @Operation(summary = "회원 탈퇴", description = "본인의 계정을 탈퇴(비활성화) 처리합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/me")
+    public ApiResponse<Void> withdraw(
+            @CurrentUserId Long userId
+    ) {
+        userService.withdraw(userId);
+        return ApiResponse.ok();
+    }
+
     @Operation(summary = "아이디 중복 확인", description = "사용 가능한 아이디인지 확인합니다.")
     @GetMapping("/check-userid")
     public ApiResponse<CheckUserIdResponse> checkUserId(
