@@ -422,6 +422,106 @@ class UserServiceTest {
     }
 
     @Nested
+    @DisplayName("getUserProfile - 회원 프로필 조회")
+    class GetUserProfile {
+
+        @Test
+        @DisplayName("성공: 모든 공개 필드가 채워진 회원")
+        void successWithFullProfile() {
+            // given
+            User user = User.builder()
+                    .userId(TEST_USER_ID)
+                    .password("encoded-password")
+                    .name(TEST_NAME)
+                    .phone(TEST_PHONE)
+                    .profileImg("https://example.com/img.jpg")
+                    .selfIntroduction("안녕하세요")
+                    .mbti(Mbti.INTJ)
+                    .build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            Category category1 = Category.builder().name("개발").build();
+            Category category2 = Category.builder().name("디자인").build();
+            UserCategory uc1 = UserCategory.builder().user(user).category(category1).build();
+            UserCategory uc2 = UserCategory.builder().user(user).category(category2).build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userCategoryRepository.findByUserId(1L)).willReturn(List.of(uc1, uc2));
+
+            // when
+            UserProfileResult result = userService.getUserProfile(1L);
+
+            // then
+            assertThat(result.name()).isEqualTo(TEST_NAME);
+            assertThat(result.profileImg()).isEqualTo("https://example.com/img.jpg");
+            assertThat(result.selfIntroduction()).isEqualTo("안녕하세요");
+            assertThat(result.mbti()).isEqualTo("INTJ");
+            assertThat(result.interests()).containsExactly("개발", "디자인");
+        }
+
+        @Test
+        @DisplayName("성공: 선택 필드가 모두 null인 회원 (회원가입 직후)")
+        void successWithMinimalProfile() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userCategoryRepository.findByUserId(1L)).willReturn(Collections.emptyList());
+
+            // when
+            UserProfileResult result = userService.getUserProfile(1L);
+
+            // then
+            assertThat(result.name()).isEqualTo(TEST_NAME);
+            assertThat(result.profileImg()).isNull();
+            assertThat(result.selfIntroduction()).isNull();
+            assertThat(result.mbti()).isNull();
+            assertThat(result.interests()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("성공: 관심 분야만 없는 회원")
+        void successWithNoInterests() {
+            // given
+            User user = User.builder()
+                    .userId(TEST_USER_ID)
+                    .password("encoded-password")
+                    .name(TEST_NAME)
+                    .phone(TEST_PHONE)
+                    .selfIntroduction("자기소개입니다")
+                    .mbti(Mbti.ENFP)
+                    .build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userCategoryRepository.findByUserId(1L)).willReturn(Collections.emptyList());
+
+            // when
+            UserProfileResult result = userService.getUserProfile(1L);
+
+            // then
+            assertThat(result.selfIntroduction()).isEqualTo("자기소개입니다");
+            assertThat(result.mbti()).isEqualTo("ENFP");
+            assertThat(result.interests()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 회원")
+        void failWithUserNotFound() {
+            // given
+            given(userRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> userService.getUserProfile(999L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                    });
+        }
+    }
+
+    @Nested
     @DisplayName("editMyProfile - 프로필 수정")
     class EditMyProfile {
 
