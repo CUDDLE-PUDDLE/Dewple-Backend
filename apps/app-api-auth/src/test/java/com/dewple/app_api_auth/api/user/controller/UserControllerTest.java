@@ -7,7 +7,9 @@ import com.dewple.common.enums.Mbti;
 import com.dewple.common.enums.University;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
+import com.dewple.user.service.EditMyProfileParam;
 import com.dewple.user.service.MyProfileResult;
+import com.dewple.user.service.UpdateProfileParam;
 import com.dewple.user.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -227,9 +229,7 @@ class UserControllerTest {
                     LocalDate.of(2000, 1, 1), Gender.MALE,
                     University.SEOUL_NATIONAL, false, "듀플");
 
-            given(userService.updateProfile(eq(1L), eq("듀플러"), eq("test@example.com"),
-                    eq(LocalDate.of(2000, 1, 1)), eq(Gender.MALE),
-                    eq(University.SEOUL_NATIONAL), eq(false), eq("듀플")))
+            given(userService.updateProfile(eq(1L), any(UpdateProfileParam.class)))
                     .willReturn(user);
 
             // when & then
@@ -266,8 +266,7 @@ class UserControllerTest {
         @DisplayName("실패: 이미 사용 중인 닉네임")
         void failWithNicknameAlreadyExists() throws Exception {
             // given
-            given(userService.updateProfile(eq(1L), eq("듀플러"), isNull(),
-                    isNull(), isNull(), isNull(), isNull(), isNull()))
+            given(userService.updateProfile(eq(1L), any(UpdateProfileParam.class)))
                     .willThrow(new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS));
 
             // when & then
@@ -277,6 +276,125 @@ class UserControllerTest {
                             .content("{\"nickname\":\"듀플러\"}"))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.code").value(4103));
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /users/me - 프로필 수정")
+    class EditMyProfile {
+
+        @Test
+        @DisplayName("성공: 닉네임만 수정 + 전체 프로필 응답 확인")
+        void successWithNicknameOnly() throws Exception {
+            // given
+            User user = User.builder()
+                    .userId("dewple123")
+                    .password("encoded-password")
+                    .name("홍길동")
+                    .phone("01012345678")
+                    .nickname("새닉네임")
+                    .email("test@example.com")
+                    .birthdate(LocalDate.of(2000, 1, 1))
+                    .gender(Gender.MALE)
+                    .university(University.SEOUL_NATIONAL)
+                    .isGraduated(false)
+                    .workplace("듀플")
+                    .selfIntroduction("안녕하세요")
+                    .mbti(Mbti.INTJ)
+                    .profileImg("https://example.com/img.jpg")
+                    .build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(userService.editMyProfile(eq(1L), any(EditMyProfileParam.class)))
+                    .willReturn(new MyProfileResult(user, List.of("개발")));
+
+            // when & then
+            mockMvc.perform(patch("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"nickname\":\"새닉네임\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.name").value("홍길동"))
+                    .andExpect(jsonPath("$.result.nickname").value("새닉네임"))
+                    .andExpect(jsonPath("$.result.email").value("test@example.com"))
+                    .andExpect(jsonPath("$.result.phone").value("01012345678"))
+                    .andExpect(jsonPath("$.result.selfIntroduction").value("안녕하세요"))
+                    .andExpect(jsonPath("$.result.mbti").value("INTJ"))
+                    .andExpect(jsonPath("$.result.interests[0]").value("개발"));
+        }
+
+        @Test
+        @DisplayName("성공: categoryIds 포함 수정")
+        void successWithCategoryIds() throws Exception {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(userService.editMyProfile(eq(1L), any(EditMyProfileParam.class)))
+                    .willReturn(new MyProfileResult(user, List.of("개발", "디자인")));
+
+            // when & then
+            mockMvc.perform(patch("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"categoryIds\":[1,2]}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.interests.length()").value(2))
+                    .andExpect(jsonPath("$.result.interests[0]").value("개발"))
+                    .andExpect(jsonPath("$.result.interests[1]").value("디자인"));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuth() throws Exception {
+            mockMvc.perform(patch("/users/me")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"nickname\":\"새닉네임\"}"))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 닉네임 중복")
+        void failWithNicknameAlreadyExists() throws Exception {
+            // given
+            given(userService.editMyProfile(eq(1L), any(EditMyProfileParam.class)))
+                    .willThrow(new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS));
+
+            // when & then
+            mockMvc.perform(patch("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"nickname\":\"중복닉네임\"}"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value(4103));
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 카테고리")
+        void failWithCategoryNotFound() throws Exception {
+            // given
+            given(userService.editMyProfile(eq(1L), any(EditMyProfileParam.class)))
+                    .willThrow(new BusinessException(UserErrorCode.CATEGORY_NOT_FOUND));
+
+            // when & then
+            mockMvc.perform(patch("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"categoryIds\":[999]}"))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(4400));
+        }
+
+        @Test
+        @DisplayName("실패: 닉네임 유효성 검증 (1글자)")
+        void failWithNicknameValidation() throws Exception {
+            mockMvc.perform(patch("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"nickname\":\"A\"}"))
+                    .andExpect(status().isBadRequest());
         }
     }
 

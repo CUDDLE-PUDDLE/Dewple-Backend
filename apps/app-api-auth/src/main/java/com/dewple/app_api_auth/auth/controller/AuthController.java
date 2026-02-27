@@ -83,7 +83,7 @@ public class AuthController {
         ));
     }
 
-    @Operation(summary = "회원가입 (1단계)", description = "필수 정보를 입력하여 계정을 생성하고 JWT를 헤더로 발급합니다.")
+    @Operation(summary = "회원가입", description = "필수 정보를 입력하여 계정을 생성하고 JWT를 헤더로 발급합니다.")
     @PostMapping("/signup")
     public ApiResponse<Void> signup(
             @Valid @RequestBody SignupRequest request,

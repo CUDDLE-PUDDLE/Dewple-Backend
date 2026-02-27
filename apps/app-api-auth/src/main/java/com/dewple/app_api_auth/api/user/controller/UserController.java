@@ -55,7 +55,7 @@ public class UserController {
         ));
     }
 
-    @Operation(summary = "프로필 수정", description = "로그인한 사용자가 본인의 프로필을 수정합니다. 전달된 필드만 변경됩니다.")
+    @Operation(summary = "내 프로필 수정", description = "로그인한 사용자가 본인의 프로필을 수정합니다. 전달된 필드만 변경됩니다.")
     @SecurityRequirement(name = BEARER_AUTH)
     @PatchMapping("/me")
     public ApiResponse<GetMyProfileResponse> editMyProfile(
@@ -98,7 +98,7 @@ public class UserController {
         return ApiResponse.ok(new CheckUserIdResponse(isAvailable));
     }
 
-    @Operation(summary = "프로필 설정", description = "선택 정보를 입력하여 프로필을 설정합니다.")
+    @Operation(summary = "회원가입 시 프로필 설정", description = "선택 정보를 입력하여 프로필을 설정합니다.")
     @SecurityRequirement(name = BEARER_AUTH)
     @PatchMapping("/me/profile")
     public ApiResponse<UpdateProfileResponse> updateProfile(
