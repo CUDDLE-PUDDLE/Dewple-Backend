@@ -1,5 +1,7 @@
 package com.dewple.app_api_auth.auth.controller;
 
+import static com.dewple.app_api_auth.global.config.SwaggerConfig.BEARER_AUTH;
+
 import com.dewple.app_api_auth.auth.dto.*;
 import com.dewple.app_api_auth.global.config.JwtProperties;
 import com.dewple.app_api_auth.global.response.ApiResponse;
@@ -8,15 +10,18 @@ import com.dewple.common.entity.User;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.Verification;
 import com.dewple.user.exception.UserErrorCode;
+import com.dewple.user.service.LoginParam;
 import com.dewple.user.service.RefreshTokenService;
+import com.dewple.user.service.SignupParam;
 import com.dewple.user.service.UserService;
 import com.dewple.user.service.VerificationService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.dewple.app_api_auth.global.security.CurrentUserId;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
@@ -78,7 +83,7 @@ public class AuthController {
         ));
     }
 
-    @Operation(summary = "회원가입 (1단계)", description = "필수 정보를 입력하여 계정을 생성하고 JWT를 헤더로 발급합니다.")
+    @Operation(summary = "회원가입", description = "필수 정보를 입력하여 계정을 생성하고 JWT를 헤더로 발급합니다.")
     @PostMapping("/signup")
     public ApiResponse<Void> signup(
             @Valid @RequestBody SignupRequest request,
@@ -88,12 +93,12 @@ public class AuthController {
             throw new BusinessException(UserErrorCode.PASSWORD_CONFIRM_MISMATCH);
         }
 
-        User user = userService.signup(
+        User user = userService.signup(new SignupParam(
                 request.verificationToken(),
                 request.name(),
                 request.userId(),
                 request.password()
-        );
+        ));
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
@@ -112,7 +117,8 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse response
     ) {
-        User user = userService.login(request.userId(), request.password());
+        User user = userService.login(new LoginParam(
+                request.userId(), request.password()));
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
@@ -126,9 +132,9 @@ public class AuthController {
     }
 
     @Operation(summary = "로그아웃", description = "해당 사용자의 모든 리프레시 토큰을 삭제합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
     @PostMapping("/logout")
-    public ApiResponse<Void> logout(@AuthenticationPrincipal Jwt jwt) {
-        Long userId = Long.parseLong(jwt.getSubject());
+    public ApiResponse<Void> logout(@CurrentUserId Long userId) {
         refreshTokenService.deleteAllByUserId(userId);
 
         return ApiResponse.ok();

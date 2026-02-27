@@ -112,6 +112,9 @@ modules/{domain}/
 - `@Getter` + `@NoArgsConstructor(access = AccessLevel.PROTECTED)` 조합
 - 생성자에 `@Builder` 적용
 - JSONB 컬럼: `@JdbcTypeCode(SqlTypes.JSON)` + `@Column(columnDefinition = "jsonb")`
+- Soft Delete: `BaseEntity.inactivate()`로 status를 `INACTIVE`로 변경 (물리 삭제 X)
+  - `BaseEntity`에 `status` (`ACTIVE`/`INACTIVE`) + `inactivate()`/`activate()` 메서드 내장
+  - 로그인 등에서 `INACTIVE` 상태 체크하여 접근 차단
 
 ### 서비스 패턴
 
@@ -121,8 +124,11 @@ modules/{domain}/
 ### DTO 패턴
 
 - Java `record` 사용
-- Jakarta Validation 어노테이션 (`@NotBlank`, `@NotNull`, `@Pattern`)
-- OpenAPI `@Schema` 어노테이션으로 문서화
+- 레이어별 네이밍 규칙:
+  - Controller: `Request` / `Response` (예: `SignupRequest`, `GetMyProfileResponse`)
+  - Service: `Param` / `Result` (예: `SignupParam`, `MyProfileResult`)
+- Controller DTO: Jakarta Validation 어노테이션 (`@NotBlank`, `@NotNull`, `@Pattern`) + OpenAPI `@Schema` 어노테이션으로 문서화
+- Service DTO: 순수 데이터 전달 목적, Validation/Swagger 어노테이션 없음
 
 ### API 응답
 
@@ -145,6 +151,7 @@ modules/{domain}/
   - 4100~4199: 회원가입 (signup)
   - 4200~4299: 로그인 (login)
   - 4300~4399: 토큰 (refresh token)
+  - 4400~4499: 프로필 수정 (profile edit)
 
 ### 테스트 패턴
 
@@ -153,6 +160,10 @@ modules/{domain}/
 - `@Nested` + `@DisplayName`으로 계층적 테스트 구성
 - Given-When-Then 패턴
 - 한글 `@DisplayName` 사용 (예: `"성공: 인증 코드 발송"`)
+- API 개발 시 서비스 테스트 + 컨트롤러 테스트를 함께 작성, 성공뿐 아니라 엣지 케이스(값 누락, 중복, 권한 없음 등)도 포함
+- void 메서드 mocking: `willThrow(...).given(mock).method()` (BDDMockito)
+- 반환값 있는 메서드 mocking: `given(mock.method()).willReturn(...)` / `.willThrow(...)`
+- 컨트롤러 테스트에서 인증: `.with(jwt().jwt(j -> j.subject("userId")))` 사용
 
 ### Repository 패턴
 
@@ -173,12 +184,30 @@ modules/{domain}/
 - RTR (Refresh Token Rotation): refresh 사용 시마다 DB에서 교체
 - `RefreshToken` 엔티티로 DB 관리 (멀티 디바이스 동시 로그인 지원)
 - `SecurityConfig`에서 인증 불필요 경로를 `permitAll`로 명시 등록
+- **API 인증 규칙**: `/auth/**` 로 시작하는 엔드포인트(로그아웃 제외, 토큰 재발급 제외)와 일부 공개 엔드포인트(`/users/check-userid`)를 제외한 모든 API는 요청 헤더에 `Authorization: Bearer {accessToken}`이 필수
+- **토큰 재발급**: `/auth/token/refresh`는 `permitAll` — body로 refresh token을 받아 서버에서 직접 디코딩/검증하므로 access token 인증 불필요
+- **Swagger 인증 표시**: 인증이 필요한 엔드포인트에는 `@SecurityRequirement(name = BEARER_AUTH)` 어노테이션을 반드시 추가하여 Swagger UI에서 자물쇠 아이콘이 표시되도록 할 것
+
+#### `@CurrentUserId` 커스텀 어노테이션
+
+컨트롤러에서 인증된 사용자 ID를 간편하게 주입받기 위한 커스텀 어노테이션:
+
+```java
+// 사용 예시
+@GetMapping("/me")
+public ApiResponse<?> getMyProfile(@CurrentUserId Long userId) { ... }
+```
+
+- `CurrentUserId` (어노테이션): `global/security/CurrentUserId.java`
+- `CurrentUserIdResolver` (리졸버): `global/security/CurrentUserIdResolver.java` — `SecurityContextHolder`에서 JWT의 `sub` claim을 `Long`으로 변환
+- `WebMvcConfig`에서 리졸버 등록
 
 ### 코드 스타일
 
 - 들여쓰기: 4 spaces
 - 중괄호: K&R 스타일 (같은 줄에 열기)
 - 어노테이션: 한 줄에 하나씩, 선언부 위에 배치
+- 상수 참조 시 클래스 전체 import보다 `import static` 선호 (예: `import static ...SwaggerConfig.BEARER_AUTH`)
 
 ## 설정 파일
 

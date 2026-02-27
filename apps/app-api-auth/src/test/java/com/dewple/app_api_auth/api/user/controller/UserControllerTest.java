@@ -3,9 +3,14 @@ package com.dewple.app_api_auth.api.user.controller;
 import com.dewple.app_api_auth.global.config.SecurityConfig;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.Gender;
+import com.dewple.common.enums.Mbti;
 import com.dewple.common.enums.University;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
+import com.dewple.user.service.EditMyProfileParam;
+import com.dewple.user.service.MyProfileResult;
+import com.dewple.user.service.UpdateProfileParam;
+import com.dewple.user.service.UserProfileResult;
 import com.dewple.user.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -21,10 +26,13 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -44,6 +52,231 @@ class UserControllerTest {
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
+
+    @Nested
+    @DisplayName("GET /users/me - 내 프로필 조회")
+    class GetMyProfile {
+
+        @Test
+        @DisplayName("성공: 모든 필드가 채워진 프로필 조회")
+        void successWithFullProfile() throws Exception {
+            // given
+            User user = User.builder()
+                    .userId("dewple123")
+                    .password("encoded-password")
+                    .name("홍길동")
+                    .phone("01012345678")
+                    .nickname("듀플러")
+                    .email("test@example.com")
+                    .birthdate(LocalDate.of(2000, 1, 1))
+                    .gender(Gender.MALE)
+                    .university(University.SEOUL_NATIONAL)
+                    .isGraduated(false)
+                    .workplace("듀플")
+                    .selfIntroduction("안녕하세요")
+                    .mbti(Mbti.INTJ)
+                    .profileImg("https://example.com/img.jpg")
+                    .build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(userService.getMyProfile(1L))
+                    .willReturn(new MyProfileResult(user, List.of("개발", "디자인")));
+
+            // when & then
+            mockMvc.perform(get("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.name").value("홍길동"))
+                    .andExpect(jsonPath("$.result.profileImg").value("https://example.com/img.jpg"))
+                    .andExpect(jsonPath("$.result.nickname").value("듀플러"))
+                    .andExpect(jsonPath("$.result.email").value("test@example.com"))
+                    .andExpect(jsonPath("$.result.phone").value("01012345678"))
+                    .andExpect(jsonPath("$.result.birthdate").value("2000-01-01"))
+                    .andExpect(jsonPath("$.result.gender").value("MALE"))
+                    .andExpect(jsonPath("$.result.university").value("SEOUL_NATIONAL"))
+                    .andExpect(jsonPath("$.result.isGraduated").value(false))
+                    .andExpect(jsonPath("$.result.workplace").value("듀플"))
+                    .andExpect(jsonPath("$.result.selfIntroduction").value("안녕하세요"))
+                    .andExpect(jsonPath("$.result.mbti").value("INTJ"))
+                    .andExpect(jsonPath("$.result.interests").isArray())
+                    .andExpect(jsonPath("$.result.interests.length()").value(2))
+                    .andExpect(jsonPath("$.result.interests[0]").value("개발"))
+                    .andExpect(jsonPath("$.result.interests[1]").value("디자인"));
+        }
+
+        @Test
+        @DisplayName("성공: 선택 필드가 null인 프로필 조회 (회원가입 직후)")
+        void successWithMinimalProfile() throws Exception {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(userService.getMyProfile(1L))
+                    .willReturn(new MyProfileResult(user, Collections.emptyList()));
+
+            // when & then
+            mockMvc.perform(get("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.name").value("홍길동"))
+                    .andExpect(jsonPath("$.result.phone").value("01012345678"))
+                    .andExpect(jsonPath("$.result.profileImg").doesNotExist())
+                    .andExpect(jsonPath("$.result.nickname").doesNotExist())
+                    .andExpect(jsonPath("$.result.email").doesNotExist())
+                    .andExpect(jsonPath("$.result.birthdate").doesNotExist())
+                    .andExpect(jsonPath("$.result.gender").doesNotExist())
+                    .andExpect(jsonPath("$.result.university").doesNotExist())
+                    .andExpect(jsonPath("$.result.isGraduated").doesNotExist())
+                    .andExpect(jsonPath("$.result.workplace").doesNotExist())
+                    .andExpect(jsonPath("$.result.selfIntroduction").doesNotExist())
+                    .andExpect(jsonPath("$.result.mbti").doesNotExist())
+                    .andExpect(jsonPath("$.result.interests").isArray())
+                    .andExpect(jsonPath("$.result.interests").isEmpty());
+        }
+
+        @Test
+        @DisplayName("성공: 관심 분야가 없는 사용자")
+        void successWithNoInterests() throws Exception {
+            // given
+            User user = User.builder()
+                    .userId("dewple123")
+                    .password("encoded-password")
+                    .name("홍길동")
+                    .phone("01012345678")
+                    .nickname("듀플러")
+                    .build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(userService.getMyProfile(1L))
+                    .willReturn(new MyProfileResult(user, Collections.emptyList()));
+
+            // when & then
+            mockMvc.perform(get("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.result.nickname").value("듀플러"))
+                    .andExpect(jsonPath("$.result.interests").isArray())
+                    .andExpect(jsonPath("$.result.interests").isEmpty());
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuth() throws Exception {
+            // when & then
+            mockMvc.perform(get("/users/me"))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 사용자")
+        void failWithUserNotFound() throws Exception {
+            // given
+            given(userService.getMyProfile(999L))
+                    .willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+            // when & then
+            mockMvc.perform(get("/users/me")
+                            .with(jwt().jwt(j -> j.subject("999"))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(4201));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /users/{id} - 회원 프로필 조회")
+    class GetUserProfile {
+
+        @Test
+        @DisplayName("성공: 모든 공개 필드가 채워진 회원")
+        void successWithFullProfile() throws Exception {
+            // given
+            given(userService.getUserProfile(1L))
+                    .willReturn(new UserProfileResult(
+                            "홍길동",
+                            "https://example.com/img.jpg",
+                            "안녕하세요",
+                            "INTJ",
+                            List.of("개발", "디자인")
+                    ));
+
+            // when & then
+            mockMvc.perform(get("/users/1")
+                            .with(jwt().jwt(j -> j.subject("99"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.name").value("홍길동"))
+                    .andExpect(jsonPath("$.result.profileImg").value("https://example.com/img.jpg"))
+                    .andExpect(jsonPath("$.result.selfIntroduction").value("안녕하세요"))
+                    .andExpect(jsonPath("$.result.mbti").value("INTJ"))
+                    .andExpect(jsonPath("$.result.interests").isArray())
+                    .andExpect(jsonPath("$.result.interests.length()").value(2))
+                    .andExpect(jsonPath("$.result.interests[0]").value("개발"))
+                    .andExpect(jsonPath("$.result.interests[1]").value("디자인"));
+        }
+
+        @Test
+        @DisplayName("성공: 선택 필드가 모두 null인 회원 (회원가입 직후)")
+        void successWithMinimalProfile() throws Exception {
+            // given
+            given(userService.getUserProfile(1L))
+                    .willReturn(new UserProfileResult(
+                            "홍길동", null, null, null, Collections.emptyList()
+                    ));
+
+            // when & then
+            mockMvc.perform(get("/users/1")
+                            .with(jwt().jwt(j -> j.subject("99"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.name").value("홍길동"))
+                    .andExpect(jsonPath("$.result.profileImg").doesNotExist())
+                    .andExpect(jsonPath("$.result.selfIntroduction").doesNotExist())
+                    .andExpect(jsonPath("$.result.mbti").doesNotExist())
+                    .andExpect(jsonPath("$.result.interests").isArray())
+                    .andExpect(jsonPath("$.result.interests").isEmpty());
+        }
+
+        @Test
+        @DisplayName("성공: 관심 분야만 없는 회원")
+        void successWithNoInterests() throws Exception {
+            // given
+            given(userService.getUserProfile(1L))
+                    .willReturn(new UserProfileResult(
+                            "홍길동", null, "자기소개입니다", "ENFP", Collections.emptyList()
+                    ));
+
+            // when & then
+            mockMvc.perform(get("/users/1")
+                            .with(jwt().jwt(j -> j.subject("99"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.result.selfIntroduction").value("자기소개입니다"))
+                    .andExpect(jsonPath("$.result.mbti").value("ENFP"))
+                    .andExpect(jsonPath("$.result.interests").isEmpty());
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuth() throws Exception {
+            mockMvc.perform(get("/users/1"))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 회원")
+        void failWithUserNotFound() throws Exception {
+            // given
+            given(userService.getUserProfile(999L))
+                    .willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+            // when & then
+            mockMvc.perform(get("/users/999")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(4201));
+        }
+    }
 
     @Nested
     @DisplayName("GET /users/check-userid - 아이디 중복 확인")
@@ -79,6 +312,140 @@ class UserControllerTest {
     }
 
     @Nested
+    @DisplayName("PATCH /users/me/phone - 전화번호 변경")
+    class ChangePhone {
+
+        @Test
+        @DisplayName("성공: 전화번호 변경")
+        void success() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/users/me/phone")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"verificationToken\":\"vp_test-token\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuth() throws Exception {
+            mockMvc.perform(patch("/users/me/phone")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"verificationToken\":\"vp_test-token\"}"))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 인증 토큰 누락")
+        void failWithMissingToken() throws Exception {
+            mockMvc.perform(patch("/users/me/phone")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("실패: 현재 번호와 동일")
+        void failWithSamePhone() throws Exception {
+            // given
+            willThrow(new BusinessException(UserErrorCode.PHONE_SAME_AS_CURRENT))
+                    .given(userService).changePhone(eq(1L), eq("vp_same-token"));
+
+            // when & then
+            mockMvc.perform(patch("/users/me/phone")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"verificationToken\":\"vp_same-token\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value(4401));
+        }
+
+        @Test
+        @DisplayName("실패: 이미 사용 중인 전화번호")
+        void failWithPhoneAlreadyExists() throws Exception {
+            // given
+            willThrow(new BusinessException(UserErrorCode.PHONE_ALREADY_EXISTS))
+                    .given(userService).changePhone(eq(1L), eq("vp_dup-token"));
+
+            // when & then
+            mockMvc.perform(patch("/users/me/phone")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"verificationToken\":\"vp_dup-token\"}"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value(4101));
+        }
+
+        @Test
+        @DisplayName("실패: 유효하지 않은 인증 토큰")
+        void failWithInvalidToken() throws Exception {
+            // given
+            willThrow(new BusinessException(UserErrorCode.VERIFICATION_TOKEN_INVALID))
+                    .given(userService).changePhone(eq(1L), eq("invalid"));
+
+            // when & then
+            mockMvc.perform(patch("/users/me/phone")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"verificationToken\":\"invalid\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value(4005));
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE /users/me - 회원 탈퇴")
+    class Withdraw {
+
+        @Test
+        @DisplayName("성공: 회원 탈퇴")
+        void success() throws Exception {
+            // when & then
+            mockMvc.perform(delete("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuth() throws Exception {
+            mockMvc.perform(delete("/users/me"))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 이미 비활성화된 계정")
+        void failWithAlreadyInactive() throws Exception {
+            // given
+            willThrow(new BusinessException(UserErrorCode.USER_INACTIVE))
+                    .given(userService).withdraw(eq(1L));
+
+            // when & then
+            mockMvc.perform(delete("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value(4203));
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 사용자")
+        void failWithUserNotFound() throws Exception {
+            // given
+            willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND))
+                    .given(userService).withdraw(eq(999L));
+
+            // when & then
+            mockMvc.perform(delete("/users/me")
+                            .with(jwt().jwt(j -> j.subject("999"))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(4201));
+        }
+    }
+
+    @Nested
     @DisplayName("PATCH /users/me/profile - 프로필 설정")
     class UpdateProfile {
 
@@ -92,9 +459,7 @@ class UserControllerTest {
                     LocalDate.of(2000, 1, 1), Gender.MALE,
                     University.SEOUL_NATIONAL, false, "듀플");
 
-            given(userService.updateProfile(eq(1L), eq("듀플러"), eq("test@example.com"),
-                    eq(LocalDate.of(2000, 1, 1)), eq(Gender.MALE),
-                    eq(University.SEOUL_NATIONAL), eq(false), eq("듀플")))
+            given(userService.updateProfile(eq(1L), any(UpdateProfileParam.class)))
                     .willReturn(user);
 
             // when & then
@@ -131,8 +496,7 @@ class UserControllerTest {
         @DisplayName("실패: 이미 사용 중인 닉네임")
         void failWithNicknameAlreadyExists() throws Exception {
             // given
-            given(userService.updateProfile(eq(1L), eq("듀플러"), isNull(),
-                    isNull(), isNull(), isNull(), isNull(), isNull()))
+            given(userService.updateProfile(eq(1L), any(UpdateProfileParam.class)))
                     .willThrow(new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS));
 
             // when & then
@@ -142,6 +506,125 @@ class UserControllerTest {
                             .content("{\"nickname\":\"듀플러\"}"))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.code").value(4103));
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /users/me - 프로필 수정")
+    class EditMyProfile {
+
+        @Test
+        @DisplayName("성공: 닉네임만 수정 + 전체 프로필 응답 확인")
+        void successWithNicknameOnly() throws Exception {
+            // given
+            User user = User.builder()
+                    .userId("dewple123")
+                    .password("encoded-password")
+                    .name("홍길동")
+                    .phone("01012345678")
+                    .nickname("새닉네임")
+                    .email("test@example.com")
+                    .birthdate(LocalDate.of(2000, 1, 1))
+                    .gender(Gender.MALE)
+                    .university(University.SEOUL_NATIONAL)
+                    .isGraduated(false)
+                    .workplace("듀플")
+                    .selfIntroduction("안녕하세요")
+                    .mbti(Mbti.INTJ)
+                    .profileImg("https://example.com/img.jpg")
+                    .build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(userService.editMyProfile(eq(1L), any(EditMyProfileParam.class)))
+                    .willReturn(new MyProfileResult(user, List.of("개발")));
+
+            // when & then
+            mockMvc.perform(patch("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"nickname\":\"새닉네임\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.name").value("홍길동"))
+                    .andExpect(jsonPath("$.result.nickname").value("새닉네임"))
+                    .andExpect(jsonPath("$.result.email").value("test@example.com"))
+                    .andExpect(jsonPath("$.result.phone").value("01012345678"))
+                    .andExpect(jsonPath("$.result.selfIntroduction").value("안녕하세요"))
+                    .andExpect(jsonPath("$.result.mbti").value("INTJ"))
+                    .andExpect(jsonPath("$.result.interests[0]").value("개발"));
+        }
+
+        @Test
+        @DisplayName("성공: categoryIds 포함 수정")
+        void successWithCategoryIds() throws Exception {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(userService.editMyProfile(eq(1L), any(EditMyProfileParam.class)))
+                    .willReturn(new MyProfileResult(user, List.of("개발", "디자인")));
+
+            // when & then
+            mockMvc.perform(patch("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"categoryIds\":[1,2]}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.interests.length()").value(2))
+                    .andExpect(jsonPath("$.result.interests[0]").value("개발"))
+                    .andExpect(jsonPath("$.result.interests[1]").value("디자인"));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuth() throws Exception {
+            mockMvc.perform(patch("/users/me")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"nickname\":\"새닉네임\"}"))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 닉네임 중복")
+        void failWithNicknameAlreadyExists() throws Exception {
+            // given
+            given(userService.editMyProfile(eq(1L), any(EditMyProfileParam.class)))
+                    .willThrow(new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS));
+
+            // when & then
+            mockMvc.perform(patch("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"nickname\":\"중복닉네임\"}"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value(4103));
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 카테고리")
+        void failWithCategoryNotFound() throws Exception {
+            // given
+            given(userService.editMyProfile(eq(1L), any(EditMyProfileParam.class)))
+                    .willThrow(new BusinessException(UserErrorCode.CATEGORY_NOT_FOUND));
+
+            // when & then
+            mockMvc.perform(patch("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"categoryIds\":[999]}"))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(4400));
+        }
+
+        @Test
+        @DisplayName("실패: 닉네임 유효성 검증 (1글자)")
+        void failWithNicknameValidation() throws Exception {
+            mockMvc.perform(patch("/users/me")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"nickname\":\"A\"}"))
+                    .andExpect(status().isBadRequest());
         }
     }
 
