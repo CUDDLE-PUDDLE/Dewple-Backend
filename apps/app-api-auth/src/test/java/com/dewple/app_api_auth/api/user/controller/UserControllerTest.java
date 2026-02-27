@@ -32,6 +32,7 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -307,6 +308,90 @@ class UserControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(1000))
                     .andExpect(jsonPath("$.result.isAvailable").value(false));
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /users/me/phone - 전화번호 변경")
+    class ChangePhone {
+
+        @Test
+        @DisplayName("성공: 전화번호 변경")
+        void success() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/users/me/phone")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"verificationToken\":\"vp_test-token\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuth() throws Exception {
+            mockMvc.perform(patch("/users/me/phone")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"verificationToken\":\"vp_test-token\"}"))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 인증 토큰 누락")
+        void failWithMissingToken() throws Exception {
+            mockMvc.perform(patch("/users/me/phone")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("실패: 현재 번호와 동일")
+        void failWithSamePhone() throws Exception {
+            // given
+            willThrow(new BusinessException(UserErrorCode.PHONE_SAME_AS_CURRENT))
+                    .given(userService).changePhone(eq(1L), eq("vp_same-token"));
+
+            // when & then
+            mockMvc.perform(patch("/users/me/phone")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"verificationToken\":\"vp_same-token\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value(4401));
+        }
+
+        @Test
+        @DisplayName("실패: 이미 사용 중인 전화번호")
+        void failWithPhoneAlreadyExists() throws Exception {
+            // given
+            willThrow(new BusinessException(UserErrorCode.PHONE_ALREADY_EXISTS))
+                    .given(userService).changePhone(eq(1L), eq("vp_dup-token"));
+
+            // when & then
+            mockMvc.perform(patch("/users/me/phone")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"verificationToken\":\"vp_dup-token\"}"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value(4101));
+        }
+
+        @Test
+        @DisplayName("실패: 유효하지 않은 인증 토큰")
+        void failWithInvalidToken() throws Exception {
+            // given
+            willThrow(new BusinessException(UserErrorCode.VERIFICATION_TOKEN_INVALID))
+                    .given(userService).changePhone(eq(1L), eq("invalid"));
+
+            // when & then
+            mockMvc.perform(patch("/users/me/phone")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"verificationToken\":\"invalid\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value(4005));
         }
     }
 
