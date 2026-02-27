@@ -522,6 +522,119 @@ class UserServiceTest {
     }
 
     @Nested
+    @DisplayName("changePhone - 전화번호 변경")
+    class ChangePhone {
+
+        private static final String NEW_PHONE = "01098765432";
+        private static final String CHANGE_TOKEN = "vp_change-token";
+
+        @Test
+        @DisplayName("성공: 새 전화번호로 변경")
+        void success() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(verificationService.validateVerificationToken(CHANGE_TOKEN)).willReturn(NEW_PHONE);
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userRepository.existsByPhone(NEW_PHONE)).willReturn(false);
+
+            // when
+            userService.changePhone(1L, CHANGE_TOKEN);
+
+            // then
+            assertThat(user.getPhone()).isEqualTo(NEW_PHONE);
+        }
+
+        @Test
+        @DisplayName("실패: 현재 번호와 동일")
+        void failWithSamePhone() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(verificationService.validateVerificationToken(CHANGE_TOKEN)).willReturn(TEST_PHONE);
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+            // when & then
+            assertThatThrownBy(() -> userService.changePhone(1L, CHANGE_TOKEN))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.PHONE_SAME_AS_CURRENT);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 이미 다른 사용자가 사용 중인 번호")
+        void failWithPhoneAlreadyExists() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(verificationService.validateVerificationToken(CHANGE_TOKEN)).willReturn(NEW_PHONE);
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userRepository.existsByPhone(NEW_PHONE)).willReturn(true);
+
+            // when & then
+            assertThatThrownBy(() -> userService.changePhone(1L, CHANGE_TOKEN))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.PHONE_ALREADY_EXISTS);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 유효하지 않은 인증 토큰")
+        void failWithInvalidToken() {
+            // given
+            given(verificationService.validateVerificationToken("invalid-token"))
+                    .willThrow(new BusinessException(UserErrorCode.VERIFICATION_TOKEN_INVALID));
+
+            // when & then
+            assertThatThrownBy(() -> userService.changePhone(1L, "invalid-token"))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.VERIFICATION_TOKEN_INVALID);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 만료된 인증 토큰")
+        void failWithExpiredToken() {
+            // given
+            given(verificationService.validateVerificationToken("expired-token"))
+                    .willThrow(new BusinessException(UserErrorCode.VERIFICATION_TOKEN_EXPIRED));
+
+            // when & then
+            assertThatThrownBy(() -> userService.changePhone(1L, "expired-token"))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.VERIFICATION_TOKEN_EXPIRED);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 사용자")
+        void failWithUserNotFound() {
+            // given
+            given(verificationService.validateVerificationToken(CHANGE_TOKEN)).willReturn(NEW_PHONE);
+            given(userRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> userService.changePhone(999L, CHANGE_TOKEN))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                    });
+        }
+    }
+
+    @Nested
     @DisplayName("editMyProfile - 프로필 수정")
     class EditMyProfile {
 
