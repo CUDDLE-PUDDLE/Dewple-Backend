@@ -38,6 +38,18 @@ public class Activity extends BaseEntity {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "capacity")
+    private Integer capacity;
+
+    @Column(name = "is_attendance_check", nullable = false)
+    private Boolean isAttendanceCheck = false;
+
+    @Column(name = "is_searchable", nullable = false)
+    private Boolean isSearchable = true;
+
     @Column(name = "start_at", nullable = false, columnDefinition = "timestamptz")
     private OffsetDateTime startAt;
 
@@ -46,11 +58,16 @@ public class Activity extends BaseEntity {
 
     @Builder
     public Activity(Club club, User creator, OpenType openType, String name,
-                    OffsetDateTime startAt, OffsetDateTime endAt) {
+                    String description, Integer capacity, Boolean isAttendanceCheck,
+                    Boolean isSearchable, OffsetDateTime startAt, OffsetDateTime endAt) {
         this.club = club;
         this.creator = creator;
         this.openType = openType;
         this.name = name;
+        this.description = description;
+        this.capacity = capacity;
+        this.isAttendanceCheck = isAttendanceCheck != null ? isAttendanceCheck : false;
+        this.isSearchable = isSearchable != null ? isSearchable : true;
         this.startAt = startAt;
         this.endAt = endAt;
     }
