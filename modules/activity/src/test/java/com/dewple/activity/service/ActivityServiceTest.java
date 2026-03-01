@@ -1,0 +1,408 @@
+package com.dewple.activity.service;
+
+import com.dewple.activity.entity.Activity;
+import com.dewple.activity.exception.ActivityErrorCode;
+import com.dewple.activity.repository.ActivityRepository;
+import com.dewple.club.entity.ClubMember;
+import com.dewple.club.entity.ClubRole;
+import com.dewple.club.exception.ClubErrorCode;
+import com.dewple.club.repository.ClubMemberRepository;
+import com.dewple.club.repository.ClubRepository;
+import com.dewple.common.entity.Club;
+import com.dewple.common.entity.User;
+import com.dewple.common.enums.ActivityType;
+import com.dewple.common.enums.Gender;
+import com.dewple.common.enums.OpenType;
+import com.dewple.common.enums.Permission;
+import com.dewple.common.exception.BusinessException;
+import com.dewple.user.exception.UserErrorCode;
+import com.dewple.user.repository.UserRepository;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.time.OffsetDateTime;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+
+@ExtendWith(MockitoExtension.class)
+class ActivityServiceTest {
+
+    @Mock
+    private ActivityRepository activityRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private ClubRepository clubRepository;
+
+    @Mock
+    private ClubMemberRepository clubMemberRepository;
+
+    @InjectMocks
+    private ActivityService activityService;
+
+    private static final Long USER_ID = 1L;
+    private static final Long CLUB_ID = 10L;
+    private static final OffsetDateTime START_AT = OffsetDateTime.now().plusDays(7);
+    private static final OffsetDateTime END_AT = OffsetDateTime.now().plusDays(14);
+
+    @Nested
+    @DisplayName("createActivity - 모임 생성")
+    class CreateActivity {
+
+        @Test
+        @DisplayName("성공: 개인 모임 생성")
+        void successWithPersonalActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
+            given(activityRepository.save(any(Activity.class))).willAnswer(invocation -> {
+                Activity saved = invocation.getArgument(0);
+                ReflectionTestUtils.setField(saved, "id", 100L);
+                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now());
+                return saved;
+            });
+
+            CreateActivityParam param = new CreateActivityParam(
+                    null, OpenType.PUBLIC, "봄맞이 독서 모임", "함께 책을 읽어요",
+                    20, false, true, START_AT, END_AT
+            );
+
+            // when
+            CreateActivityResult result = activityService.createActivity(USER_ID, param);
+
+            // then
+            assertThat(result.activityId()).isEqualTo(100L);
+            assertThat(result.clubId()).isNull();
+            assertThat(result.clubName()).isNull();
+            assertThat(result.openType()).isEqualTo(OpenType.PUBLIC);
+            assertThat(result.name()).isEqualTo("봄맞이 독서 모임");
+            assertThat(result.description()).isEqualTo("함께 책을 읽어요");
+            assertThat(result.capacity()).isEqualTo(20);
+            assertThat(result.isAttendanceCheck()).isFalse();
+            assertThat(result.isSearchable()).isTrue();
+
+            verify(activityRepository).save(any(Activity.class));
+        }
+
+        @Test
+        @DisplayName("성공: 동아리 모임 생성")
+        void successWithClubActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Club club = createClub(creator);
+            ReflectionTestUtils.setField(club, "id", CLUB_ID);
+
+            ClubRole role = ClubRole.builder()
+                    .club(club)
+                    .name("운영진")
+                    .permissions(Permission.MANAGE_ACTIVITY.getValue())
+                    .build();
+
+            ClubMember member = ClubMember.builder()
+                    .club(club)
+                    .user(creator)
+                    .role(role)
+                    .build();
+
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, USER_ID)).willReturn(Optional.of(member));
+            given(activityRepository.save(any(Activity.class))).willAnswer(invocation -> {
+                Activity saved = invocation.getArgument(0);
+                ReflectionTestUtils.setField(saved, "id", 100L);
+                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now());
+                return saved;
+            });
+
+            CreateActivityParam param = new CreateActivityParam(
+                    CLUB_ID, OpenType.PRIVATE, "동아리 정기 모임", "이번 주 정기 모임입니다",
+                    null, true, false, START_AT, END_AT
+            );
+
+            // when
+            CreateActivityResult result = activityService.createActivity(USER_ID, param);
+
+            // then
+            assertThat(result.activityId()).isEqualTo(100L);
+            assertThat(result.clubId()).isEqualTo(CLUB_ID);
+            assertThat(result.clubName()).isEqualTo("테스트 동아리");
+            assertThat(result.openType()).isEqualTo(OpenType.PRIVATE);
+            assertThat(result.isAttendanceCheck()).isTrue();
+            assertThat(result.isSearchable()).isFalse();
+            assertThat(result.capacity()).isNull();
+        }
+
+        @Test
+        @DisplayName("성공: capacity가 null인 모임 (인원 제한 없음)")
+        void successWithUnlimitedCapacity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
+            given(activityRepository.save(any(Activity.class))).willAnswer(invocation -> {
+                Activity saved = invocation.getArgument(0);
+                ReflectionTestUtils.setField(saved, "id", 100L);
+                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now());
+                return saved;
+            });
+
+            CreateActivityParam param = new CreateActivityParam(
+                    null, OpenType.PUBLIC, "오픈 모임", "누구나 환영",
+                    null, null, null, START_AT, END_AT
+            );
+
+            // when
+            CreateActivityResult result = activityService.createActivity(USER_ID, param);
+
+            // then
+            assertThat(result.capacity()).isNull();
+            assertThat(result.isAttendanceCheck()).isFalse();
+            assertThat(result.isSearchable()).isTrue();
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 사용자")
+        void failWithUserNotFound() {
+            // given
+            given(userRepository.findById(999L)).willReturn(Optional.empty());
+
+            CreateActivityParam param = new CreateActivityParam(
+                    null, OpenType.PUBLIC, "모임", "설명",
+                    10, false, true, START_AT, END_AT
+            );
+
+            // when & then
+            assertThatThrownBy(() -> activityService.createActivity(999L, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 종료 시간이 시작 시간보다 이전")
+        void failWithEndBeforeStart() {
+            // given
+            User creator = createUser();
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
+
+            CreateActivityParam param = new CreateActivityParam(
+                    null, OpenType.PUBLIC, "모임", "설명",
+                    10, false, true, END_AT, START_AT
+            );
+
+            // when & then
+            assertThatThrownBy(() -> activityService.createActivity(USER_ID, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_END_BEFORE_START);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 종료 시간과 시작 시간이 동일")
+        void failWithSameStartAndEnd() {
+            // given
+            User creator = createUser();
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
+
+            OffsetDateTime sameTime = OffsetDateTime.now().plusDays(7);
+            CreateActivityParam param = new CreateActivityParam(
+                    null, OpenType.PUBLIC, "모임", "설명",
+                    10, false, true, sameTime, sameTime
+            );
+
+            // when & then
+            assertThatThrownBy(() -> activityService.createActivity(USER_ID, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_END_BEFORE_START);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 시작 시간이 과거")
+        void failWithStartInPast() {
+            // given
+            User creator = createUser();
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
+
+            OffsetDateTime pastStart = OffsetDateTime.now().minusDays(1);
+            OffsetDateTime futureEnd = OffsetDateTime.now().plusDays(1);
+            CreateActivityParam param = new CreateActivityParam(
+                    null, OpenType.PUBLIC, "모임", "설명",
+                    10, false, true, pastStart, futureEnd
+            );
+
+            // when & then
+            assertThatThrownBy(() -> activityService.createActivity(USER_ID, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_START_IN_PAST);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 동아리")
+        void failWithClubNotFound() {
+            // given
+            User creator = createUser();
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
+            given(clubRepository.findById(999L)).willReturn(Optional.empty());
+
+            CreateActivityParam param = new CreateActivityParam(
+                    999L, OpenType.PUBLIC, "모임", "설명",
+                    10, false, true, START_AT, END_AT
+            );
+
+            // when & then
+            assertThatThrownBy(() -> activityService.createActivity(USER_ID, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ClubErrorCode.CLUB_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 동아리 멤버가 아닌 사용자")
+        void failWithNotClubMember() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Club club = createClub(creator);
+            ReflectionTestUtils.setField(club, "id", CLUB_ID);
+
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, USER_ID)).willReturn(Optional.empty());
+
+            CreateActivityParam param = new CreateActivityParam(
+                    CLUB_ID, OpenType.PUBLIC, "모임", "설명",
+                    10, false, true, START_AT, END_AT
+            );
+
+            // when & then
+            assertThatThrownBy(() -> activityService.createActivity(USER_ID, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ClubErrorCode.NOT_CLUB_MEMBER);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 역할이 없는 멤버 (role이 null)")
+        void failWithNoRole() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Club club = createClub(creator);
+            ReflectionTestUtils.setField(club, "id", CLUB_ID);
+
+            ClubMember member = ClubMember.builder()
+                    .club(club)
+                    .user(creator)
+                    .role(null)
+                    .build();
+
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, USER_ID)).willReturn(Optional.of(member));
+
+            CreateActivityParam param = new CreateActivityParam(
+                    CLUB_ID, OpenType.PUBLIC, "모임", "설명",
+                    10, false, true, START_AT, END_AT
+            );
+
+            // when & then
+            assertThatThrownBy(() -> activityService.createActivity(USER_ID, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ClubErrorCode.CLUB_PERMISSION_DENIED);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: MANAGE_ACTIVITY 권한이 없는 멤버")
+        void failWithNoPermission() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Club club = createClub(creator);
+            ReflectionTestUtils.setField(club, "id", CLUB_ID);
+
+            ClubRole role = ClubRole.builder()
+                    .club(club)
+                    .name("문의 답변")
+                    .permissions(Permission.ANSWER_INQUIRY.getValue())
+                    .build();
+
+            ClubMember member = ClubMember.builder()
+                    .club(club)
+                    .user(creator)
+                    .role(role)
+                    .build();
+
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, USER_ID)).willReturn(Optional.of(member));
+
+            CreateActivityParam param = new CreateActivityParam(
+                    CLUB_ID, OpenType.PUBLIC, "모임", "설명",
+                    10, false, true, START_AT, END_AT
+            );
+
+            // when & then
+            assertThatThrownBy(() -> activityService.createActivity(USER_ID, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ClubErrorCode.CLUB_PERMISSION_DENIED);
+                    });
+        }
+    }
+
+    private User createUser() {
+        return User.builder()
+                .userId("dewple123")
+                .password("encoded-password")
+                .name("홍길동")
+                .phone("01012345678")
+                .build();
+    }
+
+    private Club createClub(User creator) {
+        return Club.builder()
+                .creator(creator)
+                .name("테스트 동아리")
+                .description("테스트용 동아리입니다")
+                .gender(Gender.MALE)
+                .activityType(ActivityType.BOTH)
+                .build();
+    }
+}
