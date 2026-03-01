@@ -123,7 +123,7 @@ public class RecruitmentController {
 
         recruitmentService.incrementViewCount(postingId);
 
-        return ResponseEntity.ok(ApiResponse.ok(null));
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @Operation(summary = "모집 공고 목록 조회", description = "동아리의 모집 공고 목록을 조회합니다. status=OPEN(모집 중) 또는 status=CLOSED(마감)로 필터링합니다. 인증 불필요.")
