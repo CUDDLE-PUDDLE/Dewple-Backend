@@ -3,10 +3,18 @@ description = 'Activity Module - 활동 도메인 (공고, 지원서, 참여 관
 dependencies {
     implementation project(":modules:common")
     implementation project(":modules:club")
+    implementation project(":modules:user")
+
+    // Web (HttpStatus - ErrorCode 구현용)
+    compileOnly 'org.springframework:spring-web'
 
     // JPA
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 
     // Validation
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework:spring-web'
 }
