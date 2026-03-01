@@ -25,6 +25,20 @@ public enum RecruitmentErrorCode implements ErrorCode {
     POSTING_ALREADY_CLOSED(5011, HttpStatus.BAD_REQUEST, "이미 마감된 공고입니다."),
     POSTING_NOT_EXPIRED(5012, HttpStatus.BAD_REQUEST, "마감 기한이 지난 공고는 조기 마감할 수 없습니다."),
     INVALID_STATUS_FILTER(5013, HttpStatus.BAD_REQUEST, "상태 필터는 OPEN 또는 CLOSED만 가능합니다."),
+
+    /**
+     * 5100: Application 관련 오류
+     */
+    APPLICATION_NOT_FOUND(5100, HttpStatus.NOT_FOUND, "해당 지원서를 찾을 수 없습니다."),
+    APPLICATION_ALREADY_SUBMITTED(5101, HttpStatus.CONFLICT, "이미 해당 공고에 제출된 지원서가 존재합니다."),
+    APPLICATION_NOT_WITHDRAWABLE(5102, HttpStatus.BAD_REQUEST, "합격 또는 불합격 상태의 지원서는 철회할 수 없습니다."),
+    POSTING_NOT_ACCEPTING(5103, HttpStatus.BAD_REQUEST, "현재 지원을 받지 않는 공고입니다."),
+    APPLICATION_SCHEMA_NOT_FOUND(5104, HttpStatus.NOT_FOUND, "해당 공고의 지원서 양식을 찾을 수 없습니다."),
+    APPLICATION_NOT_OWNER(5105, HttpStatus.FORBIDDEN, "본인의 지원서만 관리할 수 있습니다."),
+    APPLICATION_NOT_EDITABLE(5106, HttpStatus.BAD_REQUEST, "수정할 수 없는 상태의 지원서입니다."),
+    APPLICATION_EDIT_WINDOW_CLOSED(5107, HttpStatus.BAD_REQUEST, "지원서 수정 기간이 종료되었습니다."),
+    GUEST_APPLICATION_ALREADY_SUBMITTED(5108, HttpStatus.CONFLICT, "해당 전화번호로 이미 제출된 지원서가 존재합니다."),
+    GUEST_APPLICATION_NOT_FOUND(5109, HttpStatus.NOT_FOUND, "해당 전화번호로 제출된 지원서를 찾을 수 없습니다."),
     ;
 
     private final int code;
