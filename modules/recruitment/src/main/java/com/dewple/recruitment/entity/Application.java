@@ -31,8 +31,11 @@ public class Application extends BaseEntity {
     private RecruitmentSchema recruitmentSchema;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "applicant_id", nullable = false)
+    @JoinColumn(name = "applicant_id")
     private User applicant;
+
+    @Column(name = "guest_phone", length = 20)
+    private String guestPhone;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "answers", nullable = false, columnDefinition = "jsonb")
@@ -49,14 +52,24 @@ public class Application extends BaseEntity {
     private ApplicationStatus applicationStatus;
 
     @Builder
-    public Application(RecruitmentSchema recruitmentSchema, User applicant, String answers,
+    public Application(RecruitmentSchema recruitmentSchema, User applicant,
+                       String guestPhone, String answers,
                        LocalDateTime interviewStartDate, String interviewLocation,
                        ApplicationStatus applicationStatus) {
         this.recruitmentSchema = recruitmentSchema;
         this.applicant = applicant;
+        this.guestPhone = guestPhone;
         this.answers = answers != null ? answers : "[]";
         this.interviewStartDate = interviewStartDate;
         this.interviewLocation = interviewLocation;
+        this.applicationStatus = applicationStatus;
+    }
+
+    public void updateAnswers(String answers) {
+        this.answers = answers != null ? answers : "[]";
+    }
+
+    public void changeApplicationStatus(ApplicationStatus applicationStatus) {
         this.applicationStatus = applicationStatus;
     }
 }
