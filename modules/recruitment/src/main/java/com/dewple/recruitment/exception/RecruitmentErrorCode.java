@@ -39,6 +39,7 @@ public enum RecruitmentErrorCode implements ErrorCode {
     APPLICATION_EDIT_WINDOW_CLOSED(5107, HttpStatus.BAD_REQUEST, "지원서 수정 기간이 종료되었습니다."),
     GUEST_APPLICATION_ALREADY_SUBMITTED(5108, HttpStatus.CONFLICT, "해당 전화번호로 이미 제출된 지원서가 존재합니다."),
     GUEST_APPLICATION_NOT_FOUND(5109, HttpStatus.NOT_FOUND, "해당 전화번호로 제출된 지원서를 찾을 수 없습니다."),
+    APPLICATION_SOME_NOT_FOUND(5110, HttpStatus.BAD_REQUEST, "일부 지원서를 찾을 수 없습니다."),
     ;
 
     private final int code;

@@ -14,6 +14,11 @@ dependencies {
     // Jackson (JSON 파싱 - 지원서 양식 검증에 필요)
     implementation 'com.fasterxml.jackson.core:jackson-databind'
 
+    // QueryDSL
+    annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jakarta'
+    annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
+    annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
+
     // Web (HttpStatus - ErrorCode 구현에 필요, 런타임은 apps에서 제공)
     compileOnly 'org.springframework:spring-web'
 

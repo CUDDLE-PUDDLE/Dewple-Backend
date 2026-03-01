@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ApplicationRepository extends JpaRepository<Application, Long> {
+public interface ApplicationRepository extends JpaRepository<Application, Long>, com.dewple.recruitment.repository.custom.ApplicationRepositoryCustom {
 
     @Query("SELECT a FROM Application a " +
             "WHERE a.recruitmentSchema.recruitmentProcess.posting.id = :postingId " +
