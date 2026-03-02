@@ -3,6 +3,7 @@ package com.dewple.app_api_auth.api.activity.controller;
 import com.dewple.activity.exception.ActivityErrorCode;
 import com.dewple.activity.service.ActivityService;
 import com.dewple.activity.service.CreateActivityResult;
+import com.dewple.activity.service.GetActivityDetailResult;
 import com.dewple.app_api_auth.global.config.SecurityConfig;
 import com.dewple.club.exception.ClubErrorCode;
 import com.dewple.common.enums.OpenType;
@@ -21,6 +22,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.OffsetDateTime;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -29,6 +32,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -406,6 +410,97 @@ class ActivityControllerTest {
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.code").value(5004));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /activities/{activityId} - 모임 상세 조회")
+    class GetActivityDetail {
+
+        @Test
+        @DisplayName("성공: 모임 상세 조회")
+        void successGetActivityDetail() throws Exception {
+            // given
+            List<GetActivityDetailResult.ParticipantInfo> participants = List.of(
+                    new GetActivityDetailResult.ParticipantInfo(2L, "img1.jpg", "참가자1"),
+                    new GetActivityDetailResult.ParticipantInfo(3L, null, "참가자2")
+            );
+
+            GetActivityDetailResult result = new GetActivityDetailResult(
+                    100L, "봄맞이 독서 모임", "함께 책을 읽어요",
+                    10L, "테스트 동아리", OpenType.PUBLIC,
+                    20, OffsetDateTime.parse(START_AT), OffsetDateTime.parse(END_AT),
+                    participants
+            );
+
+            given(activityService.getActivityDetail(eq(100L))).willReturn(result);
+
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.activityId").value(100))
+                    .andExpect(jsonPath("$.result.name").value("봄맞이 독서 모임"))
+                    .andExpect(jsonPath("$.result.description").value("함께 책을 읽어요"))
+                    .andExpect(jsonPath("$.result.clubId").value(10))
+                    .andExpect(jsonPath("$.result.clubName").value("테스트 동아리"))
+                    .andExpect(jsonPath("$.result.openType").value("PUBLIC"))
+                    .andExpect(jsonPath("$.result.capacity").value(20))
+                    .andExpect(jsonPath("$.result.participants").isArray())
+                    .andExpect(jsonPath("$.result.participants.length()").value(2))
+                    .andExpect(jsonPath("$.result.participants[0].id").value(2))
+                    .andExpect(jsonPath("$.result.participants[0].profileImg").value("img1.jpg"))
+                    .andExpect(jsonPath("$.result.participants[0].name").value("참가자1"))
+                    .andExpect(jsonPath("$.result.participants[1].id").value(3))
+                    .andExpect(jsonPath("$.result.participants[1].name").value("참가자2"));
+        }
+
+        @Test
+        @DisplayName("성공: 개인 모임 상세 조회 (clubId/clubName null)")
+        void successGetPersonalActivityDetail() throws Exception {
+            // given
+            GetActivityDetailResult result = new GetActivityDetailResult(
+                    100L, "개인 모임", "개인 모임입니다",
+                    null, null, OpenType.PRIVATE,
+                    null, OffsetDateTime.parse(START_AT), OffsetDateTime.parse(END_AT),
+                    Collections.emptyList()
+            );
+
+            given(activityService.getActivityDetail(eq(100L))).willReturn(result);
+
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.clubId").doesNotExist())
+                    .andExpect(jsonPath("$.result.clubName").doesNotExist())
+                    .andExpect(jsonPath("$.result.capacity").doesNotExist())
+                    .andExpect(jsonPath("$.result.participants").isArray())
+                    .andExpect(jsonPath("$.result.participants.length()").value(0));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}", 100L))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 모임 없음 (서비스 예외)")
+        void failWithActivityNotFound() throws Exception {
+            // given
+            given(activityService.getActivityDetail(eq(999L)))
+                    .willThrow(new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}", 999L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(5000));
         }
     }
 }

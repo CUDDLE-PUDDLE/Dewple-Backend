@@ -4,15 +4,18 @@ import static com.dewple.app_api_auth.global.config.SwaggerConfig.BEARER_AUTH;
 
 import com.dewple.app_api_auth.api.activity.dto.CreateActivityRequest;
 import com.dewple.app_api_auth.api.activity.dto.CreateActivityResponse;
+import com.dewple.app_api_auth.api.activity.dto.GetActivityDetailResponse;
 import com.dewple.app_api_auth.global.response.ApiResponse;
 import com.dewple.app_api_auth.global.security.CurrentUserId;
 import com.dewple.activity.service.ActivityService;
 import com.dewple.activity.service.CreateActivityParam;
 import com.dewple.activity.service.CreateActivityResult;
+import com.dewple.activity.service.GetActivityDetailResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -72,5 +75,33 @@ public class ActivityController {
     ) {
         activityService.deleteActivity(userId, activityId);
         return ApiResponse.ok();
+    }
+
+    @Operation(summary = "모임 상세 조회", description = "모임의 상세 정보를 조회합니다. 모임 기본 정보와 참가자 목록을 반환합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/{activityId}")
+    public ApiResponse<GetActivityDetailResponse> getActivityDetail(
+            @PathVariable Long activityId
+    ) {
+        GetActivityDetailResult result = activityService.getActivityDetail(activityId);
+
+        List<GetActivityDetailResponse.ParticipantResponse> participants = result.participants().stream()
+                .map(p -> new GetActivityDetailResponse.ParticipantResponse(
+                        p.id(), p.profileImg(), p.name()
+                ))
+                .toList();
+
+        return ApiResponse.ok(new GetActivityDetailResponse(
+                result.activityId(),
+                result.name(),
+                result.description(),
+                result.clubId(),
+                result.clubName(),
+                result.openType(),
+                result.capacity(),
+                result.startAt(),
+                result.endAt(),
+                participants
+        ));
     }
 }
