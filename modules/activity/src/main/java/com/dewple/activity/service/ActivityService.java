@@ -1,7 +1,9 @@
 package com.dewple.activity.service;
 
 import com.dewple.activity.entity.Activity;
+import com.dewple.activity.entity.ActivityParticipant;
 import com.dewple.activity.exception.ActivityErrorCode;
+import com.dewple.activity.repository.ActivityParticipantRepository;
 import com.dewple.activity.repository.ActivityRepository;
 import com.dewple.club.entity.ClubMember;
 import com.dewple.club.exception.ClubErrorCode;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.dewple.common.enums.BaseStatus;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -28,6 +31,7 @@ import java.time.OffsetDateTime;
 public class ActivityService {
 
     private final ActivityRepository activityRepository;
+    private final ActivityParticipantRepository activityParticipantRepository;
     private final UserRepository userRepository;
     private final ClubRepository clubRepository;
     private final ClubMemberRepository clubMemberRepository;
@@ -118,5 +122,41 @@ public class ActivityService {
 
         activity.inactivate();
         log.info("모임 삭제 완료: activityId={}, userId={}", activityId, userId);
+    }
+
+    @Transactional(readOnly = true)
+    public GetActivityDetailResult getActivityDetail(Long activityId) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        List<ActivityParticipant> participants = activityParticipantRepository.findByActivityId(activityId);
+
+        List<GetActivityDetailResult.ParticipantInfo> participantInfos = participants.stream()
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .map(p -> new GetActivityDetailResult.ParticipantInfo(
+                        p.getParticipant().getId(),
+                        p.getParticipant().getProfileImg(),
+                        p.getParticipant().getName()
+                ))
+                .toList();
+
+        Club club = activity.getClub();
+
+        return new GetActivityDetailResult(
+                activity.getId(),
+                activity.getName(),
+                activity.getDescription(),
+                club != null ? club.getId() : null,
+                club != null ? club.getName() : null,
+                activity.getOpenType(),
+                activity.getCapacity(),
+                activity.getStartAt(),
+                activity.getEndAt(),
+                participantInfos
+        );
     }
 }
