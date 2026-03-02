@@ -18,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.dewple.common.enums.BaseStatus;
+
 import java.time.OffsetDateTime;
 
 @Slf4j
@@ -86,5 +88,35 @@ public class ActivityService {
                 activity.getEndAt(),
                 activity.getCreatedAt()
         );
+    }
+
+    @Transactional
+    public void deleteActivity(Long userId, Long activityId) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_ALREADY_INACTIVE);
+        }
+
+        boolean isCreator = activity.getCreator().getId().equals(userId);
+
+        if (activity.getClub() != null) {
+            if (!isCreator) {
+                ClubMember member = clubMemberRepository.findByClubIdAndUserId(activity.getClub().getId(), userId)
+                        .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_DELETE_PERMISSION_DENIED));
+
+                if (member.getRole() == null || !member.getRole().hasPermission(Permission.MANAGE_ACTIVITY)) {
+                    throw new BusinessException(ActivityErrorCode.ACTIVITY_DELETE_PERMISSION_DENIED);
+                }
+            }
+        } else {
+            if (!isCreator) {
+                throw new BusinessException(ActivityErrorCode.ACTIVITY_DELETE_PERMISSION_DENIED);
+            }
+        }
+
+        activity.inactivate();
+        log.info("모임 삭제 완료: activityId={}, userId={}", activityId, userId);
     }
 }
