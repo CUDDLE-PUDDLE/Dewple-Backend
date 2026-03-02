@@ -13,6 +13,7 @@ import com.dewple.common.entity.User;
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.OpenType;
+import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
@@ -33,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -387,6 +389,191 @@ class ActivityServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("deleteActivity - 모임 삭제")
+    class DeleteActivity {
+
+        private static final Long ACTIVITY_ID = 100L;
+        private static final Long OTHER_USER_ID = 2L;
+
+        @Test
+        @DisplayName("성공: 생성자가 개인 모임 삭제")
+        void successDeletePersonalActivityByCreator() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+
+            // when
+            activityService.deleteActivity(USER_ID, ACTIVITY_ID);
+
+            // then
+            assertThat(activity.getStatus()).isEqualTo(BaseStatus.INACTIVE);
+        }
+
+        @Test
+        @DisplayName("성공: 생성자가 동아리 모임 삭제")
+        void successDeleteClubActivityByCreator() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Club club = createClub(creator);
+            ReflectionTestUtils.setField(club, "id", CLUB_ID);
+
+            Activity activity = createActivity(creator, club);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+
+            // when
+            activityService.deleteActivity(USER_ID, ACTIVITY_ID);
+
+            // then
+            assertThat(activity.getStatus()).isEqualTo(BaseStatus.INACTIVE);
+        }
+
+        @Test
+        @DisplayName("성공: MANAGE_ACTIVITY 권한 보유자가 동아리 모임 삭제")
+        void successDeleteClubActivityByManager() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            User manager = createUser();
+            ReflectionTestUtils.setField(manager, "id", OTHER_USER_ID);
+
+            Club club = createClub(creator);
+            ReflectionTestUtils.setField(club, "id", CLUB_ID);
+
+            Activity activity = createActivity(creator, club);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            ClubRole role = ClubRole.builder()
+                    .club(club)
+                    .name("운영진")
+                    .permissions(Permission.MANAGE_ACTIVITY.getValue())
+                    .build();
+
+            ClubMember member = ClubMember.builder()
+                    .club(club)
+                    .user(manager)
+                    .role(role)
+                    .build();
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, OTHER_USER_ID)).willReturn(Optional.of(member));
+
+            // when
+            activityService.deleteActivity(OTHER_USER_ID, ACTIVITY_ID);
+
+            // then
+            assertThat(activity.getStatus()).isEqualTo(BaseStatus.INACTIVE);
+        }
+
+        @Test
+        @DisplayName("실패: 모임 없음")
+        void failWithActivityNotFound() {
+            // given
+            given(activityRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> activityService.deleteActivity(USER_ID, 999L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 이미 삭제된 모임")
+        void failWithAlreadyInactive() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+            activity.inactivate();
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.deleteActivity(USER_ID, ACTIVITY_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_ALREADY_INACTIVE);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 개인 모임에서 생성자가 아닌 사용자")
+        void failWithNoPermissionForPersonalActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.deleteActivity(OTHER_USER_ID, ACTIVITY_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_DELETE_PERMISSION_DENIED);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 동아리 모임에서 권한 없는 비생성자")
+        void failWithNoPermissionForClubActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            User otherUser = createUser();
+            ReflectionTestUtils.setField(otherUser, "id", OTHER_USER_ID);
+
+            Club club = createClub(creator);
+            ReflectionTestUtils.setField(club, "id", CLUB_ID);
+
+            Activity activity = createActivity(creator, club);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            ClubRole role = ClubRole.builder()
+                    .club(club)
+                    .name("문의 답변")
+                    .permissions(Permission.ANSWER_INQUIRY.getValue())
+                    .build();
+
+            ClubMember member = ClubMember.builder()
+                    .club(club)
+                    .user(otherUser)
+                    .role(role)
+                    .build();
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, OTHER_USER_ID)).willReturn(Optional.of(member));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.deleteActivity(OTHER_USER_ID, ACTIVITY_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_DELETE_PERMISSION_DENIED);
+                    });
+        }
+    }
+
     private User createUser() {
         return User.builder()
                 .userId("dewple123")
@@ -403,6 +590,21 @@ class ActivityServiceTest {
                 .description("테스트용 동아리입니다")
                 .gender(Gender.MALE)
                 .activityType(ActivityType.BOTH)
+                .build();
+    }
+
+    private Activity createActivity(User creator, Club club) {
+        return Activity.builder()
+                .creator(creator)
+                .club(club)
+                .openType(OpenType.PUBLIC)
+                .name("테스트 모임")
+                .description("테스트 모임입니다")
+                .capacity(20)
+                .isAttendanceCheck(false)
+                .isSearchable(true)
+                .startAt(START_AT)
+                .endAt(END_AT)
                 .build();
     }
 }
