@@ -26,7 +26,9 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -353,6 +355,57 @@ class ActivityControllerTest {
                             ))))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.code").value(6000));
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE /activities/{activityId} - 모임 삭제")
+    class DeleteActivity {
+
+        @Test
+        @DisplayName("성공: 모임 삭제")
+        void successDeleteActivity() throws Exception {
+            // when & then
+            mockMvc.perform(delete("/activities/{activityId}", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(delete("/activities/{activityId}", 100L))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 모임 없음 (서비스 예외)")
+        void failWithActivityNotFound() throws Exception {
+            // given
+            willThrow(new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND))
+                    .given(activityService).deleteActivity(eq(1L), eq(999L));
+
+            // when & then
+            mockMvc.perform(delete("/activities/{activityId}", 999L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(5000));
+        }
+
+        @Test
+        @DisplayName("실패: 삭제 권한 없음 (서비스 예외)")
+        void failWithPermissionDenied() throws Exception {
+            // given
+            willThrow(new BusinessException(ActivityErrorCode.ACTIVITY_DELETE_PERMISSION_DENIED))
+                    .given(activityService).deleteActivity(eq(1L), eq(100L));
+
+            // when & then
+            mockMvc.perform(delete("/activities/{activityId}", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value(5004));
         }
     }
 }

@@ -62,4 +62,15 @@ public class ActivityController {
                 result.createdAt()
         ));
     }
+
+    @Operation(summary = "모임 삭제", description = "모임을 삭제합니다. 개인 모임은 생성자만, 동아리 모임은 생성자 또는 MANAGE_ACTIVITY 권한 보유자가 삭제할 수 있습니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{activityId}")
+    public ApiResponse<Void> deleteActivity(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.deleteActivity(userId, activityId);
+        return ApiResponse.ok();
+    }
 }
