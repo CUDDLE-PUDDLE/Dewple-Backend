@@ -6,6 +6,7 @@ import com.dewple.app_api_auth.api.activity.dto.CreateActivityRequest;
 import com.dewple.app_api_auth.api.activity.dto.CreateActivityResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetActivityDetailResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetActivityListResponse;
+import com.dewple.app_api_auth.api.activity.dto.GetParticipantListResponse;
 import com.dewple.app_api_auth.global.response.ApiResponse;
 import com.dewple.app_api_auth.global.response.SliceResponse;
 import com.dewple.app_api_auth.global.security.CurrentUserId;
@@ -16,6 +17,7 @@ import com.dewple.activity.service.CreateActivityParam;
 import com.dewple.activity.service.CreateActivityResult;
 import com.dewple.activity.service.GetActivityDetailResult;
 import com.dewple.activity.service.GetActivityListParam;
+import com.dewple.activity.service.ParticipantResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -141,5 +143,18 @@ public class ActivityController {
                 result.endAt(),
                 participants
         ));
+    }
+
+    @Operation(summary = "모임 지원자 리스트 조회", description = "모임의 지원자 목록을 조회합니다. 개인 모임은 생성자만, 동아리 모임은 생성자 또는 MANAGE_ACTIVITY 권한 보유자가 조회할 수 있습니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/{activityId}/participants")
+    public ApiResponse<SliceResponse<GetParticipantListResponse>> getParticipantList(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId,
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        Slice<ParticipantResult> results = activityService.getParticipantList(userId, activityId, pageable);
+        Slice<GetParticipantListResponse> responseSlice = results.map(GetParticipantListResponse::from);
+        return ApiResponse.ok(SliceResponse.from(responseSlice));
     }
 }

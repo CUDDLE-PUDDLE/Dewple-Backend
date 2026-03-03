@@ -6,11 +6,13 @@ import com.dewple.activity.service.ActivityService;
 import com.dewple.activity.service.ActivitySummaryResult;
 import com.dewple.activity.service.CreateActivityResult;
 import com.dewple.activity.service.GetActivityDetailResult;
+import com.dewple.activity.service.ParticipantResult;
 import com.dewple.app_api_auth.global.config.SecurityConfig;
 import com.dewple.club.exception.ClubErrorCode;
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.OpenType;
+import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +27,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.SliceImpl;
 
@@ -668,6 +671,80 @@ class ActivityControllerTest {
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.code").value(5000));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /activities/{activityId}/participants - 지원자 리스트 조회")
+    class GetParticipantList {
+
+        @Test
+        @DisplayName("성공: 지원자 리스트 조회")
+        void successGetParticipantList() throws Exception {
+            // given
+            List<ParticipantResult> content = List.of(
+                    new ParticipantResult(1L, 2L, "img.jpg", "홍길동", ParticipantStatus.PENDING,
+                            OffsetDateTime.parse("2026-03-01T10:00:00+09:00")),
+                    new ParticipantResult(2L, 3L, null, "김철수", ParticipantStatus.APPROVED,
+                            OffsetDateTime.parse("2026-03-02T10:00:00+09:00"))
+            );
+            var slice = new SliceImpl<>(content, PageRequest.of(0, 10), false);
+
+            given(activityService.getParticipantList(eq(1L), eq(100L), any(Pageable.class))).willReturn(slice);
+
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}/participants", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.content").isArray())
+                    .andExpect(jsonPath("$.result.content.length()").value(2))
+                    .andExpect(jsonPath("$.result.content[0].participantId").value(1))
+                    .andExpect(jsonPath("$.result.content[0].userId").value(2))
+                    .andExpect(jsonPath("$.result.content[0].profileImg").value("img.jpg"))
+                    .andExpect(jsonPath("$.result.content[0].name").value("홍길동"))
+                    .andExpect(jsonPath("$.result.content[0].participantStatus").value("PENDING"))
+                    .andExpect(jsonPath("$.result.content[1].participantId").value(2))
+                    .andExpect(jsonPath("$.result.content[1].participantStatus").value("APPROVED"))
+                    .andExpect(jsonPath("$.result.page").value(0))
+                    .andExpect(jsonPath("$.result.size").value(10))
+                    .andExpect(jsonPath("$.result.hasNext").value(false));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}/participants", 100L))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 모임 없음 (서비스 예외)")
+        void failWithActivityNotFound() throws Exception {
+            // given
+            given(activityService.getParticipantList(eq(1L), eq(999L), any(Pageable.class)))
+                    .willThrow(new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}/participants", 999L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(5000));
+        }
+
+        @Test
+        @DisplayName("실패: 조회 권한 없음 (서비스 예외)")
+        void failWithPermissionDenied() throws Exception {
+            // given
+            given(activityService.getParticipantList(eq(1L), eq(100L), any(Pageable.class)))
+                    .willThrow(new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_VIEW_PERMISSION_DENIED));
+
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}/participants", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value(5007));
         }
     }
 }
