@@ -21,6 +21,7 @@ import com.dewple.user.exception.UserErrorCode;
 import com.dewple.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -206,5 +207,34 @@ public class ActivityService {
             case LIKED_CLUBS -> activityRepository.findActivitiesByLikedClubs(userId, param.pageable());
             case MY_CLUBS -> activityRepository.findActivitiesByMyClubs(userId, param.pageable());
         };
+    }
+
+    @Transactional(readOnly = true)
+    public Slice<ParticipantResult> getParticipantList(Long userId, Long activityId, Pageable pageable) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        boolean isCreator = activity.getCreator().getId().equals(userId);
+
+        if (activity.getClub() != null) {
+            if (!isCreator) {
+                ClubMember member = clubMemberRepository.findByClubIdAndUserId(activity.getClub().getId(), userId)
+                        .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_VIEW_PERMISSION_DENIED));
+
+                if (member.getRole() == null || !member.getRole().hasPermission(Permission.MANAGE_ACTIVITY)) {
+                    throw new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_VIEW_PERMISSION_DENIED);
+                }
+            }
+        } else {
+            if (!isCreator) {
+                throw new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_VIEW_PERMISSION_DENIED);
+            }
+        }
+
+        return activityParticipantRepository.findParticipantListByActivityId(activityId, pageable);
     }
 }

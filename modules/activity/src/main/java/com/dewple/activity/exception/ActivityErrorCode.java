@@ -17,6 +17,7 @@ public enum ActivityErrorCode implements ErrorCode {
     ACTIVITY_DELETE_PERMISSION_DENIED(5004, HttpStatus.FORBIDDEN, "모임 삭제 권한이 없습니다."),
     CATEGORY_NOT_FOUND(5005, HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
     REGION_NOT_FOUND(5006, HttpStatus.NOT_FOUND, "지역을 찾을 수 없습니다."),
+    ACTIVITY_PARTICIPANT_VIEW_PERMISSION_DENIED(5007, HttpStatus.FORBIDDEN, "지원자 조회 권한이 없습니다."),
     ;
 
     private final int code;

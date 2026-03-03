@@ -20,6 +20,7 @@ import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.OpenType;
 import com.dewple.common.enums.BaseStatus;
+import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
@@ -969,6 +970,234 @@ class ActivityServiceTest {
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
                         assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("getParticipantList - 지원자 리스트 조회")
+    class GetParticipantList {
+
+        private static final Long ACTIVITY_ID = 100L;
+        private static final Long OTHER_USER_ID = 2L;
+        private final Pageable pageable = PageRequest.of(0, 10);
+
+        @Test
+        @DisplayName("성공: 개인 모임 생성자가 지원자 리스트 조회")
+        void successWithPersonalActivityCreator() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+
+            List<ParticipantResult> content = List.of(
+                    new ParticipantResult(1L, 2L, "img.jpg", "홍길동", ParticipantStatus.PENDING, OffsetDateTime.now()),
+                    new ParticipantResult(2L, 3L, null, "김철수", ParticipantStatus.APPROVED, OffsetDateTime.now())
+            );
+            Slice<ParticipantResult> slice = new SliceImpl<>(content, pageable, false);
+            given(activityParticipantRepository.findParticipantListByActivityId(ACTIVITY_ID, pageable)).willReturn(slice);
+
+            // when
+            Slice<ParticipantResult> result = activityService.getParticipantList(USER_ID, ACTIVITY_ID, pageable);
+
+            // then
+            assertThat(result.getContent()).hasSize(2);
+            assertThat(result.hasNext()).isFalse();
+            assertThat(result.getContent().get(0).participantId()).isEqualTo(1L);
+            assertThat(result.getContent().get(0).name()).isEqualTo("홍길동");
+            assertThat(result.getContent().get(0).participantStatus()).isEqualTo(ParticipantStatus.PENDING);
+            assertThat(result.getContent().get(1).participantStatus()).isEqualTo(ParticipantStatus.APPROVED);
+        }
+
+        @Test
+        @DisplayName("성공: 동아리 모임 생성자가 지원자 리스트 조회")
+        void successWithClubActivityCreator() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Club club = createClub(creator);
+            ReflectionTestUtils.setField(club, "id", CLUB_ID);
+
+            Activity activity = createActivity(creator, club);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+
+            Slice<ParticipantResult> slice = new SliceImpl<>(Collections.emptyList(), pageable, false);
+            given(activityParticipantRepository.findParticipantListByActivityId(ACTIVITY_ID, pageable)).willReturn(slice);
+
+            // when
+            Slice<ParticipantResult> result = activityService.getParticipantList(USER_ID, ACTIVITY_ID, pageable);
+
+            // then
+            assertThat(result.getContent()).isEmpty();
+            assertThat(result.hasNext()).isFalse();
+        }
+
+        @Test
+        @DisplayName("성공: 동아리 모임 MANAGE_ACTIVITY 권한자가 조회")
+        void successWithClubActivityManager() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            User manager = createUser();
+            ReflectionTestUtils.setField(manager, "id", OTHER_USER_ID);
+
+            Club club = createClub(creator);
+            ReflectionTestUtils.setField(club, "id", CLUB_ID);
+
+            Activity activity = createActivity(creator, club);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            ClubRole role = ClubRole.builder()
+                    .club(club)
+                    .name("운영진")
+                    .permissions(Permission.MANAGE_ACTIVITY.getValue())
+                    .build();
+
+            ClubMember member = ClubMember.builder()
+                    .club(club)
+                    .user(manager)
+                    .role(role)
+                    .build();
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, OTHER_USER_ID)).willReturn(Optional.of(member));
+
+            Slice<ParticipantResult> slice = new SliceImpl<>(Collections.emptyList(), pageable, false);
+            given(activityParticipantRepository.findParticipantListByActivityId(ACTIVITY_ID, pageable)).willReturn(slice);
+
+            // when
+            Slice<ParticipantResult> result = activityService.getParticipantList(OTHER_USER_ID, ACTIVITY_ID, pageable);
+
+            // then
+            assertThat(result.getContent()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("성공: 빈 결과 반환")
+        void successWithEmptyResult() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+
+            Slice<ParticipantResult> emptySlice = new SliceImpl<>(Collections.emptyList(), pageable, false);
+            given(activityParticipantRepository.findParticipantListByActivityId(ACTIVITY_ID, pageable)).willReturn(emptySlice);
+
+            // when
+            Slice<ParticipantResult> result = activityService.getParticipantList(USER_ID, ACTIVITY_ID, pageable);
+
+            // then
+            assertThat(result.getContent()).isEmpty();
+            assertThat(result.hasNext()).isFalse();
+        }
+
+        @Test
+        @DisplayName("실패: 모임 없음")
+        void failWithActivityNotFound() {
+            // given
+            given(activityRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> activityService.getParticipantList(USER_ID, 999L, pageable))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 삭제된 모임")
+        void failWithInactiveActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+            activity.inactivate();
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.getParticipantList(USER_ID, ACTIVITY_ID, pageable))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 개인 모임에서 생성자가 아닌 유저 조회 시도")
+        void failWithNoPermissionForPersonalActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.getParticipantList(OTHER_USER_ID, ACTIVITY_ID, pageable))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_PARTICIPANT_VIEW_PERMISSION_DENIED);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 동아리 모임에서 권한 없는 유저 조회 시도")
+        void failWithNoPermissionForClubActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            User otherUser = createUser();
+            ReflectionTestUtils.setField(otherUser, "id", OTHER_USER_ID);
+
+            Club club = createClub(creator);
+            ReflectionTestUtils.setField(club, "id", CLUB_ID);
+
+            Activity activity = createActivity(creator, club);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            ClubRole role = ClubRole.builder()
+                    .club(club)
+                    .name("문의 답변")
+                    .permissions(Permission.ANSWER_INQUIRY.getValue())
+                    .build();
+
+            ClubMember member = ClubMember.builder()
+                    .club(club)
+                    .user(otherUser)
+                    .role(role)
+                    .build();
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, OTHER_USER_ID)).willReturn(Optional.of(member));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.getParticipantList(OTHER_USER_ID, ACTIVITY_ID, pageable))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_PARTICIPANT_VIEW_PERMISSION_DENIED);
                     });
         }
     }
