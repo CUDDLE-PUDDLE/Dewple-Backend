@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
-public interface ActivityParticipantRepository extends JpaRepository<ActivityParticipant, Long> {
+public interface ActivityParticipantRepository extends JpaRepository<ActivityParticipant, Long>, ActivityParticipantRepositoryCustom {
 
     List<ActivityParticipant> findByActivityId(Long activityId);
 }

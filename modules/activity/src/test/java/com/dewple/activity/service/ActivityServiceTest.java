@@ -631,7 +631,7 @@ class ActivityServiceTest {
                     .build();
 
             given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
-            given(activityParticipantRepository.findByActivityId(ACTIVITY_ID)).willReturn(List.of(ap1, ap2));
+            given(activityParticipantRepository.findByActivityIdAndStatusWithParticipant(ACTIVITY_ID, BaseStatus.ACTIVE)).willReturn(List.of(ap1, ap2));
 
             // when
             GetActivityDetailResult result = activityService.getActivityDetail(ACTIVITY_ID);
@@ -667,7 +667,7 @@ class ActivityServiceTest {
             ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
 
             given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
-            given(activityParticipantRepository.findByActivityId(ACTIVITY_ID)).willReturn(Collections.emptyList());
+            given(activityParticipantRepository.findByActivityIdAndStatusWithParticipant(ACTIVITY_ID, BaseStatus.ACTIVE)).willReturn(Collections.emptyList());
 
             // when
             GetActivityDetailResult result = activityService.getActivityDetail(ACTIVITY_ID);
@@ -690,7 +690,7 @@ class ActivityServiceTest {
             ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
 
             given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
-            given(activityParticipantRepository.findByActivityId(ACTIVITY_ID)).willReturn(Collections.emptyList());
+            given(activityParticipantRepository.findByActivityIdAndStatusWithParticipant(ACTIVITY_ID, BaseStatus.ACTIVE)).willReturn(Collections.emptyList());
 
             // when
             GetActivityDetailResult result = activityService.getActivityDetail(ACTIVITY_ID);
@@ -701,7 +701,7 @@ class ActivityServiceTest {
         }
 
         @Test
-        @DisplayName("성공: INACTIVE 참가자는 필터링됨")
+        @DisplayName("성공: INACTIVE 참가자는 DB에서 필터링됨")
         void successFilteringInactiveParticipants() {
             // given
             User creator = createUser();
@@ -718,28 +718,15 @@ class ActivityServiceTest {
                     .build();
             ReflectionTestUtils.setField(activeUser, "id", 2L);
 
-            User inactiveUser = User.builder()
-                    .userId("inactive")
-                    .password("pwd")
-                    .name("비활성 참가자")
-                    .phone("01022222222")
-                    .build();
-            ReflectionTestUtils.setField(inactiveUser, "id", 3L);
-
             ActivityParticipant activeParticipant = ActivityParticipant.builder()
                     .activity(activity)
                     .participant(activeUser)
                     .build();
 
-            ActivityParticipant inactiveParticipant = ActivityParticipant.builder()
-                    .activity(activity)
-                    .participant(inactiveUser)
-                    .build();
-            inactiveParticipant.inactivate();
-
+            // DB 레벨에서 ACTIVE만 반환 (INACTIVE는 쿼리에서 제외됨)
             given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
-            given(activityParticipantRepository.findByActivityId(ACTIVITY_ID))
-                    .willReturn(List.of(activeParticipant, inactiveParticipant));
+            given(activityParticipantRepository.findByActivityIdAndStatusWithParticipant(ACTIVITY_ID, BaseStatus.ACTIVE))
+                    .willReturn(List.of(activeParticipant));
 
             // when
             GetActivityDetailResult result = activityService.getActivityDetail(ACTIVITY_ID);
@@ -798,8 +785,7 @@ class ActivityServiceTest {
         @DisplayName("성공: PERSONAL 섹션 조회")
         void successWithPersonalSection() {
             // given
-            User user = createUser();
-            given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+            given(userRepository.existsById(USER_ID)).willReturn(true);
 
             List<ActivitySummaryResult> content = List.of(
                     new ActivitySummaryResult(1L, "thumb1.jpg", "PERSONAL", null, "개인 모임1",
@@ -829,8 +815,7 @@ class ActivityServiceTest {
         @DisplayName("성공: LIKED_CLUBS 섹션 조회")
         void successWithLikedClubsSection() {
             // given
-            User user = createUser();
-            given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+            given(userRepository.existsById(USER_ID)).willReturn(true);
 
             List<ActivitySummaryResult> content = List.of(
                     new ActivitySummaryResult(3L, "thumb3.jpg", "CLUB", "관심 동아리", "동아리 모임",
@@ -856,8 +841,7 @@ class ActivityServiceTest {
         @DisplayName("성공: MY_CLUBS 섹션 조회")
         void successWithMyClubsSection() {
             // given
-            User user = createUser();
-            given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+            given(userRepository.existsById(USER_ID)).willReturn(true);
 
             List<ActivitySummaryResult> content = List.of(
                     new ActivitySummaryResult(4L, null, "CLUB", "내 동아리", "정기 모임",
@@ -883,8 +867,7 @@ class ActivityServiceTest {
         @DisplayName("성공: 빈 결과 반환")
         void successWithEmptyResult() {
             // given
-            User user = createUser();
-            given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+            given(userRepository.existsById(USER_ID)).willReturn(true);
 
             Slice<ActivitySummaryResult> emptySlice = new SliceImpl<>(Collections.emptyList(), pageable, false);
             given(activityRepository.findPersonalActivities(eq(USER_ID), any(Pageable.class))).willReturn(emptySlice);
@@ -903,8 +886,7 @@ class ActivityServiceTest {
         @DisplayName("성공: 페이지네이션 hasNext 검증")
         void successWithPagination() {
             // given
-            User user = createUser();
-            given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+            given(userRepository.existsById(USER_ID)).willReturn(true);
 
             Pageable smallPage = PageRequest.of(0, 2);
             List<ActivitySummaryResult> content = List.of(
@@ -931,7 +913,7 @@ class ActivityServiceTest {
         @DisplayName("실패: 존재하지 않는 사용자")
         void failWithUserNotFound() {
             // given
-            given(userRepository.findById(999L)).willReturn(Optional.empty());
+            given(userRepository.existsById(999L)).willReturn(false);
 
             GetActivityListParam param = new GetActivityListParam(ActivityListSection.PERSONAL, pageable);
 

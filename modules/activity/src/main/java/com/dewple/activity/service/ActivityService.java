@@ -134,10 +134,10 @@ public class ActivityService {
             throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
         }
 
-        List<ActivityParticipant> participants = activityParticipantRepository.findByActivityId(activityId);
+        List<ActivityParticipant> participants = activityParticipantRepository
+                .findByActivityIdAndStatusWithParticipant(activityId, BaseStatus.ACTIVE);
 
         List<GetActivityDetailResult.ParticipantInfo> participantInfos = participants.stream()
-                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
                 .map(p -> new GetActivityDetailResult.ParticipantInfo(
                         p.getParticipant().getId(),
                         p.getParticipant().getProfileImg(),
@@ -163,8 +163,9 @@ public class ActivityService {
 
     @Transactional(readOnly = true)
     public Slice<ActivitySummaryResult> getActivityList(Long userId, GetActivityListParam param) {
-        userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+        if (!userRepository.existsById(userId)) {
+            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        }
 
         return switch (param.section()) {
             case PERSONAL -> activityRepository.findPersonalActivities(userId, param.pageable());
