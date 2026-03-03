@@ -3,7 +3,6 @@ package com.dewple.recruitment.service;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.ApplicationStatus;
-import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.enums.EditWindowBasis;
 import com.dewple.common.enums.ProcessType;
 import com.dewple.common.enums.RecruitmentStatus;
@@ -248,7 +247,7 @@ class ApplicationManageServiceTest {
 
             User applicantUser = createMockUser(10L, "홍길동", "01011112222");
             Application application = createMockApplication(APPLICATION_ID, ApplicationStatus.SUBMITTED, applicantUser, null);
-            given(applicationRepository.findById(APPLICATION_ID)).willReturn(Optional.of(application));
+            given(applicationRepository.findActiveByIdAndPostingId(APPLICATION_ID, POSTING_ID)).willReturn(Optional.of(application));
 
             // when
             ApplicationDetailResult result = applicationManageService.getApplicationDetail(
@@ -267,7 +266,7 @@ class ApplicationManageServiceTest {
         void failNotFound() {
             // given
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
-            given(applicationRepository.findById(APPLICATION_ID)).willReturn(Optional.empty());
+            given(applicationRepository.findActiveByIdAndPostingId(APPLICATION_ID, POSTING_ID)).willReturn(Optional.empty());
 
             // when & then
             assertThatThrownBy(() -> applicationManageService.getApplicationDetail(
@@ -290,7 +289,7 @@ class ApplicationManageServiceTest {
 
             User applicantUser = createMockUser(10L, "홍길동", "01011112222");
             Application application = createMockApplication(APPLICATION_ID, ApplicationStatus.SUBMITTED, applicantUser, null);
-            given(applicationRepository.findById(APPLICATION_ID)).willReturn(Optional.of(application));
+            given(applicationRepository.findActiveByIdAndPostingId(APPLICATION_ID, POSTING_ID)).willReturn(Optional.of(application));
 
             // when
             applicationManageService.changeApplicationStatus(
@@ -308,7 +307,7 @@ class ApplicationManageServiceTest {
 
             User applicantUser = createMockUser(10L, "홍길동", "01011112222");
             Application application = createMockApplication(APPLICATION_ID, ApplicationStatus.SUBMITTED, applicantUser, null);
-            given(applicationRepository.findById(APPLICATION_ID)).willReturn(Optional.of(application));
+            given(applicationRepository.findActiveByIdAndPostingId(APPLICATION_ID, POSTING_ID)).willReturn(Optional.of(application));
 
             // when
             applicationManageService.changeApplicationStatus(
@@ -323,7 +322,7 @@ class ApplicationManageServiceTest {
         void failNotFound() {
             // given
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
-            given(applicationRepository.findById(APPLICATION_ID)).willReturn(Optional.empty());
+            given(applicationRepository.findActiveByIdAndPostingId(APPLICATION_ID, POSTING_ID)).willReturn(Optional.empty());
 
             // when & then
             assertThatThrownBy(() -> applicationManageService.changeApplicationStatus(
@@ -349,7 +348,7 @@ class ApplicationManageServiceTest {
             Application app1 = createMockApplication(501L, ApplicationStatus.SUBMITTED, user1, null);
             Application app2 = createMockApplication(502L, ApplicationStatus.SUBMITTED, user2, null);
 
-            given(applicationRepository.findAllById(List.of(501L, 502L)))
+            given(applicationRepository.findActiveAllByIdsAndPostingId(List.of(501L, 502L), POSTING_ID))
                     .willReturn(List.of(app1, app2));
 
             // when
@@ -370,7 +369,7 @@ class ApplicationManageServiceTest {
             User user1 = createMockUser(10L, "홍길동", "01011112222");
             Application app1 = createMockApplication(501L, ApplicationStatus.SUBMITTED, user1, null);
 
-            given(applicationRepository.findAllById(List.of(501L, 999L)))
+            given(applicationRepository.findActiveAllByIdsAndPostingId(List.of(501L, 999L), POSTING_ID))
                     .willReturn(List.of(app1));
 
             // when & then

@@ -2,7 +2,6 @@ package com.dewple.recruitment.service;
 
 import com.dewple.club.annotation.RequireClubPermission;
 import com.dewple.common.enums.ApplicationStatus;
-import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.recruitment.entity.Application;
@@ -46,18 +45,8 @@ public class ApplicationManageService {
     public ApplicationDetailResult getApplicationDetail(Long clubId, Long userId, Long postingId, Long applicationId) {
         findAndValidatePosting(postingId, clubId);
 
-        Application application = applicationRepository.findById(applicationId)
+        Application application = applicationRepository.findActiveByIdAndPostingId(applicationId, postingId)
                 .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.APPLICATION_NOT_FOUND));
-
-        if (application.getStatus() != BaseStatus.ACTIVE) {
-            throw new BusinessException(RecruitmentErrorCode.APPLICATION_NOT_FOUND);
-        }
-
-        Long appPostingId = application.getRecruitmentSchema()
-                .getRecruitmentProcess().getPosting().getId();
-        if (!appPostingId.equals(postingId)) {
-            throw new BusinessException(RecruitmentErrorCode.APPLICATION_NOT_FOUND);
-        }
 
         return toDetailResult(application);
     }
@@ -67,12 +56,8 @@ public class ApplicationManageService {
                                          ApplicationStatus newStatus) {
         findAndValidatePosting(postingId, clubId);
 
-        Application application = applicationRepository.findById(applicationId)
+        Application application = applicationRepository.findActiveByIdAndPostingId(applicationId, postingId)
                 .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.APPLICATION_NOT_FOUND));
-
-        if (application.getStatus() != BaseStatus.ACTIVE) {
-            throw new BusinessException(RecruitmentErrorCode.APPLICATION_NOT_FOUND);
-        }
 
         application.changeApplicationStatus(newStatus);
     }
@@ -82,7 +67,7 @@ public class ApplicationManageService {
                                               List<Long> applicationIds, ApplicationStatus newStatus) {
         findAndValidatePosting(postingId, clubId);
 
-        List<Application> applications = applicationRepository.findAllById(applicationIds);
+        List<Application> applications = applicationRepository.findActiveAllByIdsAndPostingId(applicationIds, postingId);
 
         if (applications.size() != applicationIds.size()) {
             throw new BusinessException(RecruitmentErrorCode.APPLICATION_SOME_NOT_FOUND);

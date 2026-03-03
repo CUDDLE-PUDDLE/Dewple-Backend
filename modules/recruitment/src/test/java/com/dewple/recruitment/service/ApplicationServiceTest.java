@@ -121,7 +121,7 @@ class ApplicationServiceTest {
             given(recruitmentSchemaRepository.findLatestByPostingIdAndProcessType(POSTING_ID, ProcessType.DOCUMENT))
                     .willReturn(Optional.of(schema));
             given(applicationRepository.findByPostingIdAndApplicantIdAndStatuses(
-                    eq(POSTING_ID), eq(APPLICANT_ID), eq(BaseStatus.ACTIVE), any()))
+                    eq(POSTING_ID), eq(APPLICANT_ID), any()))
                     .willReturn(Optional.empty());
 
             User applicant = mock(User.class);
@@ -162,7 +162,7 @@ class ApplicationServiceTest {
             ReflectionTestUtils.setField(existingApp, "id", APPLICATION_ID);
 
             given(applicationRepository.findByPostingIdAndApplicantIdAndStatuses(
-                    eq(POSTING_ID), eq(APPLICANT_ID), eq(BaseStatus.ACTIVE), any()))
+                    eq(POSTING_ID), eq(APPLICANT_ID), any()))
                     .willReturn(Optional.of(existingApp));
 
             // when
@@ -190,7 +190,7 @@ class ApplicationServiceTest {
                     .build();
 
             given(applicationRepository.findByPostingIdAndApplicantIdAndStatuses(
-                    eq(POSTING_ID), eq(APPLICANT_ID), eq(BaseStatus.ACTIVE), any()))
+                    eq(POSTING_ID), eq(APPLICANT_ID), any()))
                     .willReturn(Optional.of(existingApp));
 
             // when & then
@@ -270,7 +270,7 @@ class ApplicationServiceTest {
             given(recruitmentSchemaRepository.findLatestByPostingIdAndProcessType(POSTING_ID, ProcessType.DOCUMENT))
                     .willReturn(Optional.of(schema));
             given(applicationRepository.findByPostingIdAndApplicantIdAndStatuses(
-                    eq(POSTING_ID), eq(APPLICANT_ID), eq(BaseStatus.ACTIVE), any()))
+                    eq(POSTING_ID), eq(APPLICANT_ID), any()))
                     .willReturn(Optional.empty());
 
             User applicant = mock(User.class);
@@ -310,7 +310,7 @@ class ApplicationServiceTest {
             ReflectionTestUtils.setField(existingApp, "id", APPLICATION_ID);
 
             given(applicationRepository.findByPostingIdAndApplicantIdAndStatuses(
-                    eq(POSTING_ID), eq(APPLICANT_ID), eq(BaseStatus.ACTIVE), any()))
+                    eq(POSTING_ID), eq(APPLICANT_ID), any()))
                     .willReturn(Optional.of(existingApp));
 
             // when
@@ -338,7 +338,7 @@ class ApplicationServiceTest {
                     .build();
 
             given(applicationRepository.findByPostingIdAndApplicantIdAndStatuses(
-                    eq(POSTING_ID), eq(APPLICANT_ID), eq(BaseStatus.ACTIVE), any()))
+                    eq(POSTING_ID), eq(APPLICANT_ID), any()))
                     .willReturn(Optional.of(existingApp));
 
             // when & then
@@ -535,7 +535,7 @@ class ApplicationServiceTest {
                     .build();
             ReflectionTestUtils.setField(application, "id", APPLICATION_ID);
 
-            given(applicationRepository.findAllByApplicantIdWithPostingAndClub(APPLICANT_ID, BaseStatus.ACTIVE))
+            given(applicationRepository.findAllByApplicantIdWithPostingAndClub(APPLICANT_ID))
                     .willReturn(List.of(application));
 
             // when
@@ -553,7 +553,7 @@ class ApplicationServiceTest {
         @DisplayName("성공: 지원 내역이 없는 경우 빈 리스트 반환")
         void successEmptyList() {
             // given
-            given(applicationRepository.findAllByApplicantIdWithPostingAndClub(APPLICANT_ID, BaseStatus.ACTIVE))
+            given(applicationRepository.findAllByApplicantIdWithPostingAndClub(APPLICANT_ID))
                     .willReturn(List.of());
 
             // when
@@ -852,7 +852,7 @@ class ApplicationServiceTest {
             given(recruitmentSchemaRepository.findLatestByPostingIdAndProcessType(POSTING_ID, ProcessType.DOCUMENT))
                     .willReturn(Optional.of(schema));
             given(applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                    eq(POSTING_ID), eq(GUEST_PHONE), eq(BaseStatus.ACTIVE), any()))
+                    eq(POSTING_ID), eq(GUEST_PHONE), any()))
                     .willReturn(Optional.empty());
 
             Application savedApplication = Application.builder()
@@ -889,7 +889,7 @@ class ApplicationServiceTest {
                     .applicationStatus(ApplicationStatus.SUBMITTED)
                     .build();
             given(applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                    eq(POSTING_ID), eq(GUEST_PHONE), eq(BaseStatus.ACTIVE), any()))
+                    eq(POSTING_ID), eq(GUEST_PHONE), any()))
                     .willReturn(Optional.of(existing));
 
             // when & then
@@ -964,7 +964,7 @@ class ApplicationServiceTest {
             ReflectionTestUtils.setField(application, "id", APPLICATION_ID);
 
             given(applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                    eq(POSTING_ID), eq(GUEST_PHONE), eq(BaseStatus.ACTIVE), any()))
+                    eq(POSTING_ID), eq(GUEST_PHONE), any()))
                     .willReturn(Optional.of(application));
 
             // when
@@ -980,7 +980,7 @@ class ApplicationServiceTest {
             // given
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
             given(applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                    eq(POSTING_ID), eq(GUEST_PHONE), eq(BaseStatus.ACTIVE), any()))
+                    eq(POSTING_ID), eq(GUEST_PHONE), any()))
                     .willReturn(Optional.empty());
 
             // when & then
@@ -1006,7 +1006,7 @@ class ApplicationServiceTest {
             ReflectionTestUtils.setField(application, "id", APPLICATION_ID);
 
             given(applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                    eq(POSTING_ID), eq(GUEST_PHONE), eq(BaseStatus.ACTIVE), any()))
+                    eq(POSTING_ID), eq(GUEST_PHONE), any()))
                     .willReturn(Optional.of(application));
 
             // when & then
@@ -1046,7 +1046,7 @@ class ApplicationServiceTest {
             ReflectionTestUtils.setField(application, "createdAt", OffsetDateTime.now(ZoneOffset.UTC).minusDays(10));
 
             given(applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                    eq(POSTING_ID), eq(GUEST_PHONE), eq(BaseStatus.ACTIVE), any()))
+                    eq(POSTING_ID), eq(GUEST_PHONE), any()))
                     .willReturn(Optional.of(application));
 
             // when & then
