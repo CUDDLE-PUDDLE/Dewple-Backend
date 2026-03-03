@@ -5,18 +5,26 @@ import static com.dewple.app_api_auth.global.config.SwaggerConfig.BEARER_AUTH;
 import com.dewple.app_api_auth.api.activity.dto.CreateActivityRequest;
 import com.dewple.app_api_auth.api.activity.dto.CreateActivityResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetActivityDetailResponse;
+import com.dewple.app_api_auth.api.activity.dto.GetActivityListResponse;
 import com.dewple.app_api_auth.global.response.ApiResponse;
+import com.dewple.app_api_auth.global.response.SliceResponse;
 import com.dewple.app_api_auth.global.security.CurrentUserId;
+import com.dewple.activity.service.ActivityListSection;
 import com.dewple.activity.service.ActivityService;
+import com.dewple.activity.service.ActivitySummaryResult;
 import com.dewple.activity.service.CreateActivityParam;
 import com.dewple.activity.service.CreateActivityResult;
 import com.dewple.activity.service.GetActivityDetailResult;
+import com.dewple.activity.service.GetActivityListParam;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +35,20 @@ import org.springframework.web.bind.annotation.*;
 public class ActivityController {
 
     private final ActivityService activityService;
+
+    @Operation(summary = "모임 목록 조회", description = "섹션별 모임 목록을 조회합니다. PERSONAL(사설모임), LIKED_CLUBS(관심동아리 모임), MY_CLUBS(내 동아리 모임)")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping
+    public ApiResponse<SliceResponse<GetActivityListResponse>> getActivityList(
+            @CurrentUserId Long userId,
+            @RequestParam ActivityListSection section,
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        GetActivityListParam param = new GetActivityListParam(section, pageable);
+        Slice<ActivitySummaryResult> results = activityService.getActivityList(userId, param);
+        Slice<GetActivityListResponse> responseSlice = results.map(GetActivityListResponse::from);
+        return ApiResponse.ok(SliceResponse.from(responseSlice));
+    }
 
     @Operation(summary = "모임 생성", description = "새로운 모임을 생성합니다. 동아리 모임인 경우 clubId를 전달하며, 해당 동아리에서 활동 생성/수정 권한이 필요합니다.")
     @SecurityRequirement(name = BEARER_AUTH)
