@@ -9,11 +9,10 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum ClubErrorCode implements ErrorCode {
 
-    /**
-     * 6000: Club 관련 오류
-     */
-    NOT_CLUB_MEMBER(6001, HttpStatus.FORBIDDEN, "해당 동아리의 활동 중인 멤버가 아닙니다."),
-    INSUFFICIENT_PERMISSION(6002, HttpStatus.FORBIDDEN, "해당 작업에 대한 권한이 없습니다."),
+    // 6000: 동아리 관련 오류
+    CLUB_NOT_FOUND(6000, HttpStatus.NOT_FOUND, "동아리를 찾을 수 없습니다."),
+    NOT_CLUB_MEMBER(6001, HttpStatus.FORBIDDEN, "해당 동아리의 멤버가 아닙니다."),
+    CLUB_PERMISSION_DENIED(6002, HttpStatus.FORBIDDEN, "해당 권한이 없습니다."),
     ;
 
     private final int code;

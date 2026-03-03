@@ -10,7 +10,9 @@ import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.RefreshToken;
 import com.dewple.user.entity.Verification;
 import com.dewple.user.exception.UserErrorCode;
+import com.dewple.user.service.LoginParam;
 import com.dewple.user.service.RefreshTokenService;
+import com.dewple.user.service.SignupParam;
 import com.dewple.user.service.UserService;
 import com.dewple.user.service.VerificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -335,7 +337,7 @@ class AuthControllerTest {
             User user = createUser();
             ReflectionTestUtils.setField(user, "id", 1L);
 
-            given(userService.signup(eq("vp_test-token"), eq("홍길동"), eq("dewple123"), eq("Password1!")))
+            given(userService.signup(any(SignupParam.class)))
                     .willReturn(user);
             given(jwtTokenProvider.generateAccessToken(1L)).willReturn("access-token");
             given(jwtTokenProvider.generateRefreshToken(1L)).willReturn("refresh-token");
@@ -377,7 +379,7 @@ class AuthControllerTest {
         @DisplayName("실패: 이미 가입된 전화번호")
         void failWithPhoneAlreadyExists() throws Exception {
             // given
-            given(userService.signup(eq("vp_test-token"), eq("홍길동"), eq("dewple123"), eq("Password1!")))
+            given(userService.signup(any(SignupParam.class)))
                     .willThrow(new BusinessException(UserErrorCode.PHONE_ALREADY_EXISTS));
 
             // when & then
@@ -398,7 +400,7 @@ class AuthControllerTest {
         @DisplayName("실패: 이미 사용 중인 아이디")
         void failWithUserIdAlreadyExists() throws Exception {
             // given
-            given(userService.signup(eq("vp_test-token"), eq("홍길동"), eq("dewple123"), eq("Password1!")))
+            given(userService.signup(any(SignupParam.class)))
                     .willThrow(new BusinessException(UserErrorCode.USER_ID_ALREADY_EXISTS));
 
             // when & then
@@ -457,7 +459,7 @@ class AuthControllerTest {
             User user = createUser();
             ReflectionTestUtils.setField(user, "id", 1L);
 
-            given(userService.login(eq("dewple123"), eq("Password1!"))).willReturn(user);
+            given(userService.login(any(LoginParam.class))).willReturn(user);
             given(jwtTokenProvider.generateAccessToken(1L)).willReturn("access-token");
             given(jwtTokenProvider.generateRefreshToken(1L)).willReturn("refresh-token");
             given(jwtProperties.refreshTokenExpiry()).willReturn(604800L);
@@ -479,7 +481,7 @@ class AuthControllerTest {
         @DisplayName("실패: 존재하지 않는 사용자")
         void failWithUserNotFound() throws Exception {
             // given
-            given(userService.login(eq("nonexistent"), eq("Password1!")))
+            given(userService.login(any(LoginParam.class)))
                     .willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
             // when & then
@@ -497,7 +499,7 @@ class AuthControllerTest {
         @DisplayName("실패: 비밀번호 불일치")
         void failWithPasswordMismatch() throws Exception {
             // given
-            given(userService.login(eq("dewple123"), eq("WrongPassword1!")))
+            given(userService.login(any(LoginParam.class)))
                     .willThrow(new BusinessException(UserErrorCode.PASSWORD_MISMATCH));
 
             // when & then
@@ -515,7 +517,7 @@ class AuthControllerTest {
         @DisplayName("실패: 비활성화된 계정")
         void failWithInactiveUser() throws Exception {
             // given
-            given(userService.login(eq("dewple123"), eq("Password1!")))
+            given(userService.login(any(LoginParam.class)))
                     .willThrow(new BusinessException(UserErrorCode.USER_INACTIVE));
 
             // when & then
