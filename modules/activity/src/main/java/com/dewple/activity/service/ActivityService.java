@@ -17,6 +17,7 @@ import com.dewple.user.exception.UserErrorCode;
 import com.dewple.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -158,5 +159,17 @@ public class ActivityService {
                 activity.getEndAt(),
                 participantInfos
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Slice<ActivitySummaryResult> getActivityList(Long userId, GetActivityListParam param) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        return switch (param.section()) {
+            case PERSONAL -> activityRepository.findPersonalActivities(userId, param.pageable());
+            case LIKED_CLUBS -> activityRepository.findActivitiesByLikedClubs(userId, param.pageable());
+            case MY_CLUBS -> activityRepository.findActivitiesByMyClubs(userId, param.pageable());
+        };
     }
 }
