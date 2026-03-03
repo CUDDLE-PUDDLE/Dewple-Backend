@@ -9,7 +9,9 @@ import lombok.NoArgsConstructor;
 import java.time.OffsetDateTime;
 
 import com.dewple.common.entity.BaseEntity;
+import com.dewple.common.entity.Category;
 import com.dewple.common.entity.Club;
+import com.dewple.common.entity.Region;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.OpenType;
 
@@ -56,10 +58,31 @@ public class Activity extends BaseEntity {
     @Column(name = "end_at", nullable = false, columnDefinition = "timestamptz")
     private OffsetDateTime endAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "region_id")
+    private Region region;
+
+    @Column(name = "thumbnail_url", length = 2048)
+    private String thumbnailUrl;
+
+    @Column(name = "like_count", nullable = false)
+    private int likeCount = 0;
+
+    @Column(name = "view_count", nullable = false)
+    private int viewCount = 0;
+
+    @Column(name = "comment_count", nullable = false)
+    private int commentCount = 0;
+
     @Builder
     public Activity(Club club, User creator, OpenType openType, String name,
                     String description, Integer capacity, Boolean isAttendanceCheck,
-                    Boolean isSearchable, OffsetDateTime startAt, OffsetDateTime endAt) {
+                    Boolean isSearchable, OffsetDateTime startAt, OffsetDateTime endAt,
+                    Category category, Region region, String thumbnailUrl) {
         this.club = club;
         this.creator = creator;
         this.openType = openType;
@@ -70,5 +93,8 @@ public class Activity extends BaseEntity {
         this.isSearchable = isSearchable != null ? isSearchable : true;
         this.startAt = startAt;
         this.endAt = endAt;
+        this.category = category;
+        this.region = region;
+        this.thumbnailUrl = thumbnailUrl;
     }
 }
