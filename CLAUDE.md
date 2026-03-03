@@ -209,6 +209,15 @@ public ApiResponse<?> getMyProfile(@CurrentUserId Long userId) { ... }
 - 어노테이션: 한 줄에 하나씩, 선언부 위에 배치
 - 상수 참조 시 클래스 전체 import보다 `import static` 선호 (예: `import static ...SwaggerConfig.BEARER_AUTH`)
 
+### Flyway 마이그레이션
+
+- DB 스키마 변경 시 반드시 Flyway 마이그레이션 SQL 파일을 작성할 것
+- 경로: `apps/app-api-auth/src/main/resources/db/migration/`
+- 파일명: `V{N}__{설명}.sql` (언더스코어 2개, N은 순번)
+- 현재 DB 스키마가 V1 baseline → **V2부터** 신규 마이그레이션 작성
+- 엔티티 필드 추가/변경 시 마이그레이션 SQL도 함께 작성 (누락 시 `ddl-auto: validate`에서 실패)
+- `baseline-on-migrate: true` 설정으로 첫 실행 시 자동 baseline 생성
+
 ## 설정 파일
 
 - `application.yaml`: 프로필 그룹 정의 (local, dev)
