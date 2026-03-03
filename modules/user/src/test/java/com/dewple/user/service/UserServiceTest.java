@@ -347,7 +347,7 @@ class UserServiceTest {
             UserCategory uc2 = UserCategory.builder().user(user).category(category2).build();
 
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userCategoryRepository.findByUserId(1L)).willReturn(List.of(uc1, uc2));
+            given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(List.of(uc1, uc2));
 
             // when
             MyProfileResult result = userService.getMyProfile(1L);
@@ -368,7 +368,7 @@ class UserServiceTest {
             User user = createUser();
             ReflectionTestUtils.setField(user, "id", 1L);
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userCategoryRepository.findByUserId(1L)).willReturn(Collections.emptyList());
+            given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             // when
             MyProfileResult result = userService.getMyProfile(1L);
@@ -396,7 +396,7 @@ class UserServiceTest {
             User user = createUser();
             ReflectionTestUtils.setField(user, "id", 1L);
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userCategoryRepository.findByUserId(1L)).willReturn(Collections.emptyList());
+            given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             // when
             MyProfileResult result = userService.getMyProfile(1L);
@@ -446,7 +446,7 @@ class UserServiceTest {
             UserCategory uc2 = UserCategory.builder().user(user).category(category2).build();
 
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userCategoryRepository.findByUserId(1L)).willReturn(List.of(uc1, uc2));
+            given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(List.of(uc1, uc2));
 
             // when
             UserProfileResult result = userService.getUserProfile(1L);
@@ -466,7 +466,7 @@ class UserServiceTest {
             User user = createUser();
             ReflectionTestUtils.setField(user, "id", 1L);
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userCategoryRepository.findByUserId(1L)).willReturn(Collections.emptyList());
+            given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             // when
             UserProfileResult result = userService.getUserProfile(1L);
@@ -494,7 +494,7 @@ class UserServiceTest {
             ReflectionTestUtils.setField(user, "id", 1L);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userCategoryRepository.findByUserId(1L)).willReturn(Collections.emptyList());
+            given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             // when
             UserProfileResult result = userService.getUserProfile(1L);
@@ -702,7 +702,7 @@ class UserServiceTest {
 
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
             given(userRepository.existsByNicknameAndIdNot("새닉네임", 1L)).willReturn(false);
-            given(userCategoryRepository.findByUserId(1L)).willReturn(Collections.emptyList());
+            given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             EditMyProfileParam command = new EditMyProfileParam(
                     "새닉네임", null, null, null, null, null, null, null, null, null, null);
@@ -726,7 +726,7 @@ class UserServiceTest {
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
             given(userRepository.existsByNicknameAndIdNot("새닉네임", 1L)).willReturn(false);
             given(userRepository.existsByEmailAndIdNot("new@example.com", 1L)).willReturn(false);
-            given(userCategoryRepository.findByUserId(1L)).willReturn(Collections.emptyList());
+            given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             EditMyProfileParam command = new EditMyProfileParam(
                     "새닉네임", "new@example.com", null, null, null, null, null, null, null, Mbti.INTJ, null);
@@ -758,7 +758,7 @@ class UserServiceTest {
 
             UserCategory uc1 = UserCategory.builder().user(user).category(cat1).build();
             UserCategory uc2 = UserCategory.builder().user(user).category(cat2).build();
-            given(userCategoryRepository.findByUserId(1L)).willReturn(List.of(uc1, uc2));
+            given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(List.of(uc1, uc2));
 
             EditMyProfileParam command = new EditMyProfileParam(
                     null, null, null, null, null, null, null, null, null, null, List.of(1L, 2L));
@@ -780,7 +780,7 @@ class UserServiceTest {
             ReflectionTestUtils.setField(user, "id", 1L);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userCategoryRepository.findByUserId(1L)).willReturn(Collections.emptyList());
+            given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             EditMyProfileParam command = new EditMyProfileParam(
                     null, null, null, null, null, null, null, null, null, null, List.of());
@@ -802,7 +802,7 @@ class UserServiceTest {
             ReflectionTestUtils.setField(user, "id", 1L);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userCategoryRepository.findByUserId(1L)).willReturn(Collections.emptyList());
+            given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             EditMyProfileParam command = new EditMyProfileParam(
                     null, null, null, null, null, null, null, null, null, null, null);
@@ -824,7 +824,7 @@ class UserServiceTest {
 
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
             given(userRepository.existsByNicknameAndIdNot("기존닉네임", 1L)).willReturn(false);
-            given(userCategoryRepository.findByUserId(1L)).willReturn(Collections.emptyList());
+            given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             EditMyProfileParam command = new EditMyProfileParam(
                     "기존닉네임", null, null, null, null, null, null, null, null, null, null);
