@@ -5,6 +5,9 @@ import com.dewple.common.exception.ErrorCode;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Getter;
+import org.springframework.data.domain.Page;
+
+import java.util.List;
 
 @Getter
 @JsonPropertyOrder({"code", "status", "message", "result"})
@@ -62,5 +65,31 @@ public class ApiResponse<T> {
 
     public static ApiResponse<Void> error(int code, int status, String message) {
         return new ApiResponse<>(code, status, message, null);
+    }
+
+    public static <T> ApiResponse<PageResult<T>> ok(Page<T> page) {
+        return new ApiResponse<>(
+                WebErrorCode.SUCCESS.getCode(),
+                WebErrorCode.SUCCESS.getHttpStatus().value(),
+                WebErrorCode.SUCCESS.getMessage(),
+                new PageResult<>(
+                        page.getContent(),
+                        page.getNumber(),
+                        page.getSize(),
+                        page.getTotalElements(),
+                        page.getTotalPages(),
+                        page.isLast()
+                )
+        );
+    }
+
+    public record PageResult<T>(
+            List<T> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages,
+            boolean isLast
+    ) {
     }
 }

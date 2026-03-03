@@ -6,9 +6,13 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import com.dewple.common.entity.BaseEntity;
 import com.dewple.common.entity.Club;
@@ -47,8 +51,9 @@ public class RecruitmentPosting extends BaseEntity {
     @Column(name = "title", nullable = false, length = 100)
     private String title;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "content", columnDefinition = "jsonb")
+    private String content;
 
     @Column(name = "theme_color", length = 100)
     private String themeColor;
@@ -76,6 +81,18 @@ public class RecruitmentPosting extends BaseEntity {
     @Column(name = "end_at", nullable = false, columnDefinition = "timestamptz")
     private OffsetDateTime endAt;
 
+    @Column(name = "result_date")
+    private LocalDate resultDate;
+
+    @Column(name = "end_of_generation_date")
+    private LocalDate endOfGenerationDate;
+
+    @Column(name = "is_interview_required", nullable = false)
+    private Boolean isInterviewRequired = false;
+
+    @Column(name = "view_count", nullable = false)
+    private Long viewCount = 0L;
+
 
     @OneToMany(mappedBy = "posting", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RecruitmentProcess> recruitmentProcesses = new ArrayList<>();
@@ -86,18 +103,20 @@ public class RecruitmentPosting extends BaseEntity {
 
     @Builder
     public RecruitmentPosting(Club club, Activity activity, ClubGeneration generation,
-                              User creator, String title, String description,
+                              User creator, String title, String content,
                               String themeColor, EditWindowBasis editWindowBasis,
                               Integer editWindowDays, Integer capacity,
                               RecruitmentStatus recruitmentStatus, Long recentRecruitmentVersion,
-                              OffsetDateTime startAt, OffsetDateTime endAt) {
+                              OffsetDateTime startAt, OffsetDateTime endAt,
+                              LocalDate resultDate, LocalDate endOfGenerationDate,
+                              Boolean isInterviewRequired, Long viewCount) {
         validatePeriod(startAt, endAt);
         this.club = club;
         this.activity = activity;
         this.generation = generation;
         this.creator = creator;
         this.title = title;
-        this.description = description;
+        this.content = content;
         this.themeColor = themeColor;
         this.editWindowBasis = editWindowBasis;
         this.editWindowDays = editWindowDays;
@@ -106,12 +125,52 @@ public class RecruitmentPosting extends BaseEntity {
         this.recentRecruitmentVersion = recentRecruitmentVersion;
         this.startAt = startAt;
         this.endAt = endAt;
+        this.resultDate = resultDate;
+        this.endOfGenerationDate = endOfGenerationDate;
+        this.isInterviewRequired = isInterviewRequired != null ? isInterviewRequired : false;
+        this.viewCount = viewCount != null ? viewCount : 0L;
     }
 
     private void validatePeriod(OffsetDateTime startAt, OffsetDateTime endAt) {
         if (endAt != null && startAt != null && !endAt.isAfter(startAt)) {
             throw new IllegalArgumentException("종료일시는 시작일시보다 늦어야 합니다");
         }
+    }
+
+    public void updateTitle(String title) {
+        this.title = title;
+    }
+
+    public void updateContent(String content) {
+        this.content = content;
+    }
+
+    public void incrementVersion() {
+        this.recentRecruitmentVersion++;
+    }
+
+    public void setPublishRecruitmentVersion() {
+        this.recentRecruitmentVersion = 1L;
+    }
+
+    public void changeRecruitmentStatus(RecruitmentStatus status) {
+        this.recruitmentStatus = status;
+    }
+
+    public void updateForDraft(String title, String content, ClubGeneration generation,
+                               Integer capacity, OffsetDateTime startAt, OffsetDateTime endAt,
+                               LocalDate resultDate, LocalDate endOfGenerationDate,
+                               Boolean isInterviewRequired) {
+        validatePeriod(startAt, endAt);
+        this.title = title;
+        this.content = content;
+        this.generation = generation;
+        this.capacity = capacity;
+        this.startAt = startAt;
+        this.endAt = endAt;
+        this.resultDate = resultDate;
+        this.endOfGenerationDate = endOfGenerationDate;
+        this.isInterviewRequired = isInterviewRequired;
     }
 
     // 연관관계 편의 메소드
