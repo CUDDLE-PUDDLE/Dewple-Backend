@@ -45,7 +45,7 @@ public class ApplicationService {
                 .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.APPLICATION_SCHEMA_NOT_FOUND));
 
         return applicationRepository.findByPostingIdAndApplicantIdAndStatuses(
-                postingId, applicantId, BaseStatus.ACTIVE,
+                postingId, applicantId,
                 List.of(ApplicationStatus.SUBMITTED, ApplicationStatus.TEMPORARY)
         ).map(existing -> {
             if (existing.getApplicationStatus() == ApplicationStatus.SUBMITTED) {
@@ -76,7 +76,7 @@ public class ApplicationService {
                 .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.APPLICATION_SCHEMA_NOT_FOUND));
 
         return applicationRepository.findByPostingIdAndApplicantIdAndStatuses(
-                postingId, applicantId, BaseStatus.ACTIVE,
+                postingId, applicantId,
                 List.of(ApplicationStatus.SUBMITTED, ApplicationStatus.TEMPORARY)
         ).map(existing -> {
             if (existing.getApplicationStatus() == ApplicationStatus.SUBMITTED) {
@@ -116,7 +116,7 @@ public class ApplicationService {
     @Transactional(readOnly = true)
     public List<MyApplicationListResult> getMyApplications(Long applicantId) {
         List<Application> applications = applicationRepository
-                .findAllByApplicantIdWithPostingAndClub(applicantId, BaseStatus.ACTIVE);
+                .findAllByApplicantIdWithPostingAndClub(applicantId);
 
         return applications.stream()
                 .map(this::toMyApplicationListResult)
@@ -153,7 +153,7 @@ public class ApplicationService {
                 .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.APPLICATION_SCHEMA_NOT_FOUND));
 
         applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                postingId, command.guestPhone(), BaseStatus.ACTIVE,
+                postingId, command.guestPhone(),
                 List.of(ApplicationStatus.SUBMITTED, ApplicationStatus.TEMPORARY)
         ).ifPresent(existing -> {
             throw new BusinessException(RecruitmentErrorCode.GUEST_APPLICATION_ALREADY_SUBMITTED);
@@ -172,7 +172,7 @@ public class ApplicationService {
         RecruitmentPosting posting = findAndValidatePosting(postingId, clubId);
 
         Application application = applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                postingId, command.guestPhone(), BaseStatus.ACTIVE,
+                postingId, command.guestPhone(),
                 List.of(ApplicationStatus.SUBMITTED, ApplicationStatus.TEMPORARY)
         ).orElseThrow(() -> new BusinessException(RecruitmentErrorCode.GUEST_APPLICATION_NOT_FOUND));
 

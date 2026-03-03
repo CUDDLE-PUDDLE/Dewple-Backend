@@ -5,6 +5,7 @@ import com.dewple.common.enums.ApplicationStatus;
 import com.dewple.common.enums.BaseStatus;
 import com.dewple.recruitment.entity.Application;
 import com.dewple.recruitment.entity.QApplication;
+import com.dewple.recruitment.entity.QRecruitmentPosting;
 import com.dewple.recruitment.entity.QRecruitmentProcess;
 import com.dewple.recruitment.entity.QRecruitmentSchema;
 import com.querydsl.core.BooleanBuilder;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Optional;
 
 @RequiredArgsConstructor
 public class ApplicationRepositoryImpl implements ApplicationRepositoryCustom {
@@ -24,6 +26,7 @@ public class ApplicationRepositoryImpl implements ApplicationRepositoryCustom {
     private static final QApplication application = QApplication.application;
     private static final QRecruitmentSchema schema = QRecruitmentSchema.recruitmentSchema;
     private static final QRecruitmentProcess process = QRecruitmentProcess.recruitmentProcess;
+    private static final QRecruitmentPosting posting = QRecruitmentPosting.recruitmentPosting;
     private static final QUser user = QUser.user;
 
     @Override
@@ -67,5 +70,90 @@ public class ApplicationRepositoryImpl implements ApplicationRepositoryCustom {
                 .fetch();
 
         return new PageImpl<>(content, pageable, total != null ? total : 0L);
+    }
+
+    @Override
+    public Optional<Application> findByPostingIdAndApplicantIdAndStatuses(
+            Long postingId, Long applicantId, List<ApplicationStatus> statuses) {
+
+        Application result = queryFactory
+                .selectFrom(application)
+                .join(application.recruitmentSchema, schema)
+                .join(schema.recruitmentProcess, process)
+                .where(
+                        process.posting.id.eq(postingId),
+                        application.applicant.id.eq(applicantId),
+                        application.status.eq(BaseStatus.ACTIVE),
+                        application.applicationStatus.in(statuses)
+                )
+                .fetchFirst();
+
+        return Optional.ofNullable(result);
+    }
+
+    @Override
+    public Optional<Application> findByPostingIdAndGuestPhoneAndStatuses(
+            Long postingId, String guestPhone, List<ApplicationStatus> statuses) {
+
+        Application result = queryFactory
+                .selectFrom(application)
+                .join(application.recruitmentSchema, schema)
+                .join(schema.recruitmentProcess, process)
+                .where(
+                        process.posting.id.eq(postingId),
+                        application.guestPhone.eq(guestPhone),
+                        application.status.eq(BaseStatus.ACTIVE),
+                        application.applicationStatus.in(statuses)
+                )
+                .fetchFirst();
+
+        return Optional.ofNullable(result);
+    }
+
+    @Override
+    public List<Application> findAllByApplicantIdWithPostingAndClub(Long applicantId) {
+        return queryFactory
+                .selectFrom(application)
+                .join(application.recruitmentSchema, schema).fetchJoin()
+                .join(schema.recruitmentProcess, process).fetchJoin()
+                .join(process.posting, posting).fetchJoin()
+                .join(posting.club).fetchJoin()
+                .where(
+                        application.applicant.id.eq(applicantId),
+                        application.status.eq(BaseStatus.ACTIVE)
+                )
+                .orderBy(application.createdAt.desc())
+                .fetch();
+    }
+
+    @Override
+    public Optional<Application> findActiveByIdAndPostingId(Long applicationId, Long postingId) {
+        Application result = queryFactory
+                .selectFrom(application)
+                .join(application.recruitmentSchema, schema)
+                .join(schema.recruitmentProcess, process)
+                .leftJoin(application.applicant, user).fetchJoin()
+                .where(
+                        application.id.eq(applicationId),
+                        process.posting.id.eq(postingId),
+                        application.status.eq(BaseStatus.ACTIVE)
+                )
+                .fetchFirst();
+
+        return Optional.ofNullable(result);
+    }
+
+    @Override
+    public List<Application> findActiveAllByIdsAndPostingId(List<Long> applicationIds, Long postingId) {
+        return queryFactory
+                .selectFrom(application)
+                .join(application.recruitmentSchema, schema)
+                .join(schema.recruitmentProcess, process)
+                .where(
+                        application.id.in(applicationIds),
+                        process.posting.id.eq(postingId),
+                        application.status.eq(BaseStatus.ACTIVE)
+                )
+                .fetch();
     }
 }
