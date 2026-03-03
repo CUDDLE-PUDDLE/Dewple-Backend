@@ -134,7 +134,7 @@ public class UserService {
             }
         }
 
-        List<String> interests = userCategoryRepository.findByUserId(userId).stream()
+        List<String> interests = userCategoryRepository.findByUserIdWithCategory(userId).stream()
                 .map(uc -> uc.getCategory().getName())
                 .toList();
 
@@ -185,7 +185,7 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
-        List<String> interests = userCategoryRepository.findByUserId(id).stream()
+        List<String> interests = userCategoryRepository.findByUserIdWithCategory(id).stream()
                 .map(uc -> uc.getCategory().getName())
                 .toList();
 
@@ -205,7 +205,7 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
-        List<String> interests = userCategoryRepository.findByUserId(id).stream()
+        List<String> interests = userCategoryRepository.findByUserIdWithCategory(id).stream()
                 .map(uc -> uc.getCategory().getName())
                 .toList();
 
