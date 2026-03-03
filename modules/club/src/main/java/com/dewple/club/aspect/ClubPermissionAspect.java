@@ -33,7 +33,7 @@ public class ClubPermissionAspect {
                 .orElseThrow(() -> new BusinessException(ClubErrorCode.NOT_CLUB_MEMBER));
 
         if (member.getRole() == null || !member.getRole().hasPermission(required)) {
-            throw new BusinessException(ClubErrorCode.INSUFFICIENT_PERMISSION);
+            throw new BusinessException(ClubErrorCode.CLUB_PERMISSION_DENIED);
         }
     }
 }
