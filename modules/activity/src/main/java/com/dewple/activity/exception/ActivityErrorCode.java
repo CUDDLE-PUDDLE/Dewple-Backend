@@ -15,6 +15,8 @@ public enum ActivityErrorCode implements ErrorCode {
     ACTIVITY_START_IN_PAST(5002, HttpStatus.BAD_REQUEST, "시작 시간은 현재 시간 이후여야 합니다."),
     ACTIVITY_ALREADY_INACTIVE(5003, HttpStatus.FORBIDDEN, "이미 삭제된 모임입니다."),
     ACTIVITY_DELETE_PERMISSION_DENIED(5004, HttpStatus.FORBIDDEN, "모임 삭제 권한이 없습니다."),
+    CATEGORY_NOT_FOUND(5005, HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
+    REGION_NOT_FOUND(5006, HttpStatus.NOT_FOUND, "지역을 찾을 수 없습니다."),
     ;
 
     private final int code;

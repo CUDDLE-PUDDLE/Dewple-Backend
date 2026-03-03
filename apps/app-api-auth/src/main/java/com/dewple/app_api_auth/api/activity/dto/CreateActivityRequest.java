@@ -1,5 +1,7 @@
 package com.dewple.app_api_auth.api.activity.dto;
 
+import com.dewple.common.enums.ActivityType;
+import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.OpenType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -44,6 +46,28 @@ public record CreateActivityRequest(
 
         @Schema(description = "종료 시간", example = "2026-04-01T12:00:00+09:00")
         @NotNull(message = "종료 시간은 필수입니다.")
-        OffsetDateTime endAt
+        OffsetDateTime endAt,
+
+        @Schema(description = "카테고리 ID", example = "1")
+        Long categoryId,
+
+        @Schema(description = "지역 ID", example = "1")
+        Long regionId,
+
+        @Schema(description = "활동 방식 (ONLINE, OFFLINE, BOTH)", example = "BOTH")
+        @NotNull(message = "활동 방식은 필수입니다.")
+        ActivityType activityType,
+
+        @Schema(description = "본인인증 필수 여부", example = "false")
+        Boolean isVerificationRequired,
+
+        @Schema(description = "최소 연령", example = "20")
+        Integer minAge,
+
+        @Schema(description = "최대 연령", example = "30")
+        Integer maxAge,
+
+        @Schema(description = "성별 제한 (MALE, FEMALE, ANY)", example = "ANY")
+        Gender gender
 ) {
 }

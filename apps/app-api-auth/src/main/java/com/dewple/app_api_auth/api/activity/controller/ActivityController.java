@@ -67,7 +67,14 @@ public class ActivityController {
                 request.isAttendanceCheck(),
                 request.isSearchable(),
                 request.startAt(),
-                request.endAt()
+                request.endAt(),
+                request.categoryId(),
+                request.regionId(),
+                request.activityType(),
+                request.isVerificationRequired(),
+                request.minAge(),
+                request.maxAge(),
+                request.gender()
         );
 
         CreateActivityResult result = activityService.createActivity(userId, param);
@@ -84,7 +91,16 @@ public class ActivityController {
                 result.isSearchable(),
                 result.startAt(),
                 result.endAt(),
-                result.createdAt()
+                result.createdAt(),
+                result.categoryId(),
+                result.categoryName(),
+                result.regionId(),
+                result.regionName(),
+                result.activityType(),
+                result.isVerificationRequired(),
+                result.minAge(),
+                result.maxAge(),
+                result.gender()
         ));
     }
 

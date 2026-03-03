@@ -8,6 +8,8 @@ import com.dewple.activity.service.CreateActivityResult;
 import com.dewple.activity.service.GetActivityDetailResult;
 import com.dewple.app_api_auth.global.config.SecurityConfig;
 import com.dewple.club.exception.ClubErrorCode;
+import com.dewple.common.enums.ActivityType;
+import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.OpenType;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
@@ -205,7 +207,9 @@ class ActivityControllerTest {
                     100L, null, null, OpenType.PUBLIC,
                     "봄맞이 독서 모임", "함께 책을 읽어요", 20,
                     false, true,
-                    OffsetDateTime.parse(START_AT), OffsetDateTime.parse(END_AT), now
+                    OffsetDateTime.parse(START_AT), OffsetDateTime.parse(END_AT), now,
+                    1L, "독서", 1L, "서울",
+                    ActivityType.OFFLINE, true, 20, 30, Gender.ANY
             );
 
             given(activityService.createActivity(eq(1L), any())).willReturn(result);
@@ -214,15 +218,22 @@ class ActivityControllerTest {
             mockMvc.perform(post("/activities")
                             .with(jwt().jwt(j -> j.subject("1")))
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(Map.of(
-                                    "openType", "PUBLIC",
-                                    "name", "봄맞이 독서 모임",
-                                    "description", "함께 책을 읽어요",
-                                    "capacity", 20,
-                                    "isAttendanceCheck", false,
-                                    "isSearchable", true,
-                                    "startAt", START_AT,
-                                    "endAt", END_AT
+                            .content(objectMapper.writeValueAsString(Map.ofEntries(
+                                    Map.entry("openType", "PUBLIC"),
+                                    Map.entry("name", "봄맞이 독서 모임"),
+                                    Map.entry("description", "함께 책을 읽어요"),
+                                    Map.entry("capacity", 20),
+                                    Map.entry("isAttendanceCheck", false),
+                                    Map.entry("isSearchable", true),
+                                    Map.entry("startAt", START_AT),
+                                    Map.entry("endAt", END_AT),
+                                    Map.entry("categoryId", 1),
+                                    Map.entry("regionId", 1),
+                                    Map.entry("activityType", "OFFLINE"),
+                                    Map.entry("isVerificationRequired", true),
+                                    Map.entry("minAge", 20),
+                                    Map.entry("maxAge", 30),
+                                    Map.entry("gender", "ANY")
                             ))))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.code").value(1000))
@@ -234,7 +245,16 @@ class ActivityControllerTest {
                     .andExpect(jsonPath("$.result.description").value("함께 책을 읽어요"))
                     .andExpect(jsonPath("$.result.capacity").value(20))
                     .andExpect(jsonPath("$.result.isAttendanceCheck").value(false))
-                    .andExpect(jsonPath("$.result.isSearchable").value(true));
+                    .andExpect(jsonPath("$.result.isSearchable").value(true))
+                    .andExpect(jsonPath("$.result.categoryId").value(1))
+                    .andExpect(jsonPath("$.result.categoryName").value("독서"))
+                    .andExpect(jsonPath("$.result.regionId").value(1))
+                    .andExpect(jsonPath("$.result.regionName").value("서울"))
+                    .andExpect(jsonPath("$.result.activityType").value("OFFLINE"))
+                    .andExpect(jsonPath("$.result.isVerificationRequired").value(true))
+                    .andExpect(jsonPath("$.result.minAge").value(20))
+                    .andExpect(jsonPath("$.result.maxAge").value(30))
+                    .andExpect(jsonPath("$.result.gender").value("ANY"));
         }
 
         @Test
@@ -246,7 +266,9 @@ class ActivityControllerTest {
                     101L, 10L, "테스트 동아리", OpenType.PRIVATE,
                     "정기 모임", "이번 주 정기 모임", null,
                     true, false,
-                    OffsetDateTime.parse(START_AT), OffsetDateTime.parse(END_AT), now
+                    OffsetDateTime.parse(START_AT), OffsetDateTime.parse(END_AT), now,
+                    null, null, null, null,
+                    ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             given(activityService.createActivity(eq(1L), any())).willReturn(result);
@@ -255,15 +277,17 @@ class ActivityControllerTest {
             mockMvc.perform(post("/activities")
                             .with(jwt().jwt(j -> j.subject("1")))
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(Map.of(
-                                    "clubId", 10,
-                                    "openType", "PRIVATE",
-                                    "name", "정기 모임",
-                                    "description", "이번 주 정기 모임",
-                                    "isAttendanceCheck", true,
-                                    "isSearchable", false,
-                                    "startAt", START_AT,
-                                    "endAt", END_AT
+                            .content(objectMapper.writeValueAsString(Map.ofEntries(
+                                    Map.entry("clubId", 10),
+                                    Map.entry("openType", "PRIVATE"),
+                                    Map.entry("name", "정기 모임"),
+                                    Map.entry("description", "이번 주 정기 모임"),
+                                    Map.entry("isAttendanceCheck", true),
+                                    Map.entry("isSearchable", false),
+                                    Map.entry("startAt", START_AT),
+                                    Map.entry("endAt", END_AT),
+                                    Map.entry("activityType", "BOTH"),
+                                    Map.entry("gender", "ANY")
                             ))))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.code").value(1000))
@@ -272,7 +296,9 @@ class ActivityControllerTest {
                     .andExpect(jsonPath("$.result.clubName").value("테스트 동아리"))
                     .andExpect(jsonPath("$.result.openType").value("PRIVATE"))
                     .andExpect(jsonPath("$.result.isAttendanceCheck").value(true))
-                    .andExpect(jsonPath("$.result.isSearchable").value(false));
+                    .andExpect(jsonPath("$.result.isSearchable").value(false))
+                    .andExpect(jsonPath("$.result.activityType").value("BOTH"))
+                    .andExpect(jsonPath("$.result.gender").value("ANY"));
         }
 
         @Test
@@ -422,6 +448,7 @@ class ActivityControllerTest {
                                     "openType", "PUBLIC",
                                     "name", "모임",
                                     "description", "설명",
+                                    "activityType", "BOTH",
                                     "startAt", END_AT,
                                     "endAt", START_AT
                             ))))
@@ -445,6 +472,7 @@ class ActivityControllerTest {
                                     "openType", "PUBLIC",
                                     "name", "모임",
                                     "description", "설명",
+                                    "activityType", "BOTH",
                                     "startAt", START_AT,
                                     "endAt", END_AT
                             ))))
@@ -468,6 +496,7 @@ class ActivityControllerTest {
                                     "openType", "PUBLIC",
                                     "name", "모임",
                                     "description", "설명",
+                                    "activityType", "BOTH",
                                     "startAt", START_AT,
                                     "endAt", END_AT
                             ))))
@@ -491,6 +520,7 @@ class ActivityControllerTest {
                                     "openType", "PUBLIC",
                                     "name", "모임",
                                     "description", "설명",
+                                    "activityType", "BOTH",
                                     "startAt", START_AT,
                                     "endAt", END_AT
                             ))))

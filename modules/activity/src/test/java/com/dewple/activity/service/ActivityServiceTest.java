@@ -5,12 +5,16 @@ import com.dewple.activity.entity.ActivityParticipant;
 import com.dewple.activity.exception.ActivityErrorCode;
 import com.dewple.activity.repository.ActivityParticipantRepository;
 import com.dewple.activity.repository.ActivityRepository;
+import com.dewple.activity.repository.CategoryRepository;
+import com.dewple.activity.repository.RegionRepository;
 import com.dewple.club.entity.ClubMember;
 import com.dewple.club.entity.ClubRole;
 import com.dewple.club.exception.ClubErrorCode;
 import com.dewple.club.repository.ClubMemberRepository;
 import com.dewple.club.repository.ClubRepository;
+import com.dewple.common.entity.Category;
 import com.dewple.common.entity.Club;
+import com.dewple.common.entity.Region;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.Gender;
@@ -64,6 +68,12 @@ class ActivityServiceTest {
     @Mock
     private ClubMemberRepository clubMemberRepository;
 
+    @Mock
+    private CategoryRepository categoryRepository;
+
+    @Mock
+    private RegionRepository regionRepository;
+
     @InjectMocks
     private ActivityService activityService;
 
@@ -90,9 +100,18 @@ class ActivityServiceTest {
                 return saved;
             });
 
+            Category category = Category.builder().name("독서").build();
+            ReflectionTestUtils.setField(category, "id", 1L);
+            Region region = Region.builder().name("서울").build();
+            ReflectionTestUtils.setField(region, "id", 1L);
+
+            given(categoryRepository.findById(1L)).willReturn(Optional.of(category));
+            given(regionRepository.findById(1L)).willReturn(Optional.of(region));
+
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "봄맞이 독서 모임", "함께 책을 읽어요",
-                    20, false, true, START_AT, END_AT
+                    20, false, true, START_AT, END_AT,
+                    1L, 1L, ActivityType.OFFLINE, true, 20, 30, Gender.ANY
             );
 
             // when
@@ -108,6 +127,15 @@ class ActivityServiceTest {
             assertThat(result.capacity()).isEqualTo(20);
             assertThat(result.isAttendanceCheck()).isFalse();
             assertThat(result.isSearchable()).isTrue();
+            assertThat(result.categoryId()).isEqualTo(1L);
+            assertThat(result.categoryName()).isEqualTo("독서");
+            assertThat(result.regionId()).isEqualTo(1L);
+            assertThat(result.regionName()).isEqualTo("서울");
+            assertThat(result.activityType()).isEqualTo(ActivityType.OFFLINE);
+            assertThat(result.isVerificationRequired()).isTrue();
+            assertThat(result.minAge()).isEqualTo(20);
+            assertThat(result.maxAge()).isEqualTo(30);
+            assertThat(result.gender()).isEqualTo(Gender.ANY);
 
             verify(activityRepository).save(any(Activity.class));
         }
@@ -146,7 +174,8 @@ class ActivityServiceTest {
 
             CreateActivityParam param = new CreateActivityParam(
                     CLUB_ID, OpenType.PRIVATE, "동아리 정기 모임", "이번 주 정기 모임입니다",
-                    null, true, false, START_AT, END_AT
+                    null, true, false, START_AT, END_AT,
+                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when
@@ -160,6 +189,11 @@ class ActivityServiceTest {
             assertThat(result.isAttendanceCheck()).isTrue();
             assertThat(result.isSearchable()).isFalse();
             assertThat(result.capacity()).isNull();
+            assertThat(result.categoryId()).isNull();
+            assertThat(result.regionId()).isNull();
+            assertThat(result.activityType()).isEqualTo(ActivityType.BOTH);
+            assertThat(result.isVerificationRequired()).isFalse();
+            assertThat(result.gender()).isEqualTo(Gender.ANY);
         }
 
         @Test
@@ -178,7 +212,8 @@ class ActivityServiceTest {
 
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "오픈 모임", "누구나 환영",
-                    null, null, null, START_AT, END_AT
+                    null, null, null, START_AT, END_AT,
+                    null, null, null, null, null, null, null
             );
 
             // when
@@ -188,6 +223,9 @@ class ActivityServiceTest {
             assertThat(result.capacity()).isNull();
             assertThat(result.isAttendanceCheck()).isFalse();
             assertThat(result.isSearchable()).isTrue();
+            assertThat(result.activityType()).isEqualTo(ActivityType.BOTH);
+            assertThat(result.isVerificationRequired()).isFalse();
+            assertThat(result.gender()).isEqualTo(Gender.ANY);
         }
 
         @Test
@@ -198,7 +236,8 @@ class ActivityServiceTest {
 
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
-                    10, false, true, START_AT, END_AT
+                    10, false, true, START_AT, END_AT,
+                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -219,7 +258,8 @@ class ActivityServiceTest {
 
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
-                    10, false, true, END_AT, START_AT
+                    10, false, true, END_AT, START_AT,
+                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -241,7 +281,8 @@ class ActivityServiceTest {
             OffsetDateTime sameTime = OffsetDateTime.now().plusDays(7);
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
-                    10, false, true, sameTime, sameTime
+                    10, false, true, sameTime, sameTime,
+                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -264,7 +305,8 @@ class ActivityServiceTest {
             OffsetDateTime futureEnd = OffsetDateTime.now().plusDays(1);
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
-                    10, false, true, pastStart, futureEnd
+                    10, false, true, pastStart, futureEnd,
+                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -286,7 +328,8 @@ class ActivityServiceTest {
 
             CreateActivityParam param = new CreateActivityParam(
                     999L, OpenType.PUBLIC, "모임", "설명",
-                    10, false, true, START_AT, END_AT
+                    10, false, true, START_AT, END_AT,
+                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -314,7 +357,8 @@ class ActivityServiceTest {
 
             CreateActivityParam param = new CreateActivityParam(
                     CLUB_ID, OpenType.PUBLIC, "모임", "설명",
-                    10, false, true, START_AT, END_AT
+                    10, false, true, START_AT, END_AT,
+                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -348,7 +392,8 @@ class ActivityServiceTest {
 
             CreateActivityParam param = new CreateActivityParam(
                     CLUB_ID, OpenType.PUBLIC, "모임", "설명",
-                    10, false, true, START_AT, END_AT
+                    10, false, true, START_AT, END_AT,
+                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -388,7 +433,8 @@ class ActivityServiceTest {
 
             CreateActivityParam param = new CreateActivityParam(
                     CLUB_ID, OpenType.PUBLIC, "모임", "설명",
-                    10, false, true, START_AT, END_AT
+                    10, false, true, START_AT, END_AT,
+                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then

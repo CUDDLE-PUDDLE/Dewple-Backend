@@ -5,11 +5,15 @@ import com.dewple.activity.entity.ActivityParticipant;
 import com.dewple.activity.exception.ActivityErrorCode;
 import com.dewple.activity.repository.ActivityParticipantRepository;
 import com.dewple.activity.repository.ActivityRepository;
+import com.dewple.activity.repository.CategoryRepository;
+import com.dewple.activity.repository.RegionRepository;
 import com.dewple.club.entity.ClubMember;
 import com.dewple.club.exception.ClubErrorCode;
 import com.dewple.club.repository.ClubMemberRepository;
 import com.dewple.club.repository.ClubRepository;
+import com.dewple.common.entity.Category;
 import com.dewple.common.entity.Club;
+import com.dewple.common.entity.Region;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
@@ -36,6 +40,8 @@ public class ActivityService {
     private final UserRepository userRepository;
     private final ClubRepository clubRepository;
     private final ClubMemberRepository clubMemberRepository;
+    private final CategoryRepository categoryRepository;
+    private final RegionRepository regionRepository;
 
     @Transactional
     public CreateActivityResult createActivity(Long userId, CreateActivityParam param) {
@@ -63,6 +69,18 @@ public class ActivityService {
             }
         }
 
+        Category category = null;
+        if (param.categoryId() != null) {
+            category = categoryRepository.findById(param.categoryId())
+                    .orElseThrow(() -> new BusinessException(ActivityErrorCode.CATEGORY_NOT_FOUND));
+        }
+
+        Region region = null;
+        if (param.regionId() != null) {
+            region = regionRepository.findById(param.regionId())
+                    .orElseThrow(() -> new BusinessException(ActivityErrorCode.REGION_NOT_FOUND));
+        }
+
         Activity activity = Activity.builder()
                 .club(club)
                 .creator(creator)
@@ -74,6 +92,13 @@ public class ActivityService {
                 .isSearchable(param.isSearchable())
                 .startAt(param.startAt())
                 .endAt(param.endAt())
+                .category(category)
+                .region(region)
+                .activityType(param.activityType())
+                .isVerificationRequired(param.isVerificationRequired())
+                .minAge(param.minAge())
+                .maxAge(param.maxAge())
+                .gender(param.gender())
                 .build();
 
         activityRepository.save(activity);
@@ -91,7 +116,16 @@ public class ActivityService {
                 activity.getIsSearchable(),
                 activity.getStartAt(),
                 activity.getEndAt(),
-                activity.getCreatedAt()
+                activity.getCreatedAt(),
+                category != null ? category.getId() : null,
+                category != null ? category.getName() : null,
+                region != null ? region.getId() : null,
+                region != null ? region.getName() : null,
+                activity.getActivityType(),
+                activity.getIsVerificationRequired(),
+                activity.getMinAge(),
+                activity.getMaxAge(),
+                activity.getGender()
         );
     }
 

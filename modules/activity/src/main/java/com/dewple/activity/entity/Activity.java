@@ -13,6 +13,8 @@ import com.dewple.common.entity.Category;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.Region;
 import com.dewple.common.entity.User;
+import com.dewple.common.enums.ActivityType;
+import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.OpenType;
 
 @Entity
@@ -66,6 +68,23 @@ public class Activity extends BaseEntity {
     @JoinColumn(name = "region_id")
     private Region region;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "activity_type", nullable = false, length = 30)
+    private ActivityType activityType = ActivityType.BOTH;
+
+    @Column(name = "is_verification_required", nullable = false)
+    private Boolean isVerificationRequired = false;
+
+    @Column(name = "min_age")
+    private Integer minAge;
+
+    @Column(name = "max_age")
+    private Integer maxAge;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender", nullable = false, length = 30)
+    private Gender gender = Gender.ANY;
+
     @Column(name = "thumbnail_url", length = 2048)
     private String thumbnailUrl;
 
@@ -82,7 +101,9 @@ public class Activity extends BaseEntity {
     public Activity(Club club, User creator, OpenType openType, String name,
                     String description, Integer capacity, Boolean isAttendanceCheck,
                     Boolean isSearchable, OffsetDateTime startAt, OffsetDateTime endAt,
-                    Category category, Region region, String thumbnailUrl) {
+                    Category category, Region region, ActivityType activityType,
+                    Boolean isVerificationRequired, Integer minAge, Integer maxAge,
+                    Gender gender, String thumbnailUrl) {
         this.club = club;
         this.creator = creator;
         this.openType = openType;
@@ -95,6 +116,11 @@ public class Activity extends BaseEntity {
         this.endAt = endAt;
         this.category = category;
         this.region = region;
+        this.activityType = activityType != null ? activityType : ActivityType.BOTH;
+        this.isVerificationRequired = isVerificationRequired != null ? isVerificationRequired : false;
+        this.minAge = minAge;
+        this.maxAge = maxAge;
+        this.gender = gender != null ? gender : Gender.ANY;
         this.thumbnailUrl = thumbnailUrl;
     }
 }
