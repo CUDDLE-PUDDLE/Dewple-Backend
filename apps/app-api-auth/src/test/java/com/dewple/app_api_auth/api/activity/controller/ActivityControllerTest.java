@@ -1,7 +1,9 @@
 package com.dewple.app_api_auth.api.activity.controller;
 
 import com.dewple.activity.exception.ActivityErrorCode;
+import com.dewple.activity.service.ActivityListSection;
 import com.dewple.activity.service.ActivityService;
+import com.dewple.activity.service.ActivitySummaryResult;
 import com.dewple.activity.service.CreateActivityResult;
 import com.dewple.activity.service.GetActivityDetailResult;
 import com.dewple.app_api_auth.global.config.SecurityConfig;
@@ -20,6 +22,9 @@ import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.SliceImpl;
 
 import java.time.OffsetDateTime;
 import java.util.Collections;
@@ -54,6 +59,138 @@ class ActivityControllerTest {
 
     private static final String START_AT = "2026-04-01T10:00:00+09:00";
     private static final String END_AT = "2026-04-01T12:00:00+09:00";
+
+    @Nested
+    @DisplayName("GET /activities - 모임 목록 조회")
+    class GetActivityList {
+
+        @Test
+        @DisplayName("성공: PERSONAL 섹션 조회")
+        void successWithPersonalSection() throws Exception {
+            // given
+            List<ActivitySummaryResult> content = List.of(
+                    new ActivitySummaryResult(1L, "thumb1.jpg", "PERSONAL", null, "개인 모임",
+                            "카테고리1", "서울", 5, 20, 10, 100, 3, false),
+                    new ActivitySummaryResult(2L, null, "PERSONAL", null, "개인 모임2",
+                            null, null, 0, null, 0, 0, 0, true)
+            );
+            var slice = new SliceImpl<>(content, PageRequest.of(0, 10), false);
+
+            given(activityService.getActivityList(eq(1L), any())).willReturn(slice);
+
+            // when & then
+            mockMvc.perform(get("/activities")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .param("section", "PERSONAL"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.content").isArray())
+                    .andExpect(jsonPath("$.result.content.length()").value(2))
+                    .andExpect(jsonPath("$.result.content[0].activityId").value(1))
+                    .andExpect(jsonPath("$.result.content[0].thumbnailUrl").value("thumb1.jpg"))
+                    .andExpect(jsonPath("$.result.content[0].activityType").value("PERSONAL"))
+                    .andExpect(jsonPath("$.result.content[0].name").value("개인 모임"))
+                    .andExpect(jsonPath("$.result.content[0].categoryName").value("카테고리1"))
+                    .andExpect(jsonPath("$.result.content[0].regionName").value("서울"))
+                    .andExpect(jsonPath("$.result.content[0].participantCount").value(5))
+                    .andExpect(jsonPath("$.result.content[0].capacity").value(20))
+                    .andExpect(jsonPath("$.result.content[0].likeCount").value(10))
+                    .andExpect(jsonPath("$.result.content[0].viewCount").value(100))
+                    .andExpect(jsonPath("$.result.content[0].commentCount").value(3))
+                    .andExpect(jsonPath("$.result.content[0].isLiked").value(false))
+                    .andExpect(jsonPath("$.result.page").value(0))
+                    .andExpect(jsonPath("$.result.size").value(10))
+                    .andExpect(jsonPath("$.result.hasNext").value(false));
+        }
+
+        @Test
+        @DisplayName("성공: LIKED_CLUBS 섹션 조회")
+        void successWithLikedClubsSection() throws Exception {
+            // given
+            List<ActivitySummaryResult> content = List.of(
+                    new ActivitySummaryResult(3L, "thumb3.jpg", "CLUB", "관심 동아리", "동아리 모임",
+                            "운동", "부산", 10, 30, 5, 50, 1, true)
+            );
+            var slice = new SliceImpl<>(content, PageRequest.of(0, 10), true);
+
+            given(activityService.getActivityList(eq(1L), any())).willReturn(slice);
+
+            // when & then
+            mockMvc.perform(get("/activities")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .param("section", "LIKED_CLUBS"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.content[0].activityType").value("CLUB"))
+                    .andExpect(jsonPath("$.result.content[0].clubName").value("관심 동아리"))
+                    .andExpect(jsonPath("$.result.hasNext").value(true));
+        }
+
+        @Test
+        @DisplayName("성공: MY_CLUBS 섹션 조회")
+        void successWithMyClubsSection() throws Exception {
+            // given
+            List<ActivitySummaryResult> content = List.of(
+                    new ActivitySummaryResult(4L, null, "CLUB", "내 동아리", "정기 모임",
+                            "스터디", "서울", 8, 15, 3, 20, 0, false)
+            );
+            var slice = new SliceImpl<>(content, PageRequest.of(0, 10), false);
+
+            given(activityService.getActivityList(eq(1L), any())).willReturn(slice);
+
+            // when & then
+            mockMvc.perform(get("/activities")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .param("section", "MY_CLUBS"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.content[0].clubName").value("내 동아리"))
+                    .andExpect(jsonPath("$.result.content[0].name").value("정기 모임"));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(get("/activities")
+                            .param("section", "PERSONAL"))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: section 파라미터 누락")
+        void failWithMissingSection() throws Exception {
+            // when & then
+            mockMvc.perform(get("/activities")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isInternalServerError());
+        }
+
+        @Test
+        @DisplayName("실패: 잘못된 section 값")
+        void failWithInvalidSection() throws Exception {
+            // when & then
+            mockMvc.perform(get("/activities")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .param("section", "INVALID"))
+                    .andExpect(status().isInternalServerError());
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 사용자 (서비스 예외)")
+        void failWithUserNotFound() throws Exception {
+            // given
+            given(activityService.getActivityList(eq(1L), any()))
+                    .willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+            // when & then
+            mockMvc.perform(get("/activities")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .param("section", "PERSONAL"))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(4201));
+        }
+    }
 
     @Nested
     @DisplayName("POST /activities - 모임 생성")
