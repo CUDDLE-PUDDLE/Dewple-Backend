@@ -27,6 +27,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
@@ -37,6 +41,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -779,6 +784,163 @@ class ActivityServiceTest {
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
                         assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("getActivityList - 모임 목록 조회")
+    class GetActivityList {
+
+        private final Pageable pageable = PageRequest.of(0, 10);
+
+        @Test
+        @DisplayName("성공: PERSONAL 섹션 조회")
+        void successWithPersonalSection() {
+            // given
+            User user = createUser();
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+
+            List<ActivitySummaryResult> content = List.of(
+                    new ActivitySummaryResult(1L, "thumb1.jpg", "PERSONAL", null, "개인 모임1",
+                            "카테고리1", "서울", 5, 20, 10, 100, 3, false),
+                    new ActivitySummaryResult(2L, null, "PERSONAL", null, "개인 모임2",
+                            null, null, 0, null, 0, 0, 0, true)
+            );
+            Slice<ActivitySummaryResult> slice = new SliceImpl<>(content, pageable, false);
+
+            given(activityRepository.findPersonalActivities(eq(USER_ID), any(Pageable.class))).willReturn(slice);
+
+            GetActivityListParam param = new GetActivityListParam(ActivityListSection.PERSONAL, pageable);
+
+            // when
+            Slice<ActivitySummaryResult> result = activityService.getActivityList(USER_ID, param);
+
+            // then
+            assertThat(result.getContent()).hasSize(2);
+            assertThat(result.hasNext()).isFalse();
+            assertThat(result.getContent().get(0).name()).isEqualTo("개인 모임1");
+            assertThat(result.getContent().get(0).activityType()).isEqualTo("PERSONAL");
+            assertThat(result.getContent().get(1).isLiked()).isTrue();
+            verify(activityRepository).findPersonalActivities(eq(USER_ID), any(Pageable.class));
+        }
+
+        @Test
+        @DisplayName("성공: LIKED_CLUBS 섹션 조회")
+        void successWithLikedClubsSection() {
+            // given
+            User user = createUser();
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+
+            List<ActivitySummaryResult> content = List.of(
+                    new ActivitySummaryResult(3L, "thumb3.jpg", "CLUB", "관심 동아리", "동아리 모임",
+                            "운동", "부산", 10, 30, 5, 50, 1, true)
+            );
+            Slice<ActivitySummaryResult> slice = new SliceImpl<>(content, pageable, true);
+
+            given(activityRepository.findActivitiesByLikedClubs(eq(USER_ID), any(Pageable.class))).willReturn(slice);
+
+            GetActivityListParam param = new GetActivityListParam(ActivityListSection.LIKED_CLUBS, pageable);
+
+            // when
+            Slice<ActivitySummaryResult> result = activityService.getActivityList(USER_ID, param);
+
+            // then
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.hasNext()).isTrue();
+            assertThat(result.getContent().get(0).clubName()).isEqualTo("관심 동아리");
+            verify(activityRepository).findActivitiesByLikedClubs(eq(USER_ID), any(Pageable.class));
+        }
+
+        @Test
+        @DisplayName("성공: MY_CLUBS 섹션 조회")
+        void successWithMyClubsSection() {
+            // given
+            User user = createUser();
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+
+            List<ActivitySummaryResult> content = List.of(
+                    new ActivitySummaryResult(4L, null, "CLUB", "내 동아리", "정기 모임",
+                            "스터디", "서울", 8, 15, 3, 20, 0, false)
+            );
+            Slice<ActivitySummaryResult> slice = new SliceImpl<>(content, pageable, false);
+
+            given(activityRepository.findActivitiesByMyClubs(eq(USER_ID), any(Pageable.class))).willReturn(slice);
+
+            GetActivityListParam param = new GetActivityListParam(ActivityListSection.MY_CLUBS, pageable);
+
+            // when
+            Slice<ActivitySummaryResult> result = activityService.getActivityList(USER_ID, param);
+
+            // then
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.hasNext()).isFalse();
+            assertThat(result.getContent().get(0).clubName()).isEqualTo("내 동아리");
+            verify(activityRepository).findActivitiesByMyClubs(eq(USER_ID), any(Pageable.class));
+        }
+
+        @Test
+        @DisplayName("성공: 빈 결과 반환")
+        void successWithEmptyResult() {
+            // given
+            User user = createUser();
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+
+            Slice<ActivitySummaryResult> emptySlice = new SliceImpl<>(Collections.emptyList(), pageable, false);
+            given(activityRepository.findPersonalActivities(eq(USER_ID), any(Pageable.class))).willReturn(emptySlice);
+
+            GetActivityListParam param = new GetActivityListParam(ActivityListSection.PERSONAL, pageable);
+
+            // when
+            Slice<ActivitySummaryResult> result = activityService.getActivityList(USER_ID, param);
+
+            // then
+            assertThat(result.getContent()).isEmpty();
+            assertThat(result.hasNext()).isFalse();
+        }
+
+        @Test
+        @DisplayName("성공: 페이지네이션 hasNext 검증")
+        void successWithPagination() {
+            // given
+            User user = createUser();
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+
+            Pageable smallPage = PageRequest.of(0, 2);
+            List<ActivitySummaryResult> content = List.of(
+                    new ActivitySummaryResult(1L, null, "PERSONAL", null, "모임1",
+                            null, null, 0, null, 0, 0, 0, false),
+                    new ActivitySummaryResult(2L, null, "PERSONAL", null, "모임2",
+                            null, null, 0, null, 0, 0, 0, false)
+            );
+            Slice<ActivitySummaryResult> slice = new SliceImpl<>(content, smallPage, true);
+
+            given(activityRepository.findPersonalActivities(eq(USER_ID), any(Pageable.class))).willReturn(slice);
+
+            GetActivityListParam param = new GetActivityListParam(ActivityListSection.PERSONAL, smallPage);
+
+            // when
+            Slice<ActivitySummaryResult> result = activityService.getActivityList(USER_ID, param);
+
+            // then
+            assertThat(result.getContent()).hasSize(2);
+            assertThat(result.hasNext()).isTrue();
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 사용자")
+        void failWithUserNotFound() {
+            // given
+            given(userRepository.findById(999L)).willReturn(Optional.empty());
+
+            GetActivityListParam param = new GetActivityListParam(ActivityListSection.PERSONAL, pageable);
+
+            // when & then
+            assertThatThrownBy(() -> activityService.getActivityList(999L, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
                     });
         }
     }
