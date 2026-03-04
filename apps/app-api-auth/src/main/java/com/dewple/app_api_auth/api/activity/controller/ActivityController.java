@@ -7,6 +7,7 @@ import com.dewple.app_api_auth.api.activity.dto.CreateActivityResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetActivityDetailResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetActivityListResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetParticipantListResponse;
+import com.dewple.app_api_auth.api.activity.dto.UpdateParticipantStatusRequest;
 import com.dewple.app_api_auth.global.response.ApiResponse;
 import com.dewple.app_api_auth.global.response.SliceResponse;
 import com.dewple.app_api_auth.global.security.CurrentUserId;
@@ -156,5 +157,18 @@ public class ActivityController {
         Slice<ParticipantResult> results = activityService.getParticipantList(userId, activityId, pageable);
         Slice<GetParticipantListResponse> responseSlice = results.map(GetParticipantListResponse::from);
         return ApiResponse.ok(SliceResponse.from(responseSlice));
+    }
+
+    @Operation(summary = "모임 지원자 상태 변경", description = "지원자의 상태를 확정(APPROVED) 또는 불가(REJECTED)로 변경합니다. 개인 모임은 생성자만, 동아리 모임은 생성자 또는 MANAGE_ACTIVITY 권한 보유자가 변경할 수 있습니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/{activityId}/participants/{participantId}/status")
+    public ApiResponse<Void> updateParticipantStatus(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId,
+            @PathVariable Long participantId,
+            @Valid @RequestBody UpdateParticipantStatusRequest request
+    ) {
+        activityService.updateParticipantStatus(userId, activityId, participantId, request.participantStatus());
+        return ApiResponse.ok();
     }
 }

@@ -43,6 +43,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -745,6 +746,116 @@ class ActivityControllerTest {
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.code").value(5007));
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /activities/{activityId}/participants/{participantId}/status - 지원자 상태 변경")
+    class UpdateParticipantStatus {
+
+        @Test
+        @DisplayName("성공: 지원자 확정")
+        void successApprove() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 100L, 1L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "APPROVED"
+                            ))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("성공: 지원자 거절")
+        void successReject() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 100L, 1L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "REJECTED"
+                            ))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 100L, 1L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "APPROVED"
+                            ))))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: participantStatus 누락")
+        void failWithMissingStatus() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 100L, 1L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("실패: 모임 없음 (서비스 예외)")
+        void failWithActivityNotFound() throws Exception {
+            // given
+            willThrow(new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND))
+                    .given(activityService).updateParticipantStatus(eq(1L), eq(999L), eq(1L), any());
+
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 999L, 1L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "APPROVED"
+                            ))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(5000));
+        }
+
+        @Test
+        @DisplayName("실패: 관리 권한 없음 (서비스 예외)")
+        void failWithPermissionDenied() throws Exception {
+            // given
+            willThrow(new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_MANAGE_PERMISSION_DENIED))
+                    .given(activityService).updateParticipantStatus(eq(1L), eq(100L), eq(1L), any());
+
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 100L, 1L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "APPROVED"
+                            ))))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value(5009));
+        }
+
+        @Test
+        @DisplayName("실패: 지원자 없음 (서비스 예외)")
+        void failWithParticipantNotFound() throws Exception {
+            // given
+            willThrow(new BusinessException(ActivityErrorCode.PARTICIPANT_NOT_FOUND))
+                    .given(activityService).updateParticipantStatus(eq(1L), eq(100L), eq(999L), any());
+
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 100L, 999L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "APPROVED"
+                            ))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(5008));
         }
     }
 }

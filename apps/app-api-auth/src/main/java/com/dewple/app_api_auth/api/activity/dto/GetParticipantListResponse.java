@@ -8,7 +8,7 @@ import java.time.OffsetDateTime;
 
 @Schema(description = "지원자 목록 응답")
 public record GetParticipantListResponse(
-        @Schema(description = "참가자 ID", example = "1")
+        @Schema(description = "지원자 ID", example = "1")
         Long participantId,
 
         @Schema(description = "사용자 ID", example = "2")
