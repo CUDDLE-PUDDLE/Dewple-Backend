@@ -44,4 +44,8 @@ public class ActivityParticipant extends BaseEntity {
         this.participantStatus = participantStatus != null ? participantStatus : ParticipantStatus.PENDING;
         this.isSettlementCompleted = isSettlementCompleted;
     }
+
+    public void updateParticipantStatus(ParticipantStatus participantStatus) {
+        this.participantStatus = participantStatus;
+    }
 }

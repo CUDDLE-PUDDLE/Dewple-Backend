@@ -15,6 +15,7 @@ import com.dewple.common.entity.Category;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.Region;
 import com.dewple.common.entity.User;
+import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
@@ -236,5 +237,44 @@ public class ActivityService {
         }
 
         return activityParticipantRepository.findParticipantListByActivityId(activityId, pageable);
+    }
+
+    @Transactional
+    public void updateParticipantStatus(Long userId, Long activityId, Long participantId, ParticipantStatus status) {
+        if (status == ParticipantStatus.PENDING) {
+            throw new BusinessException(ActivityErrorCode.INVALID_PARTICIPANT_STATUS);
+        }
+
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        boolean isCreator = activity.getCreator().getId().equals(userId);
+
+        if (activity.getClub() != null) {
+            if (!isCreator) {
+                ClubMember member = clubMemberRepository.findByClubIdAndUserId(activity.getClub().getId(), userId)
+                        .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_MANAGE_PERMISSION_DENIED));
+
+                if (member.getRole() == null || !member.getRole().hasPermission(Permission.MANAGE_ACTIVITY)) {
+                    throw new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_MANAGE_PERMISSION_DENIED);
+                }
+            }
+        } else {
+            if (!isCreator) {
+                throw new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_MANAGE_PERMISSION_DENIED);
+            }
+        }
+
+        ActivityParticipant participant = activityParticipantRepository.findById(participantId)
+                .filter(p -> p.getActivity().getId().equals(activityId))
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.PARTICIPANT_NOT_FOUND));
+
+        participant.updateParticipantStatus(status);
+        log.info("지원자 상태 변경: participantId={}, activityId={}, status={}", participantId, activityId, status);
     }
 }

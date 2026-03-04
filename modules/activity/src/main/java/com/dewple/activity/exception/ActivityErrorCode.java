@@ -18,6 +18,9 @@ public enum ActivityErrorCode implements ErrorCode {
     CATEGORY_NOT_FOUND(5005, HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
     REGION_NOT_FOUND(5006, HttpStatus.NOT_FOUND, "지역을 찾을 수 없습니다."),
     ACTIVITY_PARTICIPANT_VIEW_PERMISSION_DENIED(5007, HttpStatus.FORBIDDEN, "지원자 조회 권한이 없습니다."),
+    PARTICIPANT_NOT_FOUND(5008, HttpStatus.NOT_FOUND, "해당 지원자를 찾을 수 없습니다."),
+    ACTIVITY_PARTICIPANT_MANAGE_PERMISSION_DENIED(5009, HttpStatus.FORBIDDEN, "지원자 관리 권한이 없습니다."),
+    INVALID_PARTICIPANT_STATUS(5010, HttpStatus.BAD_REQUEST, "유효하지 않은 지원 상태입니다."),
     ;
 
     private final int code;
