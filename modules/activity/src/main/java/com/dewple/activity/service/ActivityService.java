@@ -241,7 +241,7 @@ public class ActivityService {
 
     @Transactional
     public void updateParticipantStatus(Long userId, Long activityId, Long participantId, ParticipantStatus status) {
-        if (status == ParticipantStatus.PENDING) {
+        if (status != ParticipantStatus.APPROVED && status != ParticipantStatus.REJECTED) {
             throw new BusinessException(ActivityErrorCode.INVALID_PARTICIPANT_STATUS);
         }
 
@@ -276,5 +276,30 @@ public class ActivityService {
 
         participant.updateParticipantStatus(status);
         log.info("지원자 상태 변경: participantId={}, activityId={}, status={}", participantId, activityId, status);
+    }
+
+    @Transactional
+    public void respondToParticipation(Long userId, Long activityId, ParticipantStatus status) {
+        if (status != ParticipantStatus.CONFIRMED && status != ParticipantStatus.DECLINED) {
+            throw new BusinessException(ActivityErrorCode.INVALID_PARTICIPATION_RESPONSE);
+        }
+
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        ActivityParticipant participant = activityParticipantRepository.findByActivityIdAndParticipantId(activityId, userId)
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.PARTICIPANT_NOT_FOUND));
+
+        if (participant.getParticipantStatus() != ParticipantStatus.APPROVED) {
+            throw new BusinessException(ActivityErrorCode.PARTICIPANT_NOT_APPROVED);
+        }
+
+        participant.updateParticipantStatus(status);
+        log.info("모임 참여 응답: userId={}, activityId={}, status={}", userId, activityId, status);
     }
 }

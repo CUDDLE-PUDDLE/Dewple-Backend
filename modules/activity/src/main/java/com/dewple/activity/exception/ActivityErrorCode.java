@@ -21,6 +21,8 @@ public enum ActivityErrorCode implements ErrorCode {
     PARTICIPANT_NOT_FOUND(5008, HttpStatus.NOT_FOUND, "해당 지원자를 찾을 수 없습니다."),
     ACTIVITY_PARTICIPANT_MANAGE_PERMISSION_DENIED(5009, HttpStatus.FORBIDDEN, "지원자 관리 권한이 없습니다."),
     INVALID_PARTICIPANT_STATUS(5010, HttpStatus.BAD_REQUEST, "유효하지 않은 지원 상태입니다."),
+    PARTICIPANT_NOT_APPROVED(5011, HttpStatus.BAD_REQUEST, "참여 확정 상태가 아닌 지원자입니다."),
+    INVALID_PARTICIPATION_RESPONSE(5012, HttpStatus.BAD_REQUEST, "참여 응답은 CONFIRMED 또는 DECLINED만 가능합니다."),
     ;
 
     private final int code;

@@ -1515,6 +1515,208 @@ class ActivityServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("respondToParticipation - 모임 참여 응답")
+    class RespondToParticipation {
+
+        private static final Long ACTIVITY_ID = 100L;
+
+        @Test
+        @DisplayName("성공: APPROVED 지원자가 CONFIRMED 선택")
+        void successConfirmed() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", 2L);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            User applicant = createUser();
+            ReflectionTestUtils.setField(applicant, "id", USER_ID);
+
+            ActivityParticipant participant = ActivityParticipant.builder()
+                    .activity(activity)
+                    .participant(applicant)
+                    .build();
+            participant.updateParticipantStatus(ParticipantStatus.APPROVED);
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(activityParticipantRepository.findByActivityIdAndParticipantId(ACTIVITY_ID, USER_ID))
+                    .willReturn(Optional.of(participant));
+
+            // when
+            activityService.respondToParticipation(USER_ID, ACTIVITY_ID, ParticipantStatus.CONFIRMED);
+
+            // then
+            assertThat(participant.getParticipantStatus()).isEqualTo(ParticipantStatus.CONFIRMED);
+        }
+
+        @Test
+        @DisplayName("성공: APPROVED 지원자가 DECLINED 선택")
+        void successDeclined() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", 2L);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            User applicant = createUser();
+            ReflectionTestUtils.setField(applicant, "id", USER_ID);
+
+            ActivityParticipant participant = ActivityParticipant.builder()
+                    .activity(activity)
+                    .participant(applicant)
+                    .build();
+            participant.updateParticipantStatus(ParticipantStatus.APPROVED);
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(activityParticipantRepository.findByActivityIdAndParticipantId(ACTIVITY_ID, USER_ID))
+                    .willReturn(Optional.of(participant));
+
+            // when
+            activityService.respondToParticipation(USER_ID, ACTIVITY_ID, ParticipantStatus.DECLINED);
+
+            // then
+            assertThat(participant.getParticipantStatus()).isEqualTo(ParticipantStatus.DECLINED);
+        }
+
+        @Test
+        @DisplayName("실패: 모임 없음")
+        void failWithActivityNotFound() {
+            // given
+            given(activityRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> activityService.respondToParticipation(USER_ID, 999L, ParticipantStatus.CONFIRMED))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 삭제된 모임")
+        void failWithInactiveActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", 2L);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+            activity.inactivate();
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.respondToParticipation(USER_ID, ACTIVITY_ID, ParticipantStatus.CONFIRMED))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 지원자가 아닌 유저")
+        void failWithParticipantNotFound() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", 2L);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(activityParticipantRepository.findByActivityIdAndParticipantId(ACTIVITY_ID, USER_ID))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> activityService.respondToParticipation(USER_ID, ACTIVITY_ID, ParticipantStatus.CONFIRMED))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.PARTICIPANT_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: PENDING 상태에서 응답 시도")
+        void failWithPendingStatus() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", 2L);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            User applicant = createUser();
+            ReflectionTestUtils.setField(applicant, "id", USER_ID);
+
+            ActivityParticipant participant = ActivityParticipant.builder()
+                    .activity(activity)
+                    .participant(applicant)
+                    .build();
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(activityParticipantRepository.findByActivityIdAndParticipantId(ACTIVITY_ID, USER_ID))
+                    .willReturn(Optional.of(participant));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.respondToParticipation(USER_ID, ACTIVITY_ID, ParticipantStatus.CONFIRMED))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.PARTICIPANT_NOT_APPROVED);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: REJECTED 상태에서 응답 시도")
+        void failWithRejectedStatus() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", 2L);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            User applicant = createUser();
+            ReflectionTestUtils.setField(applicant, "id", USER_ID);
+
+            ActivityParticipant participant = ActivityParticipant.builder()
+                    .activity(activity)
+                    .participant(applicant)
+                    .build();
+            participant.updateParticipantStatus(ParticipantStatus.REJECTED);
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(activityParticipantRepository.findByActivityIdAndParticipantId(ACTIVITY_ID, USER_ID))
+                    .willReturn(Optional.of(participant));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.respondToParticipation(USER_ID, ACTIVITY_ID, ParticipantStatus.CONFIRMED))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.PARTICIPANT_NOT_APPROVED);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: CONFIRMED/DECLINED 외 상태 입력")
+        void failWithInvalidParticipationResponse() {
+            // when & then
+            assertThatThrownBy(() -> activityService.respondToParticipation(USER_ID, ACTIVITY_ID, ParticipantStatus.APPROVED))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.INVALID_PARTICIPATION_RESPONSE);
+                    });
+        }
+    }
+
     private User createUser() {
         return User.builder()
                 .userId("dewple123")
