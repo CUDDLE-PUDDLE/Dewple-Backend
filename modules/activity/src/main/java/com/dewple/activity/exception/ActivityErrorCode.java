@@ -17,6 +17,21 @@ public enum ActivityErrorCode implements ErrorCode {
     ACTIVITY_DELETE_PERMISSION_DENIED(5004, HttpStatus.FORBIDDEN, "모임 삭제 권한이 없습니다."),
     CATEGORY_NOT_FOUND(5005, HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
     REGION_NOT_FOUND(5006, HttpStatus.NOT_FOUND, "지역을 찾을 수 없습니다."),
+    ACTIVITY_PARTICIPANT_VIEW_PERMISSION_DENIED(5007, HttpStatus.FORBIDDEN, "지원자 조회 권한이 없습니다."),
+    PARTICIPANT_NOT_FOUND(5008, HttpStatus.NOT_FOUND, "해당 지원자를 찾을 수 없습니다."),
+    ACTIVITY_PARTICIPANT_MANAGE_PERMISSION_DENIED(5009, HttpStatus.FORBIDDEN, "지원자 관리 권한이 없습니다."),
+    INVALID_PARTICIPANT_STATUS(5010, HttpStatus.BAD_REQUEST, "유효하지 않은 지원 상태입니다."),
+    PARTICIPANT_NOT_APPROVED(5011, HttpStatus.BAD_REQUEST, "참여 확정 상태가 아닌 지원자입니다."),
+    INVALID_PARTICIPATION_RESPONSE(5012, HttpStatus.BAD_REQUEST, "참여 응답은 CONFIRMED 또는 DECLINED만 가능합니다."),
+    ACTIVITY_INTEREST_ALREADY_EXISTS(5013, HttpStatus.CONFLICT, "이미 관심 모임으로 등록되어 있습니다."),
+    ACTIVITY_INTEREST_NOT_FOUND(5014, HttpStatus.NOT_FOUND, "관심 모임으로 등록되지 않은 모임입니다."),
+    INVITE_CODE_NOT_FOUND(5015, HttpStatus.NOT_FOUND, "유효하지 않은 초대 코드입니다."),
+    ACTIVITY_NOT_PRIVATE(5016, HttpStatus.BAD_REQUEST, "비공개 모임만 초대 코드를 사용할 수 있습니다."),
+    ACTIVITY_INVITE_PERMISSION_DENIED(5017, HttpStatus.FORBIDDEN, "초대 코드 조회 권한이 없습니다."),
+    ALREADY_PARTICIPANT(5018, HttpStatus.CONFLICT, "이미 참가 신청한 모임입니다."),
+    ACTIVITY_FULL(5019, HttpStatus.CONFLICT, "모임 정원이 가득 찼습니다."),
+    CANNOT_JOIN_OWN_ACTIVITY(5020, HttpStatus.BAD_REQUEST, "본인이 생성한 모임에는 참가할 수 없습니다."),
+    ACTIVITY_NOT_USER_CREATED(5021, HttpStatus.BAD_REQUEST, "개인 모임만 초대 코드를 사용할 수 있습니다."),
     ;
 
     private final int code;

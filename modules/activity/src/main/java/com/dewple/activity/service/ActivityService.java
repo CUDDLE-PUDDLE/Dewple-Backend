@@ -1,8 +1,10 @@
 package com.dewple.activity.service;
 
 import com.dewple.activity.entity.Activity;
+import com.dewple.activity.entity.ActivityInterest;
 import com.dewple.activity.entity.ActivityParticipant;
 import com.dewple.activity.exception.ActivityErrorCode;
+import com.dewple.activity.repository.ActivityInterestRepository;
 import com.dewple.activity.repository.ActivityParticipantRepository;
 import com.dewple.activity.repository.ActivityRepository;
 import com.dewple.activity.repository.CategoryRepository;
@@ -15,20 +17,24 @@ import com.dewple.common.entity.Category;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.Region;
 import com.dewple.common.entity.User;
+import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
 import com.dewple.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.dewple.common.enums.BaseStatus;
+import com.dewple.common.enums.OpenType;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -36,6 +42,7 @@ import java.util.List;
 public class ActivityService {
 
     private final ActivityRepository activityRepository;
+    private final ActivityInterestRepository activityInterestRepository;
     private final ActivityParticipantRepository activityParticipantRepository;
     private final UserRepository userRepository;
     private final ClubRepository clubRepository;
@@ -81,6 +88,11 @@ public class ActivityService {
                     .orElseThrow(() -> new BusinessException(ActivityErrorCode.REGION_NOT_FOUND));
         }
 
+        String inviteCode = null;
+        if (param.openType() == OpenType.PRIVATE && param.clubId() == null) {
+            inviteCode = UUID.randomUUID().toString();
+        }
+
         Activity activity = Activity.builder()
                 .club(club)
                 .creator(creator)
@@ -99,6 +111,7 @@ public class ActivityService {
                 .minAge(param.minAge())
                 .maxAge(param.maxAge())
                 .gender(param.gender())
+                .inviteCode(inviteCode)
                 .build();
 
         activityRepository.save(activity);
@@ -206,5 +219,220 @@ public class ActivityService {
             case LIKED_CLUBS -> activityRepository.findActivitiesByLikedClubs(userId, param.pageable());
             case MY_CLUBS -> activityRepository.findActivitiesByMyClubs(userId, param.pageable());
         };
+    }
+
+    @Transactional(readOnly = true)
+    public Slice<ParticipantResult> getParticipantList(Long userId, Long activityId, Pageable pageable) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        boolean isCreator = activity.getCreator().getId().equals(userId);
+
+        if (activity.getClub() != null) {
+            if (!isCreator) {
+                ClubMember member = clubMemberRepository.findByClubIdAndUserId(activity.getClub().getId(), userId)
+                        .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_VIEW_PERMISSION_DENIED));
+
+                if (member.getRole() == null || !member.getRole().hasPermission(Permission.MANAGE_ACTIVITY)) {
+                    throw new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_VIEW_PERMISSION_DENIED);
+                }
+            }
+        } else {
+            if (!isCreator) {
+                throw new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_VIEW_PERMISSION_DENIED);
+            }
+        }
+
+        return activityParticipantRepository.findParticipantListByActivityId(activityId, pageable);
+    }
+
+    @Transactional
+    public void updateParticipantStatus(Long userId, Long activityId, Long participantId, ParticipantStatus status) {
+        if (status != ParticipantStatus.APPROVED && status != ParticipantStatus.REJECTED) {
+            throw new BusinessException(ActivityErrorCode.INVALID_PARTICIPANT_STATUS);
+        }
+
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        boolean isCreator = activity.getCreator().getId().equals(userId);
+
+        if (activity.getClub() != null) {
+            if (!isCreator) {
+                ClubMember member = clubMemberRepository.findByClubIdAndUserId(activity.getClub().getId(), userId)
+                        .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_MANAGE_PERMISSION_DENIED));
+
+                if (member.getRole() == null || !member.getRole().hasPermission(Permission.MANAGE_ACTIVITY)) {
+                    throw new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_MANAGE_PERMISSION_DENIED);
+                }
+            }
+        } else {
+            if (!isCreator) {
+                throw new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_MANAGE_PERMISSION_DENIED);
+            }
+        }
+
+        ActivityParticipant participant = activityParticipantRepository.findById(participantId)
+                .filter(p -> p.getActivity().getId().equals(activityId))
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.PARTICIPANT_NOT_FOUND));
+
+        participant.updateParticipantStatus(status);
+        log.info("지원자 상태 변경: participantId={}, activityId={}, status={}", participantId, activityId, status);
+    }
+
+    @Transactional
+    public void respondToParticipation(Long userId, Long activityId, ParticipantStatus status) {
+        if (status != ParticipantStatus.CONFIRMED && status != ParticipantStatus.DECLINED) {
+            throw new BusinessException(ActivityErrorCode.INVALID_PARTICIPATION_RESPONSE);
+        }
+
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        ActivityParticipant participant = activityParticipantRepository.findByActivityIdAndParticipantId(activityId, userId)
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.PARTICIPANT_NOT_FOUND));
+
+        if (participant.getParticipantStatus() != ParticipantStatus.APPROVED) {
+            throw new BusinessException(ActivityErrorCode.PARTICIPANT_NOT_APPROVED);
+        }
+
+        participant.updateParticipantStatus(status);
+        log.info("모임 참여 응답: userId={}, activityId={}, status={}", userId, activityId, status);
+    }
+
+    @Transactional
+    public void addActivityInterest(Long userId, Long activityId) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        activityInterestRepository.findByActivityIdAndUserId(activityId, userId)
+                .ifPresentOrElse(
+                        interest -> {
+                            if (interest.getStatus() == BaseStatus.ACTIVE) {
+                                throw new BusinessException(ActivityErrorCode.ACTIVITY_INTEREST_ALREADY_EXISTS);
+                            }
+                            interest.activate();
+                        },
+                        () -> {
+                            ActivityInterest interest = ActivityInterest.builder()
+                                    .activity(activity)
+                                    .user(user)
+                                    .build();
+                            activityInterestRepository.save(interest);
+                        }
+                );
+
+        activity.increaseLikeCount();
+        log.info("관심 모임 추가: userId={}, activityId={}", userId, activityId);
+    }
+
+    @Transactional
+    public void removeActivityInterest(Long userId, Long activityId) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        ActivityInterest interest = activityInterestRepository.findByActivityIdAndUserId(activityId, userId)
+                .filter(i -> i.getStatus() == BaseStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_INTEREST_NOT_FOUND));
+
+        interest.inactivate();
+        activity.decreaseLikeCount();
+        log.info("관심 모임 제거: userId={}, activityId={}", userId, activityId);
+    }
+
+    @Transactional(readOnly = true)
+    public Slice<ActivitySummaryResult> getInterestedActivities(Long userId, Pageable pageable) {
+        return activityRepository.findInterestedActivities(userId, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public String getInviteCode(Long userId, Long activityId) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        if (activity.getOpenType() != OpenType.PRIVATE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_PRIVATE);
+        }
+
+        if (activity.getClub() != null) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_USER_CREATED);
+        }
+
+        if (!activity.getCreator().getId().equals(userId)) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_INVITE_PERMISSION_DENIED);
+        }
+
+        return activity.getInviteCode();
+    }
+
+    @Transactional
+    public void joinByInviteCode(Long userId, String inviteCode) {
+        Activity activity = activityRepository.findByInviteCode(inviteCode)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.INVITE_CODE_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        if (activity.getCreator().getId().equals(userId)) {
+            throw new BusinessException(ActivityErrorCode.CANNOT_JOIN_OWN_ACTIVITY);
+        }
+
+        activityParticipantRepository.findByActivityIdAndParticipantId(activity.getId(), userId)
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .ifPresent(p -> {
+                    throw new BusinessException(ActivityErrorCode.ALREADY_PARTICIPANT);
+                });
+
+        if (activity.getCapacity() != null) {
+            long currentCount = activityParticipantRepository.countByActivityIdAndStatusAndParticipantStatusIn(
+                    activity.getId(),
+                    BaseStatus.ACTIVE,
+                    List.of(ParticipantStatus.PENDING, ParticipantStatus.APPROVED, ParticipantStatus.CONFIRMED)
+            );
+            if (currentCount >= activity.getCapacity()) {
+                throw new BusinessException(ActivityErrorCode.ACTIVITY_FULL);
+            }
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        ActivityParticipant participant = ActivityParticipant.builder()
+                .activity(activity)
+                .participant(user)
+                .build();
+
+        activityParticipantRepository.save(participant);
+        log.info("초대 코드로 모임 참여: userId={}, activityId={}", userId, activity.getId());
     }
 }

@@ -6,6 +6,11 @@ import com.dewple.app_api_auth.api.activity.dto.CreateActivityRequest;
 import com.dewple.app_api_auth.api.activity.dto.CreateActivityResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetActivityDetailResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetActivityListResponse;
+import com.dewple.app_api_auth.api.activity.dto.GetInviteCodeResponse;
+import com.dewple.app_api_auth.api.activity.dto.GetParticipantListResponse;
+import com.dewple.app_api_auth.api.activity.dto.JoinByInviteCodeRequest;
+import com.dewple.app_api_auth.api.activity.dto.RespondToParticipationRequest;
+import com.dewple.app_api_auth.api.activity.dto.UpdateParticipantStatusRequest;
 import com.dewple.app_api_auth.global.response.ApiResponse;
 import com.dewple.app_api_auth.global.response.SliceResponse;
 import com.dewple.app_api_auth.global.security.CurrentUserId;
@@ -16,6 +21,7 @@ import com.dewple.activity.service.CreateActivityParam;
 import com.dewple.activity.service.CreateActivityResult;
 import com.dewple.activity.service.GetActivityDetailResult;
 import com.dewple.activity.service.GetActivityListParam;
+import com.dewple.activity.service.ParticipantResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -141,5 +147,99 @@ public class ActivityController {
                 result.endAt(),
                 participants
         ));
+    }
+
+    @Operation(summary = "모임 지원자 리스트 조회", description = "모임의 지원자 목록을 조회합니다. 개인 모임은 생성자만, 동아리 모임은 생성자 또는 MANAGE_ACTIVITY 권한 보유자가 조회할 수 있습니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/{activityId}/participants")
+    public ApiResponse<SliceResponse<GetParticipantListResponse>> getParticipantList(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId,
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        Slice<ParticipantResult> results = activityService.getParticipantList(userId, activityId, pageable);
+        Slice<GetParticipantListResponse> responseSlice = results.map(GetParticipantListResponse::from);
+        return ApiResponse.ok(SliceResponse.from(responseSlice));
+    }
+
+    @Operation(summary = "모임 지원자 상태 변경", description = "지원자의 상태를 확정(APPROVED) 또는 불가(REJECTED)로 변경합니다. 개인 모임은 생성자만, 동아리 모임은 생성자 또는 MANAGE_ACTIVITY 권한 보유자가 변경할 수 있습니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/{activityId}/participants/{participantId}/status")
+    public ApiResponse<Void> updateParticipantStatus(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId,
+            @PathVariable Long participantId,
+            @Valid @RequestBody UpdateParticipantStatusRequest request
+    ) {
+        activityService.updateParticipantStatus(userId, activityId, participantId, request.participantStatus());
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "모임 참여 응답", description = "운영진이 참여 확정(APPROVED)한 지원자가 참여(CONFIRMED) 또는 불참(DECLINED)을 선택합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/{activityId}/participation")
+    public ApiResponse<Void> respondToParticipation(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId,
+            @Valid @RequestBody RespondToParticipationRequest request
+    ) {
+        activityService.respondToParticipation(userId, activityId, request.participantStatus());
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "관심 모임 추가", description = "모임을 관심 모임으로 등록합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{activityId}/interest")
+    public ApiResponse<Void> addActivityInterest(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.addActivityInterest(userId, activityId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "관심 모임 제거", description = "모임을 관심 모임에서 제거합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{activityId}/interest")
+    public ApiResponse<Void> removeActivityInterest(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.removeActivityInterest(userId, activityId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "관심 모임 목록 조회", description = "관심 모임으로 등록한 모임 목록을 조회합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/interests")
+    public ApiResponse<SliceResponse<GetActivityListResponse>> getInterestedActivities(
+            @CurrentUserId Long userId,
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        Slice<ActivitySummaryResult> results = activityService.getInterestedActivities(userId, pageable);
+        Slice<GetActivityListResponse> responseSlice = results.map(GetActivityListResponse::from);
+        return ApiResponse.ok(SliceResponse.from(responseSlice));
+    }
+
+    @Operation(summary = "초대 코드 조회", description = "비공개 개인 모임의 초대 코드를 조회합니다. 모임 생성자만 조회할 수 있습니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/{activityId}/invite-code")
+    public ApiResponse<GetInviteCodeResponse> getInviteCode(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        String inviteCode = activityService.getInviteCode(userId, activityId);
+        return ApiResponse.ok(new GetInviteCodeResponse(inviteCode));
+    }
+
+    @Operation(summary = "초대 코드로 모임 참여", description = "초대 코드를 사용하여 비공개 모임에 참여 신청합니다. PENDING 상태로 등록됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/join")
+    public ApiResponse<Void> joinByInviteCode(
+            @CurrentUserId Long userId,
+            @Valid @RequestBody JoinByInviteCodeRequest request
+    ) {
+        activityService.joinByInviteCode(userId, request.inviteCode());
+        return ApiResponse.ok();
     }
 }

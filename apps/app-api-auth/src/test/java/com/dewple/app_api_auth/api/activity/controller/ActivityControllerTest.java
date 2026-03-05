@@ -1,16 +1,17 @@
 package com.dewple.app_api_auth.api.activity.controller;
 
 import com.dewple.activity.exception.ActivityErrorCode;
-import com.dewple.activity.service.ActivityListSection;
 import com.dewple.activity.service.ActivityService;
 import com.dewple.activity.service.ActivitySummaryResult;
 import com.dewple.activity.service.CreateActivityResult;
 import com.dewple.activity.service.GetActivityDetailResult;
+import com.dewple.activity.service.ParticipantResult;
 import com.dewple.app_api_auth.global.config.SecurityConfig;
 import com.dewple.club.exception.ClubErrorCode;
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.OpenType;
+import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +26,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.SliceImpl;
 
@@ -40,6 +42,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -668,6 +671,388 @@ class ActivityControllerTest {
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.code").value(5000));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /activities/{activityId}/participants - 지원자 리스트 조회")
+    class GetParticipantList {
+
+        @Test
+        @DisplayName("성공: 지원자 리스트 조회")
+        void successGetParticipantList() throws Exception {
+            // given
+            List<ParticipantResult> content = List.of(
+                    new ParticipantResult(1L, 2L, "img.jpg", "홍길동", ParticipantStatus.PENDING,
+                            OffsetDateTime.parse("2026-03-01T10:00:00+09:00")),
+                    new ParticipantResult(2L, 3L, null, "김철수", ParticipantStatus.APPROVED,
+                            OffsetDateTime.parse("2026-03-02T10:00:00+09:00"))
+            );
+            var slice = new SliceImpl<>(content, PageRequest.of(0, 10), false);
+
+            given(activityService.getParticipantList(eq(1L), eq(100L), any(Pageable.class))).willReturn(slice);
+
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}/participants", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.content").isArray())
+                    .andExpect(jsonPath("$.result.content.length()").value(2))
+                    .andExpect(jsonPath("$.result.content[0].participantId").value(1))
+                    .andExpect(jsonPath("$.result.content[0].userId").value(2))
+                    .andExpect(jsonPath("$.result.content[0].profileImg").value("img.jpg"))
+                    .andExpect(jsonPath("$.result.content[0].name").value("홍길동"))
+                    .andExpect(jsonPath("$.result.content[0].participantStatus").value("PENDING"))
+                    .andExpect(jsonPath("$.result.content[1].participantId").value(2))
+                    .andExpect(jsonPath("$.result.content[1].participantStatus").value("APPROVED"))
+                    .andExpect(jsonPath("$.result.page").value(0))
+                    .andExpect(jsonPath("$.result.size").value(10))
+                    .andExpect(jsonPath("$.result.hasNext").value(false));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}/participants", 100L))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 모임 없음 (서비스 예외)")
+        void failWithActivityNotFound() throws Exception {
+            // given
+            given(activityService.getParticipantList(eq(1L), eq(999L), any(Pageable.class)))
+                    .willThrow(new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}/participants", 999L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(5000));
+        }
+
+        @Test
+        @DisplayName("실패: 조회 권한 없음 (서비스 예외)")
+        void failWithPermissionDenied() throws Exception {
+            // given
+            given(activityService.getParticipantList(eq(1L), eq(100L), any(Pageable.class)))
+                    .willThrow(new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_VIEW_PERMISSION_DENIED));
+
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}/participants", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value(5007));
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /activities/{activityId}/participants/{participantId}/status - 지원자 상태 변경")
+    class UpdateParticipantStatus {
+
+        @Test
+        @DisplayName("성공: 지원자 확정")
+        void successApprove() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 100L, 1L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "APPROVED"
+                            ))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("성공: 지원자 거절")
+        void successReject() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 100L, 1L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "REJECTED"
+                            ))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 100L, 1L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "APPROVED"
+                            ))))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: participantStatus 누락")
+        void failWithMissingStatus() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 100L, 1L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("실패: 모임 없음 (서비스 예외)")
+        void failWithActivityNotFound() throws Exception {
+            // given
+            willThrow(new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND))
+                    .given(activityService).updateParticipantStatus(eq(1L), eq(999L), eq(1L), any());
+
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 999L, 1L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "APPROVED"
+                            ))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(5000));
+        }
+
+        @Test
+        @DisplayName("실패: 관리 권한 없음 (서비스 예외)")
+        void failWithPermissionDenied() throws Exception {
+            // given
+            willThrow(new BusinessException(ActivityErrorCode.ACTIVITY_PARTICIPANT_MANAGE_PERMISSION_DENIED))
+                    .given(activityService).updateParticipantStatus(eq(1L), eq(100L), eq(1L), any());
+
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 100L, 1L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "APPROVED"
+                            ))))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value(5009));
+        }
+
+        @Test
+        @DisplayName("실패: 지원자 없음 (서비스 예외)")
+        void failWithParticipantNotFound() throws Exception {
+            // given
+            willThrow(new BusinessException(ActivityErrorCode.PARTICIPANT_NOT_FOUND))
+                    .given(activityService).updateParticipantStatus(eq(1L), eq(100L), eq(999L), any());
+
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participants/{participantId}/status", 100L, 999L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "APPROVED"
+                            ))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(5008));
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /activities/{activityId}/participation - 모임 참여 응답")
+    class RespondToParticipation {
+
+        @Test
+        @DisplayName("성공: 참여 응답")
+        void successRespondToParticipation() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participation", 100L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "CONFIRMED"
+                            ))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participation", 100L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "CONFIRMED"
+                            ))))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: participantStatus 누락")
+        void failWithMissingStatus() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participation", 100L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /activities/{activityId}/interest - 관심 모임 추가")
+    class AddActivityInterest {
+
+        @Test
+        @DisplayName("성공: 관심 모임 추가")
+        void successAddInterest() throws Exception {
+            // when & then
+            mockMvc.perform(post("/activities/{activityId}/interest", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(post("/activities/{activityId}/interest", 100L))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE /activities/{activityId}/interest - 관심 모임 제거")
+    class RemoveActivityInterest {
+
+        @Test
+        @DisplayName("성공: 관심 모임 제거")
+        void successRemoveInterest() throws Exception {
+            // when & then
+            mockMvc.perform(delete("/activities/{activityId}/interest", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(delete("/activities/{activityId}/interest", 100L))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /activities/interests - 관심 모임 목록 조회")
+    class GetInterestedActivities {
+
+        @Test
+        @DisplayName("성공: 관심 모임 목록 조회")
+        void successGetInterestedActivities() throws Exception {
+            // given
+            List<ActivitySummaryResult> content = List.of(
+                    new ActivitySummaryResult(1L, "thumb.jpg", "PERSONAL", null, "관심 모임",
+                            "카테고리", "서울", 5, 20, 10, 100, 3, true)
+            );
+            given(activityService.getInterestedActivities(eq(1L), any(Pageable.class)))
+                    .willReturn(new SliceImpl<>(content, PageRequest.of(0, 10), false));
+
+            // when & then
+            mockMvc.perform(get("/activities/interests")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.content").isArray())
+                    .andExpect(jsonPath("$.result.content[0].name").value("관심 모임"))
+                    .andExpect(jsonPath("$.result.content[0].isLiked").value(true));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(get("/activities/interests"))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /activities/{activityId}/invite-code - 초대 코드 조회")
+    class GetInviteCode {
+
+        @Test
+        @DisplayName("성공: 초대 코드 조회")
+        void success() throws Exception {
+            // given
+            given(activityService.getInviteCode(1L, 100L)).willReturn("test-invite-code-uuid");
+
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}/invite-code", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.inviteCode").value("test-invite-code-uuid"));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}/invite-code", 100L))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /activities/join - 초대 코드로 모임 참여")
+    class JoinByInviteCode {
+
+        @Test
+        @DisplayName("성공: 초대 코드로 모임 참여")
+        void success() throws Exception {
+            // when & then
+            mockMvc.perform(post("/activities/join")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("inviteCode", "test-invite-code"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(post("/activities/join")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("inviteCode", "test-invite-code"))))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: inviteCode 누락")
+        void failMissingInviteCode() throws Exception {
+            // when & then
+            mockMvc.perform(post("/activities/join")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("실패: inviteCode 빈 문자열")
+        void failEmptyInviteCode() throws Exception {
+            // when & then
+            mockMvc.perform(post("/activities/join")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("inviteCode", ""))))
+                    .andExpect(status().isBadRequest());
         }
     }
 }
