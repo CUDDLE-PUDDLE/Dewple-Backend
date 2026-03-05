@@ -184,4 +184,38 @@ public class ActivityController {
         activityService.respondToParticipation(userId, activityId, request.participantStatus());
         return ApiResponse.ok();
     }
+
+    @Operation(summary = "관심 모임 추가", description = "모임을 관심 모임으로 등록합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{activityId}/interest")
+    public ApiResponse<Void> addActivityInterest(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.addActivityInterest(userId, activityId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "관심 모임 제거", description = "모임을 관심 모임에서 제거합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{activityId}/interest")
+    public ApiResponse<Void> removeActivityInterest(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.removeActivityInterest(userId, activityId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "관심 모임 목록 조회", description = "관심 모임으로 등록한 모임 목록을 조회합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/interests")
+    public ApiResponse<SliceResponse<GetActivityListResponse>> getInterestedActivities(
+            @CurrentUserId Long userId,
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        Slice<ActivitySummaryResult> results = activityService.getInterestedActivities(userId, pageable);
+        Slice<GetActivityListResponse> responseSlice = results.map(GetActivityListResponse::from);
+        return ApiResponse.ok(SliceResponse.from(responseSlice));
+    }
 }

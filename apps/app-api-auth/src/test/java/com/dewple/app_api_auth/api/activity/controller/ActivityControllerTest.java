@@ -900,4 +900,84 @@ class ActivityControllerTest {
                     .andExpect(status().isBadRequest());
         }
     }
+
+    @Nested
+    @DisplayName("POST /activities/{activityId}/interest - 관심 모임 추가")
+    class AddActivityInterest {
+
+        @Test
+        @DisplayName("성공: 관심 모임 추가")
+        void successAddInterest() throws Exception {
+            // when & then
+            mockMvc.perform(post("/activities/{activityId}/interest", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(post("/activities/{activityId}/interest", 100L))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE /activities/{activityId}/interest - 관심 모임 제거")
+    class RemoveActivityInterest {
+
+        @Test
+        @DisplayName("성공: 관심 모임 제거")
+        void successRemoveInterest() throws Exception {
+            // when & then
+            mockMvc.perform(delete("/activities/{activityId}/interest", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(delete("/activities/{activityId}/interest", 100L))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /activities/interests - 관심 모임 목록 조회")
+    class GetInterestedActivities {
+
+        @Test
+        @DisplayName("성공: 관심 모임 목록 조회")
+        void successGetInterestedActivities() throws Exception {
+            // given
+            List<ActivitySummaryResult> content = List.of(
+                    new ActivitySummaryResult(1L, "thumb.jpg", "PERSONAL", null, "관심 모임",
+                            "카테고리", "서울", 5, 20, 10, 100, 3, true)
+            );
+            given(activityService.getInterestedActivities(eq(1L), any(Pageable.class)))
+                    .willReturn(new SliceImpl<>(content, PageRequest.of(0, 10), false));
+
+            // when & then
+            mockMvc.perform(get("/activities/interests")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.content").isArray())
+                    .andExpect(jsonPath("$.result.content[0].name").value("관심 모임"))
+                    .andExpect(jsonPath("$.result.content[0].isLiked").value(true));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(get("/activities/interests"))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
 }
