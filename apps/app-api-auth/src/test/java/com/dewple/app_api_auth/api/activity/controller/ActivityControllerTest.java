@@ -1,7 +1,6 @@
 package com.dewple.app_api_auth.api.activity.controller;
 
 import com.dewple.activity.exception.ActivityErrorCode;
-import com.dewple.activity.service.ActivityListSection;
 import com.dewple.activity.service.ActivityService;
 import com.dewple.activity.service.ActivitySummaryResult;
 import com.dewple.activity.service.CreateActivityResult;

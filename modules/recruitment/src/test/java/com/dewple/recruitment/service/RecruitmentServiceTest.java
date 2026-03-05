@@ -15,7 +15,6 @@ import com.dewple.recruitment.entity.RecruitmentProcess;
 import com.dewple.recruitment.entity.RecruitmentSchema;
 import com.dewple.recruitment.exception.RecruitmentErrorCode;
 import com.dewple.recruitment.repository.RecruitmentPostingRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
