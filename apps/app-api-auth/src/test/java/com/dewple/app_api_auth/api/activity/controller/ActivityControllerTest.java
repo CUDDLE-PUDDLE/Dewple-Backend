@@ -980,4 +980,80 @@ class ActivityControllerTest {
                     .andExpect(status().isUnauthorized());
         }
     }
+
+    @Nested
+    @DisplayName("GET /activities/{activityId}/invite-code - 초대 코드 조회")
+    class GetInviteCode {
+
+        @Test
+        @DisplayName("성공: 초대 코드 조회")
+        void success() throws Exception {
+            // given
+            given(activityService.getInviteCode(1L, 100L)).willReturn("test-invite-code-uuid");
+
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}/invite-code", 100L)
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.inviteCode").value("test-invite-code-uuid"));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(get("/activities/{activityId}/invite-code", 100L))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /activities/join - 초대 코드로 모임 참여")
+    class JoinByInviteCode {
+
+        @Test
+        @DisplayName("성공: 초대 코드로 모임 참여")
+        void success() throws Exception {
+            // when & then
+            mockMvc.perform(post("/activities/join")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("inviteCode", "test-invite-code"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(post("/activities/join")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("inviteCode", "test-invite-code"))))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: inviteCode 누락")
+        void failMissingInviteCode() throws Exception {
+            // when & then
+            mockMvc.perform(post("/activities/join")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("실패: inviteCode 빈 문자열")
+        void failEmptyInviteCode() throws Exception {
+            // when & then
+            mockMvc.perform(post("/activities/join")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("inviteCode", ""))))
+                    .andExpect(status().isBadRequest());
+        }
+    }
 }

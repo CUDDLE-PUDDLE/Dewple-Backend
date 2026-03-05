@@ -6,7 +6,9 @@ import com.dewple.app_api_auth.api.activity.dto.CreateActivityRequest;
 import com.dewple.app_api_auth.api.activity.dto.CreateActivityResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetActivityDetailResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetActivityListResponse;
+import com.dewple.app_api_auth.api.activity.dto.GetInviteCodeResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetParticipantListResponse;
+import com.dewple.app_api_auth.api.activity.dto.JoinByInviteCodeRequest;
 import com.dewple.app_api_auth.api.activity.dto.RespondToParticipationRequest;
 import com.dewple.app_api_auth.api.activity.dto.UpdateParticipantStatusRequest;
 import com.dewple.app_api_auth.global.response.ApiResponse;
@@ -217,5 +219,27 @@ public class ActivityController {
         Slice<ActivitySummaryResult> results = activityService.getInterestedActivities(userId, pageable);
         Slice<GetActivityListResponse> responseSlice = results.map(GetActivityListResponse::from);
         return ApiResponse.ok(SliceResponse.from(responseSlice));
+    }
+
+    @Operation(summary = "초대 코드 조회", description = "비공개 개인 모임의 초대 코드를 조회합니다. 모임 생성자만 조회할 수 있습니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/{activityId}/invite-code")
+    public ApiResponse<GetInviteCodeResponse> getInviteCode(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        String inviteCode = activityService.getInviteCode(userId, activityId);
+        return ApiResponse.ok(new GetInviteCodeResponse(inviteCode));
+    }
+
+    @Operation(summary = "초대 코드로 모임 참여", description = "초대 코드를 사용하여 비공개 모임에 참여 신청합니다. PENDING 상태로 등록됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/join")
+    public ApiResponse<Void> joinByInviteCode(
+            @CurrentUserId Long userId,
+            @Valid @RequestBody JoinByInviteCodeRequest request
+    ) {
+        activityService.joinByInviteCode(userId, request.inviteCode());
+        return ApiResponse.ok();
     }
 }
