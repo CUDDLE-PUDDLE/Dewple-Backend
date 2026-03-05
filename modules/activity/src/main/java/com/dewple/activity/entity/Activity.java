@@ -123,4 +123,14 @@ public class Activity extends BaseEntity {
         this.gender = gender != null ? gender : Gender.ANY;
         this.thumbnailUrl = thumbnailUrl;
     }
+
+    public void increaseLikeCount() {
+        this.likeCount++;
+    }
+
+    public void decreaseLikeCount() {
+        if (this.likeCount > 0) {
+            this.likeCount--;
+        }
+    }
 }

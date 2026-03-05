@@ -1,8 +1,10 @@
 package com.dewple.activity.service;
 
 import com.dewple.activity.entity.Activity;
+import com.dewple.activity.entity.ActivityInterest;
 import com.dewple.activity.entity.ActivityParticipant;
 import com.dewple.activity.exception.ActivityErrorCode;
+import com.dewple.activity.repository.ActivityInterestRepository;
 import com.dewple.activity.repository.ActivityParticipantRepository;
 import com.dewple.activity.repository.ActivityRepository;
 import com.dewple.activity.repository.CategoryRepository;
@@ -38,6 +40,7 @@ import java.util.List;
 public class ActivityService {
 
     private final ActivityRepository activityRepository;
+    private final ActivityInterestRepository activityInterestRepository;
     private final ActivityParticipantRepository activityParticipantRepository;
     private final UserRepository userRepository;
     private final ClubRepository clubRepository;
@@ -301,5 +304,61 @@ public class ActivityService {
 
         participant.updateParticipantStatus(status);
         log.info("모임 참여 응답: userId={}, activityId={}, status={}", userId, activityId, status);
+    }
+
+    @Transactional
+    public void addActivityInterest(Long userId, Long activityId) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        activityInterestRepository.findByActivityIdAndUserId(activityId, userId)
+                .ifPresentOrElse(
+                        interest -> {
+                            if (interest.getStatus() == BaseStatus.ACTIVE) {
+                                throw new BusinessException(ActivityErrorCode.ACTIVITY_INTEREST_ALREADY_EXISTS);
+                            }
+                            interest.activate();
+                        },
+                        () -> {
+                            ActivityInterest interest = ActivityInterest.builder()
+                                    .activity(activity)
+                                    .user(user)
+                                    .build();
+                            activityInterestRepository.save(interest);
+                        }
+                );
+
+        activity.increaseLikeCount();
+        log.info("관심 모임 추가: userId={}, activityId={}", userId, activityId);
+    }
+
+    @Transactional
+    public void removeActivityInterest(Long userId, Long activityId) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        ActivityInterest interest = activityInterestRepository.findByActivityIdAndUserId(activityId, userId)
+                .filter(i -> i.getStatus() == BaseStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_INTEREST_NOT_FOUND));
+
+        interest.inactivate();
+        activity.decreaseLikeCount();
+        log.info("관심 모임 제거: userId={}, activityId={}", userId, activityId);
+    }
+
+    @Transactional(readOnly = true)
+    public Slice<ActivitySummaryResult> getInterestedActivities(Long userId, Pageable pageable) {
+        return activityRepository.findInterestedActivities(userId, pageable);
     }
 }

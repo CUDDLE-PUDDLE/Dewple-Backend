@@ -1,8 +1,10 @@
 package com.dewple.activity.service;
 
 import com.dewple.activity.entity.Activity;
+import com.dewple.activity.entity.ActivityInterest;
 import com.dewple.activity.entity.ActivityParticipant;
 import com.dewple.activity.exception.ActivityErrorCode;
+import com.dewple.activity.repository.ActivityInterestRepository;
 import com.dewple.activity.repository.ActivityParticipantRepository;
 import com.dewple.activity.repository.ActivityRepository;
 import com.dewple.activity.repository.CategoryRepository;
@@ -56,6 +58,9 @@ class ActivityServiceTest {
 
     @Mock
     private ActivityRepository activityRepository;
+
+    @Mock
+    private ActivityInterestRepository activityInterestRepository;
 
     @Mock
     private ActivityParticipantRepository activityParticipantRepository;
@@ -1714,6 +1719,227 @@ class ActivityServiceTest {
                         BusinessException be = (BusinessException) e;
                         assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.INVALID_PARTICIPATION_RESPONSE);
                     });
+        }
+    }
+
+    @Nested
+    @DisplayName("addActivityInterest - 관심 모임 추가")
+    class AddActivityInterest {
+
+        private static final Long ACTIVITY_ID = 100L;
+
+        @Test
+        @DisplayName("성공: 관심 모임 추가")
+        void success() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", USER_ID);
+
+            Activity activity = createActivity(user, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+            given(activityInterestRepository.findByActivityIdAndUserId(ACTIVITY_ID, USER_ID))
+                    .willReturn(Optional.empty());
+
+            // when
+            activityService.addActivityInterest(USER_ID, ACTIVITY_ID);
+
+            // then
+            verify(activityInterestRepository).save(any(ActivityInterest.class));
+            assertThat(activity.getLikeCount()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("성공: 비활성화된 관심 모임 재활성화")
+        void successReactivate() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", USER_ID);
+
+            Activity activity = createActivity(user, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            ActivityInterest interest = ActivityInterest.builder()
+                    .activity(activity)
+                    .user(user)
+                    .build();
+            interest.inactivate();
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+            given(activityInterestRepository.findByActivityIdAndUserId(ACTIVITY_ID, USER_ID))
+                    .willReturn(Optional.of(interest));
+
+            // when
+            activityService.addActivityInterest(USER_ID, ACTIVITY_ID);
+
+            // then
+            assertThat(interest.getStatus()).isEqualTo(BaseStatus.ACTIVE);
+            assertThat(activity.getLikeCount()).isEqualTo(1);
+            verify(activityInterestRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("실패: 모임 없음")
+        void failWithActivityNotFound() {
+            // given
+            given(activityRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> activityService.addActivityInterest(USER_ID, 999L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 삭제된 모임")
+        void failWithInactiveActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Activity activity = createActivity(creator, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+            activity.inactivate();
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.addActivityInterest(USER_ID, ACTIVITY_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 이미 관심 모임으로 등록")
+        void failWithAlreadyExists() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", USER_ID);
+
+            Activity activity = createActivity(user, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            ActivityInterest interest = ActivityInterest.builder()
+                    .activity(activity)
+                    .user(user)
+                    .build();
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+            given(activityInterestRepository.findByActivityIdAndUserId(ACTIVITY_ID, USER_ID))
+                    .willReturn(Optional.of(interest));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.addActivityInterest(USER_ID, ACTIVITY_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_INTEREST_ALREADY_EXISTS);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("removeActivityInterest - 관심 모임 제거")
+    class RemoveActivityInterest {
+
+        private static final Long ACTIVITY_ID = 100L;
+
+        @Test
+        @DisplayName("성공: 관심 모임 제거")
+        void success() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", USER_ID);
+
+            Activity activity = createActivity(user, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+            ReflectionTestUtils.setField(activity, "likeCount", 1);
+
+            ActivityInterest interest = ActivityInterest.builder()
+                    .activity(activity)
+                    .user(user)
+                    .build();
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(activityInterestRepository.findByActivityIdAndUserId(ACTIVITY_ID, USER_ID))
+                    .willReturn(Optional.of(interest));
+
+            // when
+            activityService.removeActivityInterest(USER_ID, ACTIVITY_ID);
+
+            // then
+            assertThat(interest.getStatus()).isEqualTo(BaseStatus.INACTIVE);
+            assertThat(activity.getLikeCount()).isEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("실패: 모임 없음")
+        void failWithActivityNotFound() {
+            // given
+            given(activityRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> activityService.removeActivityInterest(USER_ID, 999L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("실패: 관심 모임으로 등록되지 않음")
+        void failWithInterestNotFound() {
+            // given
+            User user = createUser();
+            ReflectionTestUtils.setField(user, "id", USER_ID);
+
+            Activity activity = createActivity(user, null);
+            ReflectionTestUtils.setField(activity, "id", ACTIVITY_ID);
+
+            given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
+            given(activityInterestRepository.findByActivityIdAndUserId(ACTIVITY_ID, USER_ID))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> activityService.removeActivityInterest(USER_ID, ACTIVITY_ID))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> {
+                        BusinessException be = (BusinessException) e;
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_INTEREST_NOT_FOUND);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("getInterestedActivities - 관심 모임 목록 조회")
+    class GetInterestedActivities {
+
+        @Test
+        @DisplayName("성공: 관심 모임 목록 조회")
+        void success() {
+            // given
+            Pageable pageable = PageRequest.of(0, 10);
+            Slice<ActivitySummaryResult> emptySlice = new SliceImpl<>(Collections.emptyList(), pageable, false);
+
+            given(activityRepository.findInterestedActivities(USER_ID, pageable)).willReturn(emptySlice);
+
+            // when
+            Slice<ActivitySummaryResult> result = activityService.getInterestedActivities(USER_ID, pageable);
+
+            // then
+            assertThat(result).isNotNull();
+            assertThat(result.getContent()).isEmpty();
         }
     }
 

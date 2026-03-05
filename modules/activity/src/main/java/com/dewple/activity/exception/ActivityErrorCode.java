@@ -23,6 +23,8 @@ public enum ActivityErrorCode implements ErrorCode {
     INVALID_PARTICIPANT_STATUS(5010, HttpStatus.BAD_REQUEST, "유효하지 않은 지원 상태입니다."),
     PARTICIPANT_NOT_APPROVED(5011, HttpStatus.BAD_REQUEST, "참여 확정 상태가 아닌 지원자입니다."),
     INVALID_PARTICIPATION_RESPONSE(5012, HttpStatus.BAD_REQUEST, "참여 응답은 CONFIRMED 또는 DECLINED만 가능합니다."),
+    ACTIVITY_INTEREST_ALREADY_EXISTS(5013, HttpStatus.CONFLICT, "이미 관심 모임으로 등록되어 있습니다."),
+    ACTIVITY_INTEREST_NOT_FOUND(5014, HttpStatus.NOT_FOUND, "관심 모임으로 등록되지 않은 모임입니다."),
     ;
 
     private final int code;

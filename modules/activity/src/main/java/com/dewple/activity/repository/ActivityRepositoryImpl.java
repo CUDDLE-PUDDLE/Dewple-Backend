@@ -61,6 +61,19 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom {
         return findActivities(userId, condition, pageable);
     }
 
+    @Override
+    public Slice<ActivitySummaryResult> findInterestedActivities(Long userId, Pageable pageable) {
+        BooleanExpression condition = activity.id.in(
+                JPAExpressions.select(activityInterest.activity.id)
+                        .from(activityInterest)
+                        .where(
+                                activityInterest.user.id.eq(userId),
+                                activityInterest.status.eq(BaseStatus.ACTIVE)
+                        )
+        );
+        return findActivities(userId, condition, pageable);
+    }
+
     private Slice<ActivitySummaryResult> findActivities(Long userId, BooleanExpression sectionCondition, Pageable pageable) {
         QActivityParticipant subParticipant = new QActivityParticipant("subParticipant");
 
