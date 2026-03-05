@@ -30,9 +30,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.dewple.common.enums.BaseStatus;
+import com.dewple.common.enums.OpenType;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -86,6 +88,11 @@ public class ActivityService {
                     .orElseThrow(() -> new BusinessException(ActivityErrorCode.REGION_NOT_FOUND));
         }
 
+        String inviteCode = null;
+        if (param.openType() == OpenType.PRIVATE && param.clubId() == null) {
+            inviteCode = UUID.randomUUID().toString();
+        }
+
         Activity activity = Activity.builder()
                 .club(club)
                 .creator(creator)
@@ -104,6 +111,7 @@ public class ActivityService {
                 .minAge(param.minAge())
                 .maxAge(param.maxAge())
                 .gender(param.gender())
+                .inviteCode(inviteCode)
                 .build();
 
         activityRepository.save(activity);
@@ -360,5 +368,71 @@ public class ActivityService {
     @Transactional(readOnly = true)
     public Slice<ActivitySummaryResult> getInterestedActivities(Long userId, Pageable pageable) {
         return activityRepository.findInterestedActivities(userId, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public String getInviteCode(Long userId, Long activityId) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        if (activity.getOpenType() != OpenType.PRIVATE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_PRIVATE);
+        }
+
+        if (activity.getClub() != null) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_USER_CREATED);
+        }
+
+        if (!activity.getCreator().getId().equals(userId)) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_INVITE_PERMISSION_DENIED);
+        }
+
+        return activity.getInviteCode();
+    }
+
+    @Transactional
+    public void joinByInviteCode(Long userId, String inviteCode) {
+        Activity activity = activityRepository.findByInviteCode(inviteCode)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.INVITE_CODE_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        if (activity.getCreator().getId().equals(userId)) {
+            throw new BusinessException(ActivityErrorCode.CANNOT_JOIN_OWN_ACTIVITY);
+        }
+
+        activityParticipantRepository.findByActivityIdAndParticipantId(activity.getId(), userId)
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .ifPresent(p -> {
+                    throw new BusinessException(ActivityErrorCode.ALREADY_PARTICIPANT);
+                });
+
+        if (activity.getCapacity() != null) {
+            long currentCount = activityParticipantRepository.countByActivityIdAndStatusAndParticipantStatusIn(
+                    activity.getId(),
+                    BaseStatus.ACTIVE,
+                    List.of(ParticipantStatus.PENDING, ParticipantStatus.APPROVED, ParticipantStatus.CONFIRMED)
+            );
+            if (currentCount >= activity.getCapacity()) {
+                throw new BusinessException(ActivityErrorCode.ACTIVITY_FULL);
+            }
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        ActivityParticipant participant = ActivityParticipant.builder()
+                .activity(activity)
+                .participant(user)
+                .build();
+
+        activityParticipantRepository.save(participant);
+        log.info("초대 코드로 모임 참여: userId={}, activityId={}", userId, activity.getId());
     }
 }

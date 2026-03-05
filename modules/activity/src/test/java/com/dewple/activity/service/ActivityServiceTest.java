@@ -1976,4 +1976,295 @@ class ActivityServiceTest {
                 .endAt(END_AT)
                 .build();
     }
+
+    private Activity createActivity(User creator, Club club, OpenType openType) {
+        return Activity.builder()
+                .creator(creator)
+                .club(club)
+                .openType(openType)
+                .name("테스트 모임")
+                .description("테스트 모임입니다")
+                .capacity(20)
+                .isAttendanceCheck(false)
+                .isSearchable(true)
+                .startAt(START_AT)
+                .endAt(END_AT)
+                .inviteCode(openType == OpenType.PRIVATE && club == null ? "test-invite-code" : null)
+                .build();
+    }
+
+    @Nested
+    @DisplayName("getInviteCode - 초대 코드 조회")
+    class GetInviteCode {
+
+        @Test
+        @DisplayName("성공: 비공개 개인 모임 초대 코드 조회")
+        void success() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Activity activity = createActivity(creator, null, OpenType.PRIVATE);
+            ReflectionTestUtils.setField(activity, "id", 100L);
+
+            given(activityRepository.findById(100L)).willReturn(Optional.of(activity));
+
+            // when
+            String inviteCode = activityService.getInviteCode(USER_ID, 100L);
+
+            // then
+            assertThat(inviteCode).isEqualTo("test-invite-code");
+        }
+
+        @Test
+        @DisplayName("실패: 모임 없음")
+        void failActivityNotFound() {
+            // given
+            given(activityRepository.findById(100L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> activityService.getInviteCode(USER_ID, 100L))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("실패: 삭제된 모임")
+        void failInactiveActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Activity activity = createActivity(creator, null, OpenType.PRIVATE);
+            ReflectionTestUtils.setField(activity, "id", 100L);
+            activity.inactivate();
+
+            given(activityRepository.findById(100L)).willReturn(Optional.of(activity));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.getInviteCode(USER_ID, 100L))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("실패: PUBLIC 모임")
+        void failPublicActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Activity activity = createActivity(creator, null, OpenType.PUBLIC);
+            ReflectionTestUtils.setField(activity, "id", 100L);
+
+            given(activityRepository.findById(100L)).willReturn(Optional.of(activity));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.getInviteCode(USER_ID, 100L))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ActivityErrorCode.ACTIVITY_NOT_PRIVATE);
+        }
+
+        @Test
+        @DisplayName("실패: 동아리 모임")
+        void failClubActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+            Club club = createClub(creator);
+
+            Activity activity = createActivity(creator, club, OpenType.PRIVATE);
+            ReflectionTestUtils.setField(activity, "id", 100L);
+
+            given(activityRepository.findById(100L)).willReturn(Optional.of(activity));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.getInviteCode(USER_ID, 100L))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ActivityErrorCode.ACTIVITY_NOT_USER_CREATED);
+        }
+
+        @Test
+        @DisplayName("실패: 생성자가 아닌 유저")
+        void failNotCreator() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", 999L);
+
+            Activity activity = createActivity(creator, null, OpenType.PRIVATE);
+            ReflectionTestUtils.setField(activity, "id", 100L);
+
+            given(activityRepository.findById(100L)).willReturn(Optional.of(activity));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.getInviteCode(USER_ID, 100L))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ActivityErrorCode.ACTIVITY_INVITE_PERMISSION_DENIED);
+        }
+    }
+
+    @Nested
+    @DisplayName("joinByInviteCode - 초대 코드로 모임 참여")
+    class JoinByInviteCode {
+
+        @Test
+        @DisplayName("성공: 초대 코드로 모임 참여")
+        void success() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", 999L);
+
+            Activity activity = createActivity(creator, null, OpenType.PRIVATE);
+            ReflectionTestUtils.setField(activity, "id", 100L);
+
+            User participant = createUser();
+            ReflectionTestUtils.setField(participant, "id", USER_ID);
+
+            given(activityRepository.findByInviteCode("test-invite-code")).willReturn(Optional.of(activity));
+            given(activityParticipantRepository.findByActivityIdAndParticipantId(100L, USER_ID)).willReturn(Optional.empty());
+            given(activityParticipantRepository.countByActivityIdAndStatusAndParticipantStatusIn(
+                    eq(100L), eq(BaseStatus.ACTIVE), any())).willReturn(5L);
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(participant));
+            given(activityParticipantRepository.save(any(ActivityParticipant.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
+
+            // when
+            activityService.joinByInviteCode(USER_ID, "test-invite-code");
+
+            // then
+            verify(activityParticipantRepository).save(any(ActivityParticipant.class));
+        }
+
+        @Test
+        @DisplayName("성공: 정원 제한 없는 모임 참여")
+        void successNoCapacityLimit() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", 999L);
+
+            Activity activity = Activity.builder()
+                    .creator(creator)
+                    .openType(OpenType.PRIVATE)
+                    .name("테스트 모임")
+                    .description("테스트 모임입니다")
+                    .isAttendanceCheck(false)
+                    .isSearchable(true)
+                    .startAt(START_AT)
+                    .endAt(END_AT)
+                    .inviteCode("test-invite-code")
+                    .build();
+            ReflectionTestUtils.setField(activity, "id", 100L);
+
+            User participant = createUser();
+            ReflectionTestUtils.setField(participant, "id", USER_ID);
+
+            given(activityRepository.findByInviteCode("test-invite-code")).willReturn(Optional.of(activity));
+            given(activityParticipantRepository.findByActivityIdAndParticipantId(100L, USER_ID)).willReturn(Optional.empty());
+            given(userRepository.findById(USER_ID)).willReturn(Optional.of(participant));
+            given(activityParticipantRepository.save(any(ActivityParticipant.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
+
+            // when
+            activityService.joinByInviteCode(USER_ID, "test-invite-code");
+
+            // then
+            verify(activityParticipantRepository).save(any(ActivityParticipant.class));
+            verify(activityParticipantRepository, never()).countByActivityIdAndStatusAndParticipantStatusIn(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("실패: 유효하지 않은 초대 코드")
+        void failInvalidInviteCode() {
+            // given
+            given(activityRepository.findByInviteCode("invalid-code")).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> activityService.joinByInviteCode(USER_ID, "invalid-code"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ActivityErrorCode.INVITE_CODE_NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("실패: 삭제된 모임")
+        void failInactiveActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", 999L);
+
+            Activity activity = createActivity(creator, null, OpenType.PRIVATE);
+            ReflectionTestUtils.setField(activity, "id", 100L);
+            activity.inactivate();
+
+            given(activityRepository.findByInviteCode("test-invite-code")).willReturn(Optional.of(activity));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.joinByInviteCode(USER_ID, "test-invite-code"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("실패: 본인이 생성한 모임")
+        void failOwnActivity() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", USER_ID);
+
+            Activity activity = createActivity(creator, null, OpenType.PRIVATE);
+            ReflectionTestUtils.setField(activity, "id", 100L);
+
+            given(activityRepository.findByInviteCode("test-invite-code")).willReturn(Optional.of(activity));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.joinByInviteCode(USER_ID, "test-invite-code"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ActivityErrorCode.CANNOT_JOIN_OWN_ACTIVITY);
+        }
+
+        @Test
+        @DisplayName("실패: 이미 참가 신청한 모임")
+        void failAlreadyParticipant() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", 999L);
+
+            Activity activity = createActivity(creator, null, OpenType.PRIVATE);
+            ReflectionTestUtils.setField(activity, "id", 100L);
+
+            ActivityParticipant existingParticipant = ActivityParticipant.builder()
+                    .activity(activity)
+                    .participant(createUser())
+                    .build();
+
+            given(activityRepository.findByInviteCode("test-invite-code")).willReturn(Optional.of(activity));
+            given(activityParticipantRepository.findByActivityIdAndParticipantId(100L, USER_ID))
+                    .willReturn(Optional.of(existingParticipant));
+
+            // when & then
+            assertThatThrownBy(() -> activityService.joinByInviteCode(USER_ID, "test-invite-code"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ActivityErrorCode.ALREADY_PARTICIPANT);
+        }
+
+        @Test
+        @DisplayName("실패: 정원 초과")
+        void failActivityFull() {
+            // given
+            User creator = createUser();
+            ReflectionTestUtils.setField(creator, "id", 999L);
+
+            Activity activity = createActivity(creator, null, OpenType.PRIVATE);
+            ReflectionTestUtils.setField(activity, "id", 100L);
+
+            given(activityRepository.findByInviteCode("test-invite-code")).willReturn(Optional.of(activity));
+            given(activityParticipantRepository.findByActivityIdAndParticipantId(100L, USER_ID)).willReturn(Optional.empty());
+            given(activityParticipantRepository.countByActivityIdAndStatusAndParticipantStatusIn(
+                    eq(100L), eq(BaseStatus.ACTIVE), any())).willReturn(20L);
+
+            // when & then
+            assertThatThrownBy(() -> activityService.joinByInviteCode(USER_ID, "test-invite-code"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ActivityErrorCode.ACTIVITY_FULL);
+        }
+    }
 }
