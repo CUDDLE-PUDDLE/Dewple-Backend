@@ -97,13 +97,16 @@ public class Activity extends BaseEntity {
     @Column(name = "comment_count", nullable = false)
     private int commentCount = 0;
 
+    @Column(name = "invite_code", length = 36, unique = true)
+    private String inviteCode;
+
     @Builder
     public Activity(Club club, User creator, OpenType openType, String name,
                     String description, Integer capacity, Boolean isAttendanceCheck,
                     Boolean isSearchable, OffsetDateTime startAt, OffsetDateTime endAt,
                     Category category, Region region, ActivityType activityType,
                     Boolean isVerificationRequired, Integer minAge, Integer maxAge,
-                    Gender gender, String thumbnailUrl) {
+                    Gender gender, String thumbnailUrl, String inviteCode) {
         this.club = club;
         this.creator = creator;
         this.openType = openType;
@@ -122,6 +125,7 @@ public class Activity extends BaseEntity {
         this.maxAge = maxAge;
         this.gender = gender != null ? gender : Gender.ANY;
         this.thumbnailUrl = thumbnailUrl;
+        this.inviteCode = inviteCode;
     }
 
     public void increaseLikeCount() {
