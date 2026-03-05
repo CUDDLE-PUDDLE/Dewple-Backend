@@ -858,4 +858,46 @@ class ActivityControllerTest {
                     .andExpect(jsonPath("$.code").value(5008));
         }
     }
+
+    @Nested
+    @DisplayName("PATCH /activities/{activityId}/participation - 모임 참여 응답")
+    class RespondToParticipation {
+
+        @Test
+        @DisplayName("성공: 참여 응답")
+        void successRespondToParticipation() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participation", 100L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "CONFIRMED"
+                            ))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 요청")
+        void failWithoutAuthentication() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participation", 100L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of(
+                                    "participantStatus", "CONFIRMED"
+                            ))))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: participantStatus 누락")
+        void failWithMissingStatus() throws Exception {
+            // when & then
+            mockMvc.perform(patch("/activities/{activityId}/participation", 100L)
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isBadRequest());
+        }
+    }
 }

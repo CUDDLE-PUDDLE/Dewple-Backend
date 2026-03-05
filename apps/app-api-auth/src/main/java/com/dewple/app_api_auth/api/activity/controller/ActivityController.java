@@ -7,6 +7,7 @@ import com.dewple.app_api_auth.api.activity.dto.CreateActivityResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetActivityDetailResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetActivityListResponse;
 import com.dewple.app_api_auth.api.activity.dto.GetParticipantListResponse;
+import com.dewple.app_api_auth.api.activity.dto.RespondToParticipationRequest;
 import com.dewple.app_api_auth.api.activity.dto.UpdateParticipantStatusRequest;
 import com.dewple.app_api_auth.global.response.ApiResponse;
 import com.dewple.app_api_auth.global.response.SliceResponse;
@@ -169,6 +170,18 @@ public class ActivityController {
             @Valid @RequestBody UpdateParticipantStatusRequest request
     ) {
         activityService.updateParticipantStatus(userId, activityId, participantId, request.participantStatus());
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "모임 참여 응답", description = "운영진이 참여 확정(APPROVED)한 지원자가 참여(CONFIRMED) 또는 불참(DECLINED)을 선택합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/{activityId}/participation")
+    public ApiResponse<Void> respondToParticipation(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId,
+            @Valid @RequestBody RespondToParticipationRequest request
+    ) {
+        activityService.respondToParticipation(userId, activityId, request.participantStatus());
         return ApiResponse.ok();
     }
 }
