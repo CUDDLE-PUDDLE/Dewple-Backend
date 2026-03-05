@@ -5,8 +5,7 @@ import com.dewple.common.enums.VerificationType;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.Verification;
 import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.port.EmailVerificationPort;
-import com.dewple.user.port.SmsVerificationPort;
+import com.dewple.user.port.VerificationSendPort;
 import com.dewple.user.repository.VerificationRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -36,10 +35,7 @@ class VerificationServiceTest {
     private VerificationRepository verificationRepository;
 
     @Mock
-    private SmsVerificationPort smsVerificationPort;
-
-    @Mock
-    private EmailVerificationPort emailVerificationPort;
+    private VerificationSendPort verificationSendPort;
 
     @InjectMocks
     private VerificationService verificationService;
@@ -80,7 +76,7 @@ class VerificationServiceTest {
             assertThat(saved.getCode()).matches("^[A-Z0-9]{6}$");
             assertThat(saved.getIsVerified()).isFalse();
 
-            verify(smsVerificationPort).sendVerificationCode(eq(TEST_PHONE_NORMALIZED), any());
+            verify(verificationSendPort).sendVerificationCode(eq(VerificationType.PHONE), eq(TEST_PHONE_NORMALIZED), any());
         }
 
         @Test
@@ -119,7 +115,7 @@ class VerificationServiceTest {
 
             // then
             assertThat(result).isNotNull();
-            verify(smsVerificationPort).sendVerificationCode(eq(TEST_PHONE_NORMALIZED), any());
+            verify(verificationSendPort).sendVerificationCode(eq(VerificationType.PHONE), eq(TEST_PHONE_NORMALIZED), any());
         }
 
         @Test
@@ -141,7 +137,7 @@ class VerificationServiceTest {
                     });
 
             verify(verificationRepository, never()).save(any());
-            verify(smsVerificationPort, never()).sendVerificationCode(any(), any());
+            verify(verificationSendPort, never()).sendVerificationCode(any(), any(), any());
         }
 
         @Test
@@ -153,7 +149,7 @@ class VerificationServiceTest {
             given(verificationRepository.save(any(Verification.class)))
                     .willAnswer(invocation -> invocation.getArgument(0));
             doThrow(new RuntimeException("SMS 발송 실패"))
-                    .when(smsVerificationPort).sendVerificationCode(any(), any());
+                    .when(verificationSendPort).sendVerificationCode(any(), any(), any());
 
             // when & then
             assertThatThrownBy(() -> verificationService.sendPhoneVerificationCode(TEST_PHONE, VerificationPurpose.SIGN_UP))
@@ -195,7 +191,7 @@ class VerificationServiceTest {
             assertThat(saved.getCode()).hasSize(6);
             assertThat(saved.getCode()).matches("^[A-Z0-9]{6}$");
 
-            verify(emailVerificationPort).sendVerificationCode(eq(TEST_EMAIL), any());
+            verify(verificationSendPort).sendVerificationCode(eq(VerificationType.EMAIL), eq(TEST_EMAIL), any());
         }
 
         @Test
@@ -217,7 +213,7 @@ class VerificationServiceTest {
                     });
 
             verify(verificationRepository, never()).save(any());
-            verify(emailVerificationPort, never()).sendVerificationCode(any(), any());
+            verify(verificationSendPort, never()).sendVerificationCode(any(), any(), any());
         }
 
         @Test
@@ -229,7 +225,7 @@ class VerificationServiceTest {
             given(verificationRepository.save(any(Verification.class)))
                     .willAnswer(invocation -> invocation.getArgument(0));
             doThrow(new RuntimeException("이메일 발송 실패"))
-                    .when(emailVerificationPort).sendVerificationCode(any(), any());
+                    .when(verificationSendPort).sendVerificationCode(any(), any(), any());
 
             // when & then
             assertThatThrownBy(() -> verificationService.sendEmailVerificationCode(TEST_EMAIL, VerificationPurpose.SIGN_UP))

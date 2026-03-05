@@ -5,8 +5,7 @@ import com.dewple.common.enums.VerificationType;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.Verification;
 import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.port.EmailVerificationPort;
-import com.dewple.user.port.SmsVerificationPort;
+import com.dewple.user.port.VerificationSendPort;
 import com.dewple.user.repository.VerificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,8 +26,7 @@ public class VerificationService {
     private static final int CODE_LENGTH = 6;
 
     private final VerificationRepository verificationRepository;
-    private final SmsVerificationPort smsVerificationPort;
-    private final EmailVerificationPort emailVerificationPort;
+    private final VerificationSendPort verificationSendPort;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
@@ -49,7 +47,7 @@ public class VerificationService {
         verificationRepository.save(verification);
 
         try {
-            smsVerificationPort.sendVerificationCode(normalizedPhone, verificationCode);
+            verificationSendPort.sendVerificationCode(VerificationType.PHONE, normalizedPhone, verificationCode);
             log.info("SMS 인증 코드 발송 완료: phone={}", maskPhone(normalizedPhone));
         } catch (Exception e) {
             log.error("SMS 발송 실패: phone={}", maskPhone(normalizedPhone), e);
@@ -75,7 +73,7 @@ public class VerificationService {
         verificationRepository.save(verification);
 
         try {
-            emailVerificationPort.sendVerificationCode(email, verificationCode);
+            verificationSendPort.sendVerificationCode(VerificationType.EMAIL, email, verificationCode);
             log.info("이메일 인증 코드 발송 완료: email={}", maskEmail(email));
         } catch (Exception e) {
             log.error("이메일 발송 실패: email={}", maskEmail(email), e);
