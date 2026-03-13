@@ -38,6 +38,9 @@ dependencies {
 	// SES
 	implementation "io.awspring.cloud:spring-cloud-aws-starter-ses"
 
+	// SMS (SOLAPI)
+	implementation "net.nurigo:sdk:4.2.7"
+
 	// WebClient
 	implementation "org.springframework.boot:spring-boot-starter-webflux"
 
