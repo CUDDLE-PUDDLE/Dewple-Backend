@@ -53,6 +53,10 @@ spring:
       sqs:
         enabled: true
 
+app:
+  sqs:
+    verification-send-queue: dewple-verification-send
+
 ---
 
 spring:
@@ -65,24 +69,3 @@ jwt:
   access-token-expiry: 3600 # 1시간
   refresh-token-expiry: 604800 # 7일
 
----
-
-spring:
-  config:
-    activate:
-      on-profile: "devSMS"
-
-solapi:
-  api-key: ${SOLAPI_API_KEY}
-  api-secret: ${SOLAPI_API_SECRET}
-  sender-phone: ${SOLAPI_SENDER_PHONE}
-
----
-
-spring:
-  config:
-    activate:
-      on-profile: "devSES"
-
-ses:
-  sender-email: ${SES_SENDER_EMAIL}

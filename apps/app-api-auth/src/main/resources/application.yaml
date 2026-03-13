@@ -2,8 +2,8 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
     group:
-      "local": "localPort, localRDB, localJPA, localAws, localSecret, localSMS, localSES"
-      "dev": "devPort, devRDB, devJPA, devAws, devSecret, devSMS, devSES"
+      "local": "localPort, localRDB, localJPA, localAws, localSecret"
+      "dev": "devPort, devRDB, devJPA, devAws, devSecret"
   jpa:
     properties:
       hibernate:

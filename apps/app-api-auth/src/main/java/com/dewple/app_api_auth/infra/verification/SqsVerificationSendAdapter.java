@@ -23,7 +23,7 @@ public class SqsVerificationSendAdapter implements VerificationSendPort {
 
     public SqsVerificationSendAdapter(
             SqsTemplate sqsTemplate,
-            @Value("${app.sqs.verification-notification-queue}") String queueName
+            @Value("${app.sqs.verification-send-queue}") String queueName
     ) {
         this.sqsTemplate = sqsTemplate;
         this.queueName = queueName;
