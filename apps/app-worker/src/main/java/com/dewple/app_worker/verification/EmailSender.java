@@ -1,6 +1,7 @@
 package com.dewple.app_worker.verification;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.ses.SesClient;
@@ -17,7 +18,7 @@ public class EmailSender {
     private final String senderEmail;
 
     public EmailSender(
-            SesClient sesClient,
+            @Autowired(required = false) SesClient sesClient,
             @Value("${ses.sender-email:}") String senderEmail
     ) {
         this.sesClient = sesClient;
@@ -25,8 +26,8 @@ public class EmailSender {
     }
 
     public void send(String email, String code) {
-        if (senderEmail == null || senderEmail.isBlank()) {
-            log.warn("SES 발신 이메일이 설정되지 않아 실제 발송을 건너뜁니다. email={}, code={}", maskEmail(email), code);
+        if (sesClient == null || senderEmail == null || senderEmail.isBlank()) {
+            log.warn("SES 설정이 없어 실제 발송을 건너뜁니다. email={}, code={}", maskEmail(email), code);
             return;
         }
 
