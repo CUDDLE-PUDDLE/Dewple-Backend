@@ -1,8 +1,8 @@
 package com.dewple.app_worker.verification;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.ses.model.*;
@@ -18,7 +18,7 @@ public class EmailSender {
     private final String senderEmail;
 
     public EmailSender(
-            @Autowired(required = false) SesClient sesClient,
+            @Nullable SesClient sesClient,
             @Value("${ses.sender-email:}") String senderEmail
     ) {
         this.sesClient = sesClient;
