@@ -4,6 +4,7 @@ dependencies {
     implementation project(":modules:common")
     implementation project(":modules:club")
     implementation project(":modules:user")
+    implementation project(":modules:organization")
 
     // Web (HttpStatus - ErrorCode 구현용)
     compileOnly 'org.springframework:spring-web'

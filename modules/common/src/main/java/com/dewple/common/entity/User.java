@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.Mbti;
@@ -73,14 +74,30 @@ public class User extends BaseEntity {
     private Mbti mbti;
 
     @Column(name = "reputation_score", precision = 2, scale = 1)
-    private BigDecimal reputationScore = BigDecimal.valueOf(5.0);
+    private BigDecimal reputationScore;
+
+    @Column(name = "is_verified", nullable = false)
+    private Boolean isVerified = false;
+
+    @Column(name = "last_login_at", columnDefinition = "timestamptz")
+    private OffsetDateTime lastLoginAt;
+
+    @Column(name = "user_id_changed_at", columnDefinition = "timestamptz")
+    private OffsetDateTime userIdChangedAt;
+
+    @Column(name = "deleted_at", columnDefinition = "timestamptz")
+    private OffsetDateTime deletedAt;
+
+    @Column(name = "is_email_verified", nullable = false)
+    private Boolean isEmailVerified = false;
 
 
     @Builder
     public User(String userId, String password, String profileImg, String name, String nickname,
                 LocalDate birthdate, Gender gender, String email, University university,
                 Boolean isGraduated, String workplace, String phone, Plan plan,
-                String selfIntroduction, Mbti mbti, BigDecimal reputationScore) {
+                String selfIntroduction, Mbti mbti, BigDecimal reputationScore,
+                Boolean isVerified, Boolean isEmailVerified) {
         this.userId = userId;
         this.password = password;
         this.profileImg = profileImg;
@@ -96,7 +113,9 @@ public class User extends BaseEntity {
         this.plan = plan != null ? plan : Plan.FREE;
         this.selfIntroduction = selfIntroduction;
         this.mbti = mbti;
-        this.reputationScore = reputationScore != null ? reputationScore : BigDecimal.valueOf(5.0);
+        this.reputationScore = reputationScore;
+        this.isVerified = isVerified != null ? isVerified : false;
+        this.isEmailVerified = isEmailVerified != null ? isEmailVerified : false;
     }
 
     public void updateProfile(String nickname, String email, LocalDate birthdate,

@@ -10,9 +10,9 @@ import org.hibernate.type.SqlTypes;
 
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.Gender;
-import com.dewple.common.enums.University;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "club")
@@ -27,10 +27,6 @@ public class Club extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_id", nullable = false)
     private User creator;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "university")
-    private University university;
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
@@ -62,13 +58,25 @@ public class Club extends BaseEntity {
     @Column(name = "activity_type", nullable = false)
     private ActivityType activityType = ActivityType.BOTH;
 
+    @Column(name = "is_hidden", nullable = false)
+    private Boolean isHidden = false;
+
+    @Column(name = "is_verification_required", nullable = false)
+    private Boolean isVerificationRequired = false;
+
+    @Column(name = "founded_date")
+    private LocalDate foundedDate;
+
+    @Column(name = "like_count", nullable = false)
+    private Integer likeCount = 0;
+
 
     @Builder
-    public Club(User creator, University university, String name, String description,
+    public Club(User creator, String name, String description,
                 String coverImg, String landingPage, BigDecimal reputationScore,
-                Gender gender, Long minAge, Long maxAge, ActivityType activityType) {
+                Gender gender, Long minAge, Long maxAge, ActivityType activityType,
+                Boolean isHidden, Boolean isVerificationRequired, LocalDate foundedDate) {
         this.creator = creator;
-        this.university = university;
         this.name = name;
         this.description = description;
         this.coverImg = coverImg;
@@ -78,5 +86,18 @@ public class Club extends BaseEntity {
         this.minAge = minAge;
         this.maxAge = maxAge;
         this.activityType = activityType != null ? activityType : ActivityType.BOTH;
+        this.isHidden = isHidden != null ? isHidden : false;
+        this.isVerificationRequired = isVerificationRequired != null ? isVerificationRequired : false;
+        this.foundedDate = foundedDate;
+    }
+
+    public void increaseLikeCount() {
+        this.likeCount++;
+    }
+
+    public void decreaseLikeCount() {
+        if (this.likeCount > 0) {
+            this.likeCount--;
+        }
     }
 }
