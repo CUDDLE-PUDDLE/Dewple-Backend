@@ -1,9 +1,13 @@
 package com.dewple.app_api_auth.auth.dto;
 
+import com.dewple.common.enums.Gender;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+
+import java.time.LocalDate;
 
 @Schema(description = "회원가입 요청 (1단계)")
 public record SignupRequest(
@@ -18,17 +22,25 @@ public record SignupRequest(
 
         @Schema(description = "아이디", example = "dewple123")
         @NotBlank(message = "아이디는 필수입니다.")
-        @Pattern(regexp = "^[a-zA-Z0-9_]{4,20}$", message = "아이디는 영문, 숫자, 밑줄 4~20자여야 합니다.")
+        @Pattern(regexp = "^[a-zA-Z0-9]{3,32}$", message = "아이디는 영문, 숫자 3~32자여야 합니다.")
         String userId,
 
         @Schema(description = "비밀번호", example = "Password1!")
         @NotBlank(message = "비밀번호는 필수입니다.")
-        @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=]).{8,20}$",
-                message = "비밀번호는 영문, 숫자, 특수문자를 포함한 8~20자여야 합니다.")
+        @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=]).{8,32}$",
+                message = "비밀번호는 영문, 숫자, 특수문자를 포함한 8~32자여야 합니다.")
         String password,
 
         @Schema(description = "비밀번호 확인", example = "Password1!")
         @NotBlank(message = "비밀번호 확인은 필수입니다.")
-        String passwordConfirm
+        String passwordConfirm,
+
+        @Schema(description = "생년월일", example = "2000-01-01")
+        @NotNull(message = "생년월일은 필수입니다.")
+        LocalDate birthdate,
+
+        @Schema(description = "성별", example = "MALE")
+        @NotNull(message = "성별은 필수입니다.")
+        Gender gender
 ) {
 }
