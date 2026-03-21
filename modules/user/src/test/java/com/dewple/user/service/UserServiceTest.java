@@ -9,6 +9,8 @@ import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.UserCategory;
 import com.dewple.user.exception.UserErrorCode;
 import com.dewple.user.port.PasswordEncoderPort;
+import com.dewple.user.port.WithdrawalActivityPort;
+import com.dewple.user.port.WithdrawalClubPort;
 import com.dewple.user.repository.CategoryRepository;
 import com.dewple.user.repository.UserCategoryRepository;
 import com.dewple.user.repository.UserRepository;
@@ -54,6 +56,12 @@ class UserServiceTest {
     @Mock
     private PasswordEncoderPort passwordEncoderPort;
 
+    @Mock
+    private WithdrawalActivityPort withdrawalActivityPort;
+
+    @Mock
+    private WithdrawalClubPort withdrawalClubPort;
+
     @InjectMocks
     private UserService userService;
 
@@ -78,7 +86,7 @@ class UserServiceTest {
             given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
             // when
-            User result = userService.signup(new SignupParam(TEST_TOKEN, TEST_NAME, TEST_USER_ID, TEST_PASSWORD));
+            User result = userService.signup(new SignupParam(TEST_TOKEN, TEST_NAME, TEST_USER_ID, TEST_PASSWORD, null, null));
 
             // then
             assertThat(result).isNotNull();
@@ -100,7 +108,7 @@ class UserServiceTest {
             given(userRepository.existsByPhone(TEST_PHONE)).willReturn(true);
 
             // when & then
-            assertThatThrownBy(() -> userService.signup(new SignupParam(TEST_TOKEN, TEST_NAME, TEST_USER_ID, TEST_PASSWORD)))
+            assertThatThrownBy(() -> userService.signup(new SignupParam(TEST_TOKEN, TEST_NAME, TEST_USER_ID, TEST_PASSWORD, null, null)))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
@@ -117,7 +125,7 @@ class UserServiceTest {
             given(userRepository.existsByUserId(TEST_USER_ID)).willReturn(true);
 
             // when & then
-            assertThatThrownBy(() -> userService.signup(new SignupParam(TEST_TOKEN, TEST_NAME, TEST_USER_ID, TEST_PASSWORD)))
+            assertThatThrownBy(() -> userService.signup(new SignupParam(TEST_TOKEN, TEST_NAME, TEST_USER_ID, TEST_PASSWORD, null, null)))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
@@ -133,7 +141,7 @@ class UserServiceTest {
                     .willThrow(new BusinessException(UserErrorCode.VERIFICATION_TOKEN_INVALID));
 
             // when & then
-            assertThatThrownBy(() -> userService.signup(new SignupParam("invalid-token", TEST_NAME, TEST_USER_ID, TEST_PASSWORD)))
+            assertThatThrownBy(() -> userService.signup(new SignupParam("invalid-token", TEST_NAME, TEST_USER_ID, TEST_PASSWORD, null, null)))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
@@ -183,7 +191,6 @@ class UserServiceTest {
             // given
             User user = createUser();
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userRepository.existsByNickname("듀플러")).willReturn(false);
             given(userRepository.existsByEmail("test@example.com")).willReturn(false);
 
             // when
@@ -196,24 +203,6 @@ class UserServiceTest {
             assertThat(result.getEmail()).isEqualTo("test@example.com");
             assertThat(result.getBirthdate()).isEqualTo(LocalDate.of(2000, 1, 1));
             assertThat(result.getGender()).isEqualTo(Gender.MALE);
-        }
-
-        @Test
-        @DisplayName("실패: 이미 사용 중인 닉네임")
-        void failWithNicknameAlreadyExists() {
-            // given
-            User user = createUser();
-            given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userRepository.existsByNickname("듀플러")).willReturn(true);
-
-            // when & then
-            assertThatThrownBy(() -> userService.updateProfile(1L, new UpdateProfileParam(
-                    "듀플러", null, null, null, null, null, null)))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(e -> {
-                        BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.NICKNAME_ALREADY_EXISTS);
-                    });
         }
 
         @Test
@@ -701,11 +690,10 @@ class UserServiceTest {
                     Gender.MALE, University.SEOUL_NATIONAL, false, "기존직장");
 
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userRepository.existsByNicknameAndIdNot("새닉네임", 1L)).willReturn(false);
             given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             EditMyProfileParam command = new EditMyProfileParam(
-                    "새닉네임", null, null, null, null, null, null, null, null, null, null);
+                    "새닉네임", null, null, null, null, null, null, null, null, null, null, null);
 
             // when
             MyProfileResult result = userService.editMyProfile(1L, command);
@@ -724,12 +712,11 @@ class UserServiceTest {
             ReflectionTestUtils.setField(user, "id", 1L);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userRepository.existsByNicknameAndIdNot("새닉네임", 1L)).willReturn(false);
             given(userRepository.existsByEmailAndIdNot("new@example.com", 1L)).willReturn(false);
             given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             EditMyProfileParam command = new EditMyProfileParam(
-                    "새닉네임", "new@example.com", null, null, null, null, null, null, null, Mbti.INTJ, null);
+                    "새닉네임", "new@example.com", null, null, null, null, null, null, null, null, Mbti.INTJ, null);
 
             // when
             MyProfileResult result = userService.editMyProfile(1L, command);
@@ -761,7 +748,7 @@ class UserServiceTest {
             given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(List.of(uc1, uc2));
 
             EditMyProfileParam command = new EditMyProfileParam(
-                    null, null, null, null, null, null, null, null, null, null, List.of(1L, 2L));
+                    null, null, null, null, null, null, null, null, null, null, null, List.of(1L, 2L));
 
             // when
             MyProfileResult result = userService.editMyProfile(1L, command);
@@ -783,7 +770,7 @@ class UserServiceTest {
             given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             EditMyProfileParam command = new EditMyProfileParam(
-                    null, null, null, null, null, null, null, null, null, null, List.of());
+                    null, null, null, null, null, null, null, null, null, null, null, List.of());
 
             // when
             MyProfileResult result = userService.editMyProfile(1L, command);
@@ -805,7 +792,7 @@ class UserServiceTest {
             given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             EditMyProfileParam command = new EditMyProfileParam(
-                    null, null, null, null, null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null, null, null, null, null, null);
 
             // when
             userService.editMyProfile(1L, command);
@@ -823,11 +810,10 @@ class UserServiceTest {
             user.updateProfile("기존닉네임", null, null, null, null, null, null);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userRepository.existsByNicknameAndIdNot("기존닉네임", 1L)).willReturn(false);
             given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             EditMyProfileParam command = new EditMyProfileParam(
-                    "기존닉네임", null, null, null, null, null, null, null, null, null, null);
+                    "기존닉네임", null, null, null, null, null, null, null, null, null, null, null);
 
             // when
             MyProfileResult result = userService.editMyProfile(1L, command);
@@ -843,7 +829,7 @@ class UserServiceTest {
             given(userRepository.findById(999L)).willReturn(Optional.empty());
 
             EditMyProfileParam command = new EditMyProfileParam(
-                    "닉네임", null, null, null, null, null, null, null, null, null, null);
+                    "닉네임", null, null, null, null, null, null, null, null, null, null, null);
 
             // when & then
             assertThatThrownBy(() -> userService.editMyProfile(999L, command))
@@ -851,28 +837,6 @@ class UserServiceTest {
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
                         assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
-                    });
-        }
-
-        @Test
-        @DisplayName("실패: 닉네임 중복")
-        void failWithNicknameAlreadyExists() {
-            // given
-            User user = createUser();
-            ReflectionTestUtils.setField(user, "id", 1L);
-
-            given(userRepository.findById(1L)).willReturn(Optional.of(user));
-            given(userRepository.existsByNicknameAndIdNot("중복닉네임", 1L)).willReturn(true);
-
-            EditMyProfileParam command = new EditMyProfileParam(
-                    "중복닉네임", null, null, null, null, null, null, null, null, null, null);
-
-            // when & then
-            assertThatThrownBy(() -> userService.editMyProfile(1L, command))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(e -> {
-                        BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.NICKNAME_ALREADY_EXISTS);
                     });
         }
 
@@ -887,7 +851,7 @@ class UserServiceTest {
             given(userRepository.existsByEmailAndIdNot("dup@example.com", 1L)).willReturn(true);
 
             EditMyProfileParam command = new EditMyProfileParam(
-                    null, "dup@example.com", null, null, null, null, null, null, null, null, null);
+                    null, "dup@example.com", null, null, null, null, null, null, null, null, null, null);
 
             // when & then
             assertThatThrownBy(() -> userService.editMyProfile(1L, command))
@@ -910,7 +874,7 @@ class UserServiceTest {
                     List.of(Category.builder().name("개발").build()));
 
             EditMyProfileParam command = new EditMyProfileParam(
-                    null, null, null, null, null, null, null, null, null, null, List.of(1L, 999L));
+                    null, null, null, null, null, null, null, null, null, null, null, List.of(1L, 999L));
 
             // when & then
             assertThatThrownBy(() -> userService.editMyProfile(1L, command))
