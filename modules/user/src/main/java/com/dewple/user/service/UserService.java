@@ -45,6 +45,8 @@ public class UserService {
                 .password(passwordEncoderPort.encode(param.password()))
                 .name(param.name())
                 .phone(phone)
+                .birthdate(param.birthdate())
+                .gender(param.gender())
                 .build();
 
         userRepository.save(user);
@@ -53,10 +55,14 @@ public class UserService {
         return user;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public User login(LoginParam param) {
         User user = userRepository.findByUserId(param.userId())
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        if (user.isInDeletionPeriod()) {
+            throw new BusinessException(UserErrorCode.USER_IN_DELETION);
+        }
 
         if (user.getStatus() != BaseStatus.ACTIVE) {
             throw new BusinessException(UserErrorCode.USER_INACTIVE);
@@ -66,6 +72,7 @@ public class UserService {
             throw new BusinessException(UserErrorCode.PASSWORD_MISMATCH);
         }
 
+        user.updateLastLoginAt();
         log.info("로그인 성공: userId={}", param.userId());
         return user;
     }
@@ -79,10 +86,6 @@ public class UserService {
     public User updateProfile(Long id, UpdateProfileParam param) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
-
-        if (param.nickname() != null && userRepository.existsByNickname(param.nickname())) {
-            throw new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS);
-        }
 
         if (param.email() != null && userRepository.existsByEmail(param.email())) {
             throw new BusinessException(UserErrorCode.EMAIL_ALREADY_EXISTS);
@@ -100,12 +103,19 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
-        if (param.nickname() != null && userRepository.existsByNicknameAndIdNot(param.nickname(), userId)) {
-            throw new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS);
-        }
-
         if (param.email() != null && userRepository.existsByEmailAndIdNot(param.email(), userId)) {
             throw new BusinessException(UserErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        if (param.email() != null && !param.email().equals(user.getEmail())) {
+            if (param.emailVerificationToken() == null) {
+                throw new BusinessException(UserErrorCode.EMAIL_VERIFICATION_REQUIRED);
+            }
+            String verifiedEmail = verificationService.validateVerificationToken(param.emailVerificationToken());
+            if (!verifiedEmail.equals(param.email())) {
+                throw new BusinessException(UserErrorCode.EMAIL_VERIFICATION_REQUIRED);
+            }
+            user.markEmailVerified();
         }
 
         user.editProfile(
@@ -143,6 +153,27 @@ public class UserService {
     }
 
     @Transactional
+    public void changeUserId(Long userId, String newUserId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        if (user.getUserId() == null) {
+            throw new BusinessException(UserErrorCode.KAKAO_ONLY_NO_USER_ID);
+        }
+
+        if (!user.canChangeUserId()) {
+            throw new BusinessException(UserErrorCode.USER_ID_CHANGE_COOLDOWN);
+        }
+
+        if (userRepository.existsByUserId(newUserId)) {
+            throw new BusinessException(UserErrorCode.USER_ID_ALREADY_EXISTS);
+        }
+
+        user.changeUserId(newUserId);
+        log.info("아이디 변경 완료: userId={}", newUserId);
+    }
+
+    @Transactional
     public void changePhone(Long userId, String verificationToken) {
         String newPhone = verificationService.validateVerificationToken(verificationToken);
 
@@ -170,8 +201,30 @@ public class UserService {
             throw new BusinessException(UserErrorCode.USER_INACTIVE);
         }
 
-        user.inactivate();
-        log.info("회원 탈퇴 완료: userId={}", user.getUserId());
+        user.markAsDeleted();
+
+        // TODO: 참여 중 모임의 참여 확정 즉시 취소 (선착순 모임이면 대기자 자동 승격)
+        // TODO: 모임장인 모임 처리 (모임관리자 있으면 승계, 없으면 모임 취소)
+        // TODO: 회장인 동아리 처리 (부회장→권한 수 많은 운영진→랜덤 부원 순 승계)
+
+        log.info("회원 탈퇴 요청 (소프트삭제): userId={}", user.getUserId());
+    }
+
+    @Transactional
+    public void cancelWithdrawal(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        if (!user.isInDeletionPeriod()) {
+            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        }
+
+        user.cancelDeletion();
+
+        // TODO: 탈퇴 취소 시 승계된 직위(회장직/모임장직)는 복원하지 않음
+        // TODO: 참여 확정도 미복원 (재신청 필요)
+
+        log.info("회원 탈퇴 취소: userId={}", user.getUserId());
     }
 
     @Transactional(readOnly = true)
@@ -196,7 +249,8 @@ public class UserService {
                 user.getProfileImg(),
                 user.getSelfIntroduction(),
                 mbti,
-                interests
+                interests,
+                user.getReputationScore()
         );
     }
 

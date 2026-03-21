@@ -3,6 +3,7 @@ package com.dewple.app_api_auth.api.user.controller;
 import static com.dewple.app_api_auth.global.config.SwaggerConfig.BEARER_AUTH;
 
 import com.dewple.app_api_auth.api.user.dto.ChangePhoneRequest;
+import com.dewple.app_api_auth.api.user.dto.ChangeUserIdRequest;
 import com.dewple.app_api_auth.api.user.dto.CheckUserIdResponse;
 import com.dewple.app_api_auth.api.user.dto.EditMyProfileRequest;
 import com.dewple.app_api_auth.api.user.dto.GetMyProfileResponse;
@@ -54,7 +55,8 @@ public class UserController {
                 user.getWorkplace(),
                 user.getSelfIntroduction(),
                 user.getMbti(),
-                profile.interests()
+                profile.interests(),
+                user.getReputationScore()
         ));
     }
 
@@ -66,10 +68,10 @@ public class UserController {
             @Valid @RequestBody EditMyProfileRequest request
     ) {
         EditMyProfileParam param = new EditMyProfileParam(
-                request.nickname(), request.email(), request.birthdate(),
-                request.gender(), request.university(), request.isGraduated(),
-                request.workplace(), request.profileImg(), request.selfIntroduction(),
-                request.mbti(), request.categoryIds()
+                request.nickname(), request.email(), request.emailVerificationToken(),
+                request.birthdate(), request.gender(), request.university(),
+                request.isGraduated(), request.workplace(), request.profileImg(),
+                request.selfIntroduction(), request.mbti(), request.categoryIds()
         );
 
         MyProfileResult profile = userService.editMyProfile(userId, param);
@@ -88,7 +90,8 @@ public class UserController {
                 user.getWorkplace(),
                 user.getSelfIntroduction(),
                 user.getMbti(),
-                profile.interests()
+                profile.interests(),
+                user.getReputationScore()
         ));
     }
 
@@ -105,8 +108,20 @@ public class UserController {
                 profile.profileImg(),
                 profile.selfIntroduction(),
                 profile.mbti(),
-                profile.interests()
+                profile.interests(),
+                profile.star()
         ));
+    }
+
+    @Operation(summary = "아이디 변경", description = "아이디를 변경합니다. 7일에 한 번만 가능합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/me/user-id")
+    public ApiResponse<Void> changeUserId(
+            @CurrentUserId Long userId,
+            @Valid @RequestBody ChangeUserIdRequest request
+    ) {
+        userService.changeUserId(userId, request.newUserId());
+        return ApiResponse.ok();
     }
 
     @Operation(summary = "내 전화번호 변경", description = "인증된 새 전화번호로 변경합니다.")

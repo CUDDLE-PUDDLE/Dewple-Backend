@@ -38,9 +38,15 @@ public enum UserErrorCode implements ErrorCode {
     REFRESH_TOKEN_INVALID(4301, HttpStatus.UNAUTHORIZED, "유효하지 않은 리프레시 토큰입니다."),
     REFRESH_TOKEN_EXPIRED(4302, HttpStatus.UNAUTHORIZED, "리프레시 토큰이 만료되었습니다."),
 
+    USER_IN_DELETION(4204, HttpStatus.FORBIDDEN, "탈퇴가 진행 중인 계정입니다."),
+
     // 4400: 프로필 수정 관련 오류
     CATEGORY_NOT_FOUND(4400, HttpStatus.NOT_FOUND, "존재하지 않는 카테고리입니다."),
     PHONE_SAME_AS_CURRENT(4401, HttpStatus.BAD_REQUEST, "현재 사용 중인 전화번호와 동일합니다."),
+    USER_ID_CHANGE_COOLDOWN(4402, HttpStatus.BAD_REQUEST, "아이디 변경은 7일에 한 번만 가능합니다."),
+    KAKAO_ONLY_NO_USER_ID(4405, HttpStatus.BAD_REQUEST, "카카오 로그인 전용 계정입니다. 자체 회원가입을 먼저 진행해주세요."),
+    EMAIL_VERIFICATION_REQUIRED(4403, HttpStatus.BAD_REQUEST, "이메일 인증이 필요합니다."),
+    INTEREST_LIMIT_EXCEEDED(4404, HttpStatus.BAD_REQUEST, "관심 설정은 최대 20개까지 가능합니다."),
     ;
 
     private final int code;

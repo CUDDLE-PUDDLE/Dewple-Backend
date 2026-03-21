@@ -20,6 +20,9 @@ public record EditMyProfileRequest(
         @Email(message = "유효한 이메일 형식이 아닙니다.")
         String email,
 
+        @Schema(description = "이메일 인증 토큰 (이메일 변경 시 필수)")
+        String emailVerificationToken,
+
         @Schema(description = "생년월일", example = "2000-01-01")
         LocalDate birthdate,
 
