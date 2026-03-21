@@ -113,9 +113,9 @@ public class AuthController {
         return ApiResponse.ok();
     }
 
-    @Operation(summary = "로그인", description = "아이디와 비밀번호로 로그인하고 JWT를 헤더로 발급합니다.")
+    @Operation(summary = "로그인", description = "아이디와 비밀번호로 로그인하고 JWT를 헤더로 발급합니다. 탈퇴 진행 중이면 inDeletionPeriod=true를 반환합니다.")
     @PostMapping("/login")
-    public ApiResponse<Void> login(
+    public ApiResponse<LoginResponse> login(
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse response
     ) {
@@ -130,7 +130,7 @@ public class AuthController {
         response.setHeader("Authorization", "Bearer " + accessToken);
         response.setHeader("Authorization-Refresh", "Bearer " + refreshToken);
 
-        return ApiResponse.ok();
+        return ApiResponse.ok(new LoginResponse(user.isInDeletionPeriod()));
     }
 
     @Operation(summary = "로그아웃", description = "해당 사용자의 모든 리프레시 토큰을 삭제합니다.")

@@ -177,4 +177,8 @@ public class Activity extends BaseEntity {
             this.likeCount--;
         }
     }
+
+    public void changeCreator(User newCreator) {
+        this.creator = newCreator;
+    }
 }

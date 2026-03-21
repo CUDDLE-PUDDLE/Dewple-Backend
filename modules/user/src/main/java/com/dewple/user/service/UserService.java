@@ -7,6 +7,8 @@ import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
 import com.dewple.user.entity.UserCategory;
 import com.dewple.user.port.PasswordEncoderPort;
+import com.dewple.user.port.WithdrawalActivityPort;
+import com.dewple.user.port.WithdrawalClubPort;
 import com.dewple.user.repository.CategoryRepository;
 import com.dewple.user.repository.UserCategoryRepository;
 import com.dewple.user.repository.UserRepository;
@@ -27,6 +29,8 @@ public class UserService {
     private final CategoryRepository categoryRepository;
     private final VerificationService verificationService;
     private final PasswordEncoderPort passwordEncoderPort;
+    private final WithdrawalActivityPort withdrawalActivityPort;
+    private final WithdrawalClubPort withdrawalClubPort;
 
     @Transactional
     public User signup(SignupParam param) {
@@ -60,11 +64,8 @@ public class UserService {
         User user = userRepository.findByUserId(param.userId())
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
-        if (user.isInDeletionPeriod()) {
-            throw new BusinessException(UserErrorCode.USER_IN_DELETION);
-        }
-
-        if (user.getStatus() != BaseStatus.ACTIVE) {
+        // 소프트삭제 기간이 아닌 비활성 계정은 로그인 차단
+        if (user.getStatus() != BaseStatus.ACTIVE && !user.isInDeletionPeriod()) {
             throw new BusinessException(UserErrorCode.USER_INACTIVE);
         }
 
@@ -201,11 +202,23 @@ public class UserService {
             throw new BusinessException(UserErrorCode.USER_INACTIVE);
         }
 
+        // 1. deletedAt = now() 기록 + 소프트삭제
         user.markAsDeleted();
 
-        // TODO: 참여 중 모임의 참여 확정 즉시 취소 (선착순 모임이면 대기자 자동 승격)
-        // TODO: 모임장인 모임 처리 (모임관리자 있으면 승계, 없으면 모임 취소)
-        // TODO: 회장인 동아리 처리 (부회장→권한 수 많은 운영진→랜덤 부원 순 승계)
+        // 2. 참여 중 모임의 참여 확정 즉시 취소
+        withdrawalActivityPort.cancelConfirmedParticipations(userId);
+
+        // 3. 모임장인 모임 처리 (모임관리자 있으면 승계, 없으면 모임 취소)
+        withdrawalActivityPort.transferOrCancelLeaderActivities(userId);
+
+        // 4. 회장인 동아리 처리 (운영진 → 권한 수 많은 순 → 일반 부원 순 승계)
+        withdrawalClubPort.transferPresidentRoles(userId);
+
+        // TODO: 1주일 경과 후 하드삭제 스케줄러 (app-worker 모듈에서 구현 필요)
+        //   - 모든 동아리에서 탈퇴 처리 (이력에 탈퇴로 기록)
+        //   - 게시물/댓글 유지 (유저명 → '(알 수 없음)')
+        //   - 지원서 응답 삭제
+        //   - 다른 참여자에게 부여한 별점은 유지
 
         log.info("회원 탈퇴 요청 (소프트삭제): userId={}", user.getUserId());
     }
@@ -219,10 +232,8 @@ public class UserService {
             throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
         }
 
+        // 계정 복원 (단, 승계된 직위는 미복원)
         user.cancelDeletion();
-
-        // TODO: 탈퇴 취소 시 승계된 직위(회장직/모임장직)는 복원하지 않음
-        // TODO: 참여 확정도 미복원 (재신청 필요)
 
         log.info("회원 탈퇴 취소: userId={}", user.getUserId());
     }

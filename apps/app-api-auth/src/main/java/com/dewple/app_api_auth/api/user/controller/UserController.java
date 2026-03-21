@@ -135,13 +135,23 @@ public class UserController {
         return ApiResponse.ok();
     }
 
-    @Operation(summary = "회원 탈퇴", description = "본인의 계정을 탈퇴(비활성화) 처리합니다.")
+    @Operation(summary = "회원 탈퇴", description = "본인의 계정을 탈퇴(비활성화) 처리합니다. 7일 이내 취소 가능합니다.")
     @SecurityRequirement(name = BEARER_AUTH)
     @DeleteMapping("/me")
     public ApiResponse<Void> withdraw(
             @CurrentUserId Long userId
     ) {
         userService.withdraw(userId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "회원 탈퇴 취소", description = "소프트삭제 기간(7일) 내에 탈퇴를 취소하고 계정을 복원합니다. 승계된 직위는 복원되지 않습니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/me/cancel-withdrawal")
+    public ApiResponse<Void> cancelWithdrawal(
+            @CurrentUserId Long userId
+    ) {
+        userService.cancelWithdrawal(userId);
         return ApiResponse.ok();
     }
 
