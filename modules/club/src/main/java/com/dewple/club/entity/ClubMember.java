@@ -11,6 +11,8 @@ import com.dewple.common.entity.Club;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.ActivityStatus;
 
+import java.time.LocalDate;
+
 @Entity
 @Table(name = "club_member"
 //, uniqueConstraints = {@UniqueConstraint(columnNames = {"club_id", "user_id"})}
@@ -43,14 +45,18 @@ public class ClubMember extends BaseEntity {
     @Column(name = "activity_status", nullable = false, length = 20)
     private ActivityStatus activityStatus = ActivityStatus.ACTIVE;
 
-    
+    @Column(name = "activity_end_date")
+    private LocalDate activityEndDate;
+
+
     @Builder
     public ClubMember(Club club, User user, ClubRole role, ClubGeneration joinGeneration,
-                      ActivityStatus activityStatus) {
+                      ActivityStatus activityStatus, LocalDate activityEndDate) {
         this.club = club;
         this.user = user;
         this.role = role;
         this.joinGeneration = joinGeneration;
         this.activityStatus = activityStatus != null ? activityStatus : ActivityStatus.ACTIVE;
+        this.activityEndDate = activityEndDate;
     }
 }

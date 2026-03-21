@@ -31,11 +31,19 @@ public class ClubRole extends BaseEntity {
     @Column(name = "permissions", nullable = false)
     private Long permissions = 0L;
 
+    @Column(name = "is_staff", nullable = false)
+    private Boolean isStaff = false;
+
+    @Column(name = "is_default", nullable = false)
+    private Boolean isDefault = false;
+
     @Builder
-    public ClubRole(Club club, String name, Long permissions) {
+    public ClubRole(Club club, String name, Long permissions, Boolean isStaff, Boolean isDefault) {
         this.club = club;
         this.name = name;
         this.permissions = permissions != null ? permissions : 0L;
+        this.isStaff = isStaff != null ? isStaff : false;
+        this.isDefault = isDefault != null ? isDefault : false;
     }
 
     // 특정 권한을 가지고 있는지 확인

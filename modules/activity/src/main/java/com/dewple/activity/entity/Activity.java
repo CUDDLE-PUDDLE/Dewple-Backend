@@ -14,8 +14,10 @@ import com.dewple.common.entity.Club;
 import com.dewple.common.entity.Region;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.ActivityType;
+import com.dewple.common.enums.AttendanceCheckMethod;
 import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.OpenType;
+import com.dewple.organization.entity.Organization;
 
 @Entity
 @Table(name = "activity")
@@ -30,6 +32,10 @@ public class Activity extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "club_id")
     private Club club;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_id", nullable = false)
@@ -50,6 +56,10 @@ public class Activity extends BaseEntity {
 
     @Column(name = "is_attendance_check", nullable = false)
     private Boolean isAttendanceCheck = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "attendance_check_method", length = 20)
+    private AttendanceCheckMethod attendanceCheckMethod;
 
     @Column(name = "is_searchable", nullable = false)
     private Boolean isSearchable = true;
@@ -100,20 +110,45 @@ public class Activity extends BaseEntity {
     @Column(name = "invite_code", length = 36, unique = true)
     private String inviteCode;
 
+    @Column(name = "emergency_contact", length = 100)
+    private String emergencyContact;
+
+    @Column(name = "cancel_deadline_days", nullable = false)
+    private Integer cancelDeadlineDays = 1;
+
+    @Column(name = "deadline_change_count", nullable = false)
+    private Integer deadlineChangeCount = 0;
+
+    @Column(name = "application_deadline", columnDefinition = "timestamptz")
+    private OffsetDateTime applicationDeadline;
+
+    @Column(name = "result_date", columnDefinition = "timestamptz")
+    private OffsetDateTime resultDate;
+
+    @Column(name = "has_application_form", nullable = false)
+    private Boolean hasApplicationForm = false;
+
     @Builder
-    public Activity(Club club, User creator, OpenType openType, String name,
-                    String description, Integer capacity, Boolean isAttendanceCheck,
-                    Boolean isSearchable, OffsetDateTime startAt, OffsetDateTime endAt,
+    public Activity(Club club, Organization organization, User creator, OpenType openType,
+                    String name, String description, Integer capacity,
+                    Boolean isAttendanceCheck, AttendanceCheckMethod attendanceCheckMethod,
+                    Boolean isSearchable,
+                    OffsetDateTime startAt, OffsetDateTime endAt,
                     Category category, Region region, ActivityType activityType,
                     Boolean isVerificationRequired, Integer minAge, Integer maxAge,
-                    Gender gender, String thumbnailUrl, String inviteCode) {
+                    Gender gender, String thumbnailUrl, String inviteCode,
+                    String emergencyContact, Integer cancelDeadlineDays,
+                    OffsetDateTime applicationDeadline, OffsetDateTime resultDate,
+                    Boolean hasApplicationForm) {
         this.club = club;
+        this.organization = organization;
         this.creator = creator;
         this.openType = openType;
         this.name = name;
         this.description = description;
         this.capacity = capacity;
         this.isAttendanceCheck = isAttendanceCheck != null ? isAttendanceCheck : false;
+        this.attendanceCheckMethod = attendanceCheckMethod;
         this.isSearchable = isSearchable != null ? isSearchable : true;
         this.startAt = startAt;
         this.endAt = endAt;
@@ -126,6 +161,11 @@ public class Activity extends BaseEntity {
         this.gender = gender != null ? gender : Gender.ANY;
         this.thumbnailUrl = thumbnailUrl;
         this.inviteCode = inviteCode;
+        this.emergencyContact = emergencyContact;
+        this.cancelDeadlineDays = cancelDeadlineDays != null ? cancelDeadlineDays : 1;
+        this.applicationDeadline = applicationDeadline;
+        this.resultDate = resultDate;
+        this.hasApplicationForm = hasApplicationForm != null ? hasApplicationForm : false;
     }
 
     public void increaseLikeCount() {
