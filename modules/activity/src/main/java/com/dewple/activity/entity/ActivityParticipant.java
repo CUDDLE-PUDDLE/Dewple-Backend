@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import com.dewple.common.entity.User;
 import com.dewple.common.entity.BaseEntity;
+import com.dewple.common.enums.ParticipantRole;
 import com.dewple.common.enums.ParticipantStatus;
 
 @Entity
@@ -37,12 +38,22 @@ public class ActivityParticipant extends BaseEntity {
     @Column(name = "is_settlement_completed")
     private Boolean isSettlementCompleted;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 20)
+    private ParticipantRole role = ParticipantRole.PARTICIPANT;
+
+    @Column(name = "waitlist_order")
+    private Integer waitlistOrder;
+
     @Builder
-    public ActivityParticipant(Activity activity, User participant, ParticipantStatus participantStatus, Boolean isSettlementCompleted) {
+    public ActivityParticipant(Activity activity, User participant, ParticipantStatus participantStatus,
+                               Boolean isSettlementCompleted, ParticipantRole role, Integer waitlistOrder) {
         this.activity = activity;
         this.participant = participant;
         this.participantStatus = participantStatus != null ? participantStatus : ParticipantStatus.PENDING;
         this.isSettlementCompleted = isSettlementCompleted;
+        this.role = role != null ? role : ParticipantRole.PARTICIPANT;
+        this.waitlistOrder = waitlistOrder;
     }
 
     public void updateParticipantStatus(ParticipantStatus participantStatus) {
