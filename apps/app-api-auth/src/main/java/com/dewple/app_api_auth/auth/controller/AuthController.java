@@ -99,7 +99,8 @@ public class AuthController {
                 request.userId(),
                 request.password(),
                 request.birthdate(),
-                request.gender()
+                request.gender(),
+                request.nickname()
         ));
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId());

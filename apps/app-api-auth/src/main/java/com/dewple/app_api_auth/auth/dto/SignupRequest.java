@@ -41,6 +41,10 @@ public record SignupRequest(
 
         @Schema(description = "성별", example = "MALE")
         @NotNull(message = "성별은 필수입니다.")
-        Gender gender
+        Gender gender,
+
+        @Schema(description = "닉네임 (선택, 미입력 시 랜덤 생성)", example = "듀플러")
+        @Size(max = 15, message = "닉네임은 15자 이내여야 합니다.")
+        String nickname
 ) {
 }

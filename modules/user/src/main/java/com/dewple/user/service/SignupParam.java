@@ -9,6 +9,7 @@ public record SignupParam(
         String userId,
         String password,
         LocalDate birthdate,
-        Gender gender
+        Gender gender,
+        String nickname
 ) {
 }

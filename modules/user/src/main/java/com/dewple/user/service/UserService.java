@@ -34,6 +34,7 @@ public class UserService {
     private final SmsVerificationPort smsVerificationPort;
     private final WithdrawalActivityPort withdrawalActivityPort;
     private final WithdrawalClubPort withdrawalClubPort;
+    private final RandomNicknameGenerator randomNicknameGenerator;
 
     private static final String TEMP_PASSWORD_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
     private static final int TEMP_PASSWORD_LENGTH = 12;
@@ -51,10 +52,16 @@ public class UserService {
             throw new BusinessException(UserErrorCode.USER_ID_ALREADY_EXISTS);
         }
 
+        String nickname = param.nickname();
+        if (nickname == null || nickname.isBlank()) {
+            nickname = randomNicknameGenerator.generate();
+        }
+
         User user = User.builder()
                 .userId(param.userId())
                 .password(passwordEncoderPort.encode(param.password()))
                 .name(param.name())
+                .nickname(nickname)
                 .phone(phone)
                 .birthdate(param.birthdate())
                 .gender(param.gender())
