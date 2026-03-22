@@ -179,4 +179,13 @@ public class AuthController {
         return ApiResponse.ok();
     }
 
+    @Operation(summary = "비밀번호 찾기", description = "전화번호 인증 후 임시 비밀번호를 SMS로 발송합니다. 카카오 전용 계정은 안내 메시지를 반환합니다.")
+    @PostMapping("/password/reset")
+    public ApiResponse<Void> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request
+    ) {
+        userService.resetPassword(request.verificationToken());
+        return ApiResponse.ok();
+    }
+
 }

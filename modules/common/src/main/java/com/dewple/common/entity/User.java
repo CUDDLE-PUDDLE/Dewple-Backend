@@ -134,6 +134,10 @@ public class User extends BaseEntity {
         this.phone = phone;
     }
 
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
+
     public void updateLastLoginAt() {
         this.lastLoginAt = OffsetDateTime.now();
     }

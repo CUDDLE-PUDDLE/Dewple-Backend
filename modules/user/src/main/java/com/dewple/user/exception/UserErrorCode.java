@@ -38,6 +38,8 @@ public enum UserErrorCode implements ErrorCode {
     REFRESH_TOKEN_EXPIRED(4302, HttpStatus.UNAUTHORIZED, "리프레시 토큰이 만료되었습니다."),
 
     USER_IN_DELETION(4204, HttpStatus.FORBIDDEN, "탈퇴가 진행 중인 계정입니다."),
+    KAKAO_ONLY_NO_PASSWORD(4205, HttpStatus.BAD_REQUEST, "카카오 로그인 전용 계정입니다. 카카오 로그인을 이용해주세요."),
+    USER_NOT_FOUND_BY_PHONE(4206, HttpStatus.NOT_FOUND, "해당 전화번호로 가입된 계정을 찾을 수 없습니다."),
 
     // 4400: 프로필 수정 관련 오류
     CATEGORY_NOT_FOUND(4400, HttpStatus.NOT_FOUND, "존재하지 않는 카테고리입니다."),

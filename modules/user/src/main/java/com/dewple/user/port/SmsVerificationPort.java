@@ -7,4 +7,6 @@ package com.dewple.user.port;
 public interface SmsVerificationPort {
 
     void sendVerificationCode(String phone, String code);
+
+    void sendTemporaryPassword(String phone, String temporaryPassword);
 }
