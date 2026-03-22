@@ -32,6 +32,7 @@ public enum ActivityErrorCode implements ErrorCode {
     ACTIVITY_FULL(5019, HttpStatus.CONFLICT, "모임 정원이 가득 찼습니다."),
     CANNOT_JOIN_OWN_ACTIVITY(5020, HttpStatus.BAD_REQUEST, "본인이 생성한 모임에는 참가할 수 없습니다."),
     ACTIVITY_NOT_USER_CREATED(5021, HttpStatus.BAD_REQUEST, "개인 모임만 초대 코드를 사용할 수 있습니다."),
+    INTEREST_LIMIT_EXCEEDED(5022, HttpStatus.BAD_REQUEST, "관심 모임은 최대 20개까지 설정 가능합니다."),
     ;
 
     private final int code;

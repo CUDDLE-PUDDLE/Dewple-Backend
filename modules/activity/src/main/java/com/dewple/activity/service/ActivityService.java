@@ -326,6 +326,11 @@ public class ActivityService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
+        long currentCount = activityInterestRepository.countByUserIdAndStatus(userId, BaseStatus.ACTIVE);
+        if (currentCount >= 20) {
+            throw new BusinessException(ActivityErrorCode.INTEREST_LIMIT_EXCEEDED);
+        }
+
         activityInterestRepository.findByActivityIdAndUserId(activityId, userId)
                 .ifPresentOrElse(
                         interest -> {
