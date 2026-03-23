@@ -8,7 +8,6 @@ import com.dewple.activity.repository.ActivityParticipantRepository;
 import com.dewple.activity.repository.ActivityRepository;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.BaseStatus;
-import com.dewple.common.enums.ParticipantRole;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
 import com.dewple.user.repository.UserRepository;
@@ -26,7 +25,7 @@ public class ActivityInquiryService {
 
     private final ActivityRepository activityRepository;
     private final ActivityInquiryRepository inquiryRepository;
-    private final ActivityParticipantRepository participantRepository;
+    private final ActivityPermissionValidator permissionValidator;
     private final UserRepository userRepository;
 
     @Transactional
@@ -82,7 +81,7 @@ public class ActivityInquiryService {
     @Transactional
     public void deleteInquiryByManager(Long userId, Long activityId, Long inquiryId) {
         findActiveActivity(activityId);
-        validateLeaderOrManager(activityId, userId);
+        permissionValidator.validateLeaderOrManager(activityId, userId);
 
         ActivityInquiry inquiry = findActiveInquiry(inquiryId, activityId);
         inquiry.inactivate();
@@ -92,7 +91,7 @@ public class ActivityInquiryService {
     @Transactional
     public void answerInquiry(Long userId, Long activityId, Long inquiryId, String answer) {
         findActiveActivity(activityId);
-        validateLeaderOrManager(activityId, userId);
+        permissionValidator.validateLeaderOrManager(activityId, userId);
 
         ActivityInquiry inquiry = findActiveInquiry(inquiryId, activityId);
 
@@ -106,7 +105,7 @@ public class ActivityInquiryService {
     @Transactional
     public void updateAnswer(Long userId, Long activityId, Long inquiryId, String answer) {
         findActiveActivity(activityId);
-        validateLeaderOrManager(activityId, userId);
+        permissionValidator.validateLeaderOrManager(activityId, userId);
 
         ActivityInquiry inquiry = findActiveInquiry(inquiryId, activityId);
         if (!inquiry.hasAnswer()) {
@@ -148,14 +147,4 @@ public class ActivityInquiryService {
         }
     }
 
-    private void validateLeaderOrManager(Long activityId, Long userId) {
-        boolean isLeaderOrManager = participantRepository.findByActivityIdAndParticipantId(activityId, userId)
-                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
-                .map(p -> p.getRole() == ParticipantRole.LEADER || p.getRole() == ParticipantRole.MANAGER)
-                .orElse(false);
-
-        if (!isLeaderOrManager) {
-            throw new BusinessException(ActivityErrorCode.NOT_ACTIVITY_LEADER);
-        }
-    }
 }

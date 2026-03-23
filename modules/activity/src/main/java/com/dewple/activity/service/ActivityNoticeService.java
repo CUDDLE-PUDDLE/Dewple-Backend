@@ -11,8 +11,6 @@ import com.dewple.activity.repository.ActivityParticipantRepository;
 import com.dewple.activity.repository.ActivityRepository;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.BaseStatus;
-import com.dewple.common.enums.ParticipantRole;
-import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
 import com.dewple.user.repository.UserRepository;
@@ -31,13 +29,13 @@ public class ActivityNoticeService {
     private final ActivityRepository activityRepository;
     private final ActivityNoticeRepository noticeRepository;
     private final ActivityNoticeCommentRepository commentRepository;
-    private final ActivityParticipantRepository participantRepository;
+    private final ActivityPermissionValidator permissionValidator;
     private final UserRepository userRepository;
 
     @Transactional
     public ActivityNotice createNotice(Long userId, Long activityId, String title, String content, String imageUrls) {
         Activity activity = findActiveActivity(activityId);
-        validateLeaderOrManager(activityId, userId);
+        permissionValidator.validateLeaderOrManager(activityId, userId);
 
         User author = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
@@ -60,7 +58,7 @@ public class ActivityNoticeService {
     public void updateNotice(Long userId, Long activityId, Long noticeId,
                              String title, String content, String imageUrls) {
         findActiveActivity(activityId);
-        validateLeaderOrManager(activityId, userId);
+        permissionValidator.validateLeaderOrManager(activityId, userId);
 
         ActivityNotice notice = findActiveNotice(noticeId, activityId);
         notice.update(title, content, imageUrls);
@@ -70,7 +68,7 @@ public class ActivityNoticeService {
     @Transactional
     public void deleteNotice(Long userId, Long activityId, Long noticeId) {
         findActiveActivity(activityId);
-        validateLeaderOrManager(activityId, userId);
+        permissionValidator.validateLeaderOrManager(activityId, userId);
 
         ActivityNotice notice = findActiveNotice(noticeId, activityId);
         notice.inactivate();
@@ -80,7 +78,7 @@ public class ActivityNoticeService {
     @Transactional(readOnly = true)
     public Slice<ActivityNotice> getNoticeList(Long userId, Long activityId, Pageable pageable) {
         findActiveActivity(activityId);
-        validateConfirmedParticipant(activityId, userId);
+        permissionValidator.validateConfirmedParticipant(activityId, userId);
 
         return noticeRepository.findByActivityIdAndStatusOrderByCreatedAtDesc(
                 activityId, BaseStatus.ACTIVE, pageable);
@@ -89,7 +87,7 @@ public class ActivityNoticeService {
     @Transactional
     public ActivityNoticeComment createComment(Long userId, Long activityId, Long noticeId, String content) {
         findActiveActivity(activityId);
-        validateConfirmedParticipant(activityId, userId);
+        permissionValidator.validateConfirmedParticipant(activityId, userId);
 
         ActivityNotice notice = findActiveNotice(noticeId, activityId);
         User author = userRepository.findById(userId)
@@ -118,7 +116,7 @@ public class ActivityNoticeService {
                 .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
         boolean isAuthor = comment.getAuthor().getId().equals(userId);
-        boolean isLeaderOrManager = isLeaderOrManager(activityId, userId);
+        boolean isLeaderOrManager = permissionValidator.isLeaderOrManager(activityId, userId);
 
         if (!isAuthor && !isLeaderOrManager) {
             throw new BusinessException(ActivityErrorCode.ACTIVITY_DELETE_PERMISSION_DENIED);
@@ -133,7 +131,7 @@ public class ActivityNoticeService {
     public Slice<ActivityNoticeComment> getCommentList(Long userId, Long activityId,
                                                        Long noticeId, Pageable pageable) {
         findActiveActivity(activityId);
-        validateConfirmedParticipant(activityId, userId);
+        permissionValidator.validateConfirmedParticipant(activityId, userId);
 
         return commentRepository.findByNoticeIdAndStatusOrderByCreatedAtAsc(
                 noticeId, BaseStatus.ACTIVE, pageable);
@@ -157,23 +155,4 @@ public class ActivityNoticeService {
                 .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
     }
 
-    private void validateLeaderOrManager(Long activityId, Long userId) {
-        if (!isLeaderOrManager(activityId, userId)) {
-            throw new BusinessException(ActivityErrorCode.NOT_ACTIVITY_LEADER);
-        }
-    }
-
-    private void validateConfirmedParticipant(Long activityId, Long userId) {
-        participantRepository.findByActivityIdAndParticipantId(activityId, userId)
-                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
-                .filter(p -> p.getParticipantStatus() == ParticipantStatus.CONFIRMED)
-                .orElseThrow(() -> new BusinessException(ActivityErrorCode.PARTICIPANT_NOT_CONFIRMED));
-    }
-
-    private boolean isLeaderOrManager(Long activityId, Long userId) {
-        return participantRepository.findByActivityIdAndParticipantId(activityId, userId)
-                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
-                .map(p -> p.getRole() == ParticipantRole.LEADER || p.getRole() == ParticipantRole.MANAGER)
-                .orElse(false);
-    }
 }
