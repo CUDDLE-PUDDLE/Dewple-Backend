@@ -17,6 +17,7 @@ import com.dewple.app_api_auth.global.security.CurrentUserId;
 import com.dewple.activity.service.ActivityListSection;
 import com.dewple.activity.service.ActivityService;
 import com.dewple.activity.service.ActivitySummaryResult;
+import com.dewple.activity.service.ActivityHistoryResult;
 import com.dewple.activity.service.CreateActivityParam;
 import com.dewple.activity.service.CreateActivityResult;
 import com.dewple.activity.service.GetActivityDetailResult;
@@ -277,6 +278,17 @@ public class ActivityController {
         Slice<ActivitySummaryResult> results = activityService.getInterestedActivities(userId, pageable);
         Slice<GetActivityListResponse> responseSlice = results.map(GetActivityListResponse::from);
         return ApiResponse.ok(SliceResponse.from(responseSlice));
+    }
+
+    @Operation(summary = "모임 이력 조회", description = "본인이 참여했던 모임 목록을 조회합니다. 취소/강제퇴장 모임은 제외됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/history")
+    public ApiResponse<SliceResponse<ActivityHistoryResult>> getActivityHistory(
+            @CurrentUserId Long userId,
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        Slice<ActivityHistoryResult> results = activityService.getActivityHistory(userId, pageable);
+        return ApiResponse.ok(SliceResponse.from(results));
     }
 
     @Operation(summary = "초대 코드 조회", description = "비공개 개인 모임의 초대 코드를 조회합니다. 모임 생성자만 조회할 수 있습니다.")

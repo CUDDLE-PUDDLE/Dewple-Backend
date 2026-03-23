@@ -629,6 +629,14 @@ public class ActivityService {
     }
 
     @Transactional(readOnly = true)
+    public Slice<ActivityHistoryResult> getActivityHistory(Long userId, Pageable pageable) {
+        if (!userRepository.existsById(userId)) {
+            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        }
+        return activityParticipantRepository.findActivityHistoryByUserId(userId, pageable);
+    }
+
+    @Transactional(readOnly = true)
     public String getInviteCode(Long userId, Long activityId) {
         Activity activity = findActiveActivity(activityId);
 
