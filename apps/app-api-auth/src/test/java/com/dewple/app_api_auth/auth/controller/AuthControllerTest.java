@@ -350,7 +350,9 @@ class AuthControllerTest {
                                     "name", "홍길동",
                                     "userId", "dewple123",
                                     "password", "Password1!",
-                                    "passwordConfirm", "Password1!"
+                                    "passwordConfirm", "Password1!",
+                                    "birthdate", "2000-01-01",
+                                    "gender", "MALE"
                             ))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(1000))
@@ -369,7 +371,9 @@ class AuthControllerTest {
                                     "name", "홍길동",
                                     "userId", "dewple123",
                                     "password", "Password1!",
-                                    "passwordConfirm", "DifferentPassword1!"
+                                    "passwordConfirm", "DifferentPassword1!",
+                                    "birthdate", "2000-01-01",
+                                    "gender", "MALE"
                             ))))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value(4106));
@@ -390,7 +394,9 @@ class AuthControllerTest {
                                     "name", "홍길동",
                                     "userId", "dewple123",
                                     "password", "Password1!",
-                                    "passwordConfirm", "Password1!"
+                                    "passwordConfirm", "Password1!",
+                                    "birthdate", "2000-01-01",
+                                    "gender", "MALE"
                             ))))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.code").value(4101));
@@ -411,7 +417,9 @@ class AuthControllerTest {
                                     "name", "홍길동",
                                     "userId", "dewple123",
                                     "password", "Password1!",
-                                    "passwordConfirm", "Password1!"
+                                    "passwordConfirm", "Password1!",
+                                    "birthdate", "2000-01-01",
+                                    "gender", "MALE"
                             ))))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.code").value(4102));
@@ -427,7 +435,9 @@ class AuthControllerTest {
                                     "name", "홍길동",
                                     "userId", "ab",
                                     "password", "Password1!",
-                                    "passwordConfirm", "Password1!"
+                                    "passwordConfirm", "Password1!",
+                                    "birthdate", "2000-01-01",
+                                    "gender", "MALE"
                             ))))
                     .andExpect(status().isBadRequest());
         }

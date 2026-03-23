@@ -9,6 +9,7 @@ import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.UserCategory;
 import com.dewple.user.exception.UserErrorCode;
 import com.dewple.user.port.PasswordEncoderPort;
+import com.dewple.user.port.SmsVerificationPort;
 import com.dewple.user.port.WithdrawalActivityPort;
 import com.dewple.user.port.WithdrawalClubPort;
 import com.dewple.user.repository.CategoryRepository;
@@ -57,10 +58,16 @@ class UserServiceTest {
     private PasswordEncoderPort passwordEncoderPort;
 
     @Mock
+    private SmsVerificationPort smsVerificationPort;
+
+    @Mock
     private WithdrawalActivityPort withdrawalActivityPort;
 
     @Mock
     private WithdrawalClubPort withdrawalClubPort;
+
+    @Mock
+    private RandomNicknameGenerator randomNicknameGenerator;
 
     @InjectMocks
     private UserService userService;
@@ -86,7 +93,7 @@ class UserServiceTest {
             given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
             // when
-            User result = userService.signup(new SignupParam(TEST_TOKEN, TEST_NAME, TEST_USER_ID, TEST_PASSWORD, null, null));
+            User result = userService.signup(new SignupParam(TEST_TOKEN, TEST_NAME, TEST_USER_ID, TEST_PASSWORD, null, null, null));
 
             // then
             assertThat(result).isNotNull();
@@ -108,7 +115,7 @@ class UserServiceTest {
             given(userRepository.existsByPhone(TEST_PHONE)).willReturn(true);
 
             // when & then
-            assertThatThrownBy(() -> userService.signup(new SignupParam(TEST_TOKEN, TEST_NAME, TEST_USER_ID, TEST_PASSWORD, null, null)))
+            assertThatThrownBy(() -> userService.signup(new SignupParam(TEST_TOKEN, TEST_NAME, TEST_USER_ID, TEST_PASSWORD, null, null, null)))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
@@ -125,7 +132,7 @@ class UserServiceTest {
             given(userRepository.existsByUserId(TEST_USER_ID)).willReturn(true);
 
             // when & then
-            assertThatThrownBy(() -> userService.signup(new SignupParam(TEST_TOKEN, TEST_NAME, TEST_USER_ID, TEST_PASSWORD, null, null)))
+            assertThatThrownBy(() -> userService.signup(new SignupParam(TEST_TOKEN, TEST_NAME, TEST_USER_ID, TEST_PASSWORD, null, null, null)))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
@@ -141,7 +148,7 @@ class UserServiceTest {
                     .willThrow(new BusinessException(UserErrorCode.VERIFICATION_TOKEN_INVALID));
 
             // when & then
-            assertThatThrownBy(() -> userService.signup(new SignupParam("invalid-token", TEST_NAME, TEST_USER_ID, TEST_PASSWORD, null, null)))
+            assertThatThrownBy(() -> userService.signup(new SignupParam("invalid-token", TEST_NAME, TEST_USER_ID, TEST_PASSWORD, null, null, null)))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
@@ -713,10 +720,11 @@ class UserServiceTest {
 
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
             given(userRepository.existsByEmailAndIdNot("new@example.com", 1L)).willReturn(false);
+            given(verificationService.validateVerificationToken("email-token")).willReturn("new@example.com");
             given(userCategoryRepository.findByUserIdWithCategory(1L)).willReturn(Collections.emptyList());
 
             EditMyProfileParam command = new EditMyProfileParam(
-                    "새닉네임", "new@example.com", null, null, null, null, null, null, null, null, Mbti.INTJ, null);
+                    "새닉네임", "new@example.com", "email-token", null, null, null, null, null, null, null, Mbti.INTJ, null);
 
             // when
             MyProfileResult result = userService.editMyProfile(1L, command);

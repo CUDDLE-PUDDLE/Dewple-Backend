@@ -236,7 +236,8 @@ class ActivityControllerTest {
                                     Map.entry("isVerificationRequired", true),
                                     Map.entry("minAge", 20),
                                     Map.entry("maxAge", 30),
-                                    Map.entry("gender", "ANY")
+                                    Map.entry("gender", "ANY"),
+                                    Map.entry("emergencyContact", "010-1234-5678")
                             ))))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.code").value(1000))
@@ -290,7 +291,10 @@ class ActivityControllerTest {
                                     Map.entry("startAt", START_AT),
                                     Map.entry("endAt", END_AT),
                                     Map.entry("activityType", "BOTH"),
-                                    Map.entry("gender", "ANY")
+                                    Map.entry("gender", "ANY"),
+                                    Map.entry("emergencyContact", "010-1234-5678"),
+                                    Map.entry("categoryId", 1),
+                                    Map.entry("regionId", 1)
                             ))))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.code").value(1000))
@@ -453,7 +457,10 @@ class ActivityControllerTest {
                                     "description", "설명",
                                     "activityType", "BOTH",
                                     "startAt", END_AT,
-                                    "endAt", START_AT
+                                    "endAt", START_AT,
+                                    "emergencyContact", "010-1234-5678",
+                                    "categoryId", 1,
+                                    "regionId", 1
                             ))))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value(5001));
@@ -477,7 +484,10 @@ class ActivityControllerTest {
                                     "description", "설명",
                                     "activityType", "BOTH",
                                     "startAt", START_AT,
-                                    "endAt", END_AT
+                                    "endAt", END_AT,
+                                    "emergencyContact", "010-1234-5678",
+                                    "categoryId", 1,
+                                    "regionId", 1
                             ))))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.code").value(6002));
@@ -501,7 +511,10 @@ class ActivityControllerTest {
                                     "description", "설명",
                                     "activityType", "BOTH",
                                     "startAt", START_AT,
-                                    "endAt", END_AT
+                                    "endAt", END_AT,
+                                    "emergencyContact", "010-1234-5678",
+                                    "categoryId", 1,
+                                    "regionId", 1
                             ))))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.code").value(6001));
@@ -525,7 +538,10 @@ class ActivityControllerTest {
                                     "description", "설명",
                                     "activityType", "BOTH",
                                     "startAt", START_AT,
-                                    "endAt", END_AT
+                                    "endAt", END_AT,
+                                    "emergencyContact", "010-1234-5678",
+                                    "categoryId", 1,
+                                    "regionId", 1
                             ))))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.code").value(6000));
