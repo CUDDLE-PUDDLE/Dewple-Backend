@@ -33,6 +33,10 @@ public enum ActivityErrorCode implements ErrorCode {
     CANNOT_JOIN_OWN_ACTIVITY(5020, HttpStatus.BAD_REQUEST, "본인이 생성한 모임에는 참가할 수 없습니다."),
     ACTIVITY_NOT_USER_CREATED(5021, HttpStatus.BAD_REQUEST, "개인 모임만 초대 코드를 사용할 수 있습니다."),
     INTEREST_LIMIT_EXCEEDED(5022, HttpStatus.BAD_REQUEST, "관심 모임은 최대 20개까지 설정 가능합니다."),
+    LEADER_ACTIVITY_LIMIT_EXCEEDED(5023, HttpStatus.BAD_REQUEST, "모임장으로서 동시 운영 가능한 모임은 최대 10개입니다."),
+    CANCEL_DEADLINE_EXCEEDED(5024, HttpStatus.BAD_REQUEST, "참여 취소 가능 기한이 지났습니다."),
+    ACTIVITY_ALREADY_STARTED(5025, HttpStatus.BAD_REQUEST, "이미 시작된 모임은 참여를 취소할 수 없습니다."),
+    PARTICIPANT_NOT_CONFIRMED(5026, HttpStatus.BAD_REQUEST, "참여 확정 상태가 아닙니다."),
     ;
 
     private final int code;

@@ -74,6 +74,8 @@ public class ActivityController {
                 request.isSearchable(),
                 request.startAt(),
                 request.endAt(),
+                request.emergencyContact(),
+                request.cancelDeadlineDays(),
                 request.categoryId(),
                 request.regionId(),
                 request.activityType(),
@@ -184,6 +186,17 @@ public class ActivityController {
             @Valid @RequestBody RespondToParticipationRequest request
     ) {
         activityService.respondToParticipation(userId, activityId, request.participantStatus());
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "참여 취소", description = "참여 확정된 모임의 참여를 취소합니다. 모임 시작 전 + 취소 기한 내에만 가능합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{activityId}/participation")
+    public ApiResponse<Void> cancelParticipation(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.cancelParticipation(userId, activityId);
         return ApiResponse.ok();
     }
 

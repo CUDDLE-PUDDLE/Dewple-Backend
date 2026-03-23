@@ -5,5 +5,6 @@ public enum ParticipantStatus {
     APPROVED,
     REJECTED,
     CONFIRMED,
-    DECLINED
+    DECLINED,
+    CANCELLED
 }

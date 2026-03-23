@@ -50,10 +50,18 @@ public class ActivityService {
     private final CategoryRepository categoryRepository;
     private final RegionRepository regionRepository;
 
+    private static final int MAX_LEADER_ACTIVITIES = 10;
+
     @Transactional
     public CreateActivityResult createActivity(Long userId, CreateActivityParam param) {
         User creator = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        // #25: 모임장 동시 운영 최대 10개
+        long leaderCount = activityRepository.findByCreatorIdAndStatus(userId, BaseStatus.ACTIVE).size();
+        if (leaderCount >= MAX_LEADER_ACTIVITIES) {
+            throw new BusinessException(ActivityErrorCode.LEADER_ACTIVITY_LIMIT_EXCEEDED);
+        }
 
         if (param.endAt().isBefore(param.startAt()) || param.endAt().isEqual(param.startAt())) {
             throw new BusinessException(ActivityErrorCode.ACTIVITY_END_BEFORE_START);
@@ -61,6 +69,12 @@ public class ActivityService {
 
         if (param.startAt().isBefore(OffsetDateTime.now())) {
             throw new BusinessException(ActivityErrorCode.ACTIVITY_START_IN_PAST);
+        }
+
+        // #23: capacity 0명이면 PRIVATE 자동 전환
+        OpenType resolvedOpenType = param.openType();
+        if (param.capacity() != null && param.capacity() == 0) {
+            resolvedOpenType = OpenType.PRIVATE;
         }
 
         Club club = null;
@@ -89,14 +103,14 @@ public class ActivityService {
         }
 
         String inviteCode = null;
-        if (param.openType() == OpenType.PRIVATE && param.clubId() == null) {
+        if (resolvedOpenType == OpenType.PRIVATE && param.clubId() == null) {
             inviteCode = UUID.randomUUID().toString();
         }
 
         Activity activity = Activity.builder()
                 .club(club)
                 .creator(creator)
-                .openType(param.openType())
+                .openType(resolvedOpenType)
                 .name(param.name())
                 .description(param.description())
                 .capacity(param.capacity())
@@ -112,6 +126,8 @@ public class ActivityService {
                 .maxAge(param.maxAge())
                 .gender(param.gender())
                 .inviteCode(inviteCode)
+                .emergencyContact(param.emergencyContact())
+                .cancelDeadlineDays(param.cancelDeadlineDays())
                 .build();
 
         activityRepository.save(activity);
@@ -312,6 +328,42 @@ public class ActivityService {
 
         participant.updateParticipantStatus(status);
         log.info("모임 참여 응답: userId={}, activityId={}, status={}", userId, activityId, status);
+    }
+
+    @Transactional
+    public void cancelParticipation(Long userId, Long activityId) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        // #18: 모임 시작 후 취소 불가
+        if (activity.getStartAt().isBefore(OffsetDateTime.now())) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_ALREADY_STARTED);
+        }
+
+        // #18: cancelDeadlineDays 기반 기한 체크
+        OffsetDateTime cancelDeadline = activity.getStartAt()
+                .minusDays(activity.getCancelDeadlineDays());
+        if (OffsetDateTime.now().isAfter(cancelDeadline)) {
+            throw new BusinessException(ActivityErrorCode.CANCEL_DEADLINE_EXCEEDED);
+        }
+
+        ActivityParticipant participant = activityParticipantRepository
+                .findByActivityIdAndParticipantId(activityId, userId)
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.PARTICIPANT_NOT_FOUND));
+
+        if (participant.getParticipantStatus() != ParticipantStatus.CONFIRMED
+                && participant.getParticipantStatus() != ParticipantStatus.APPROVED) {
+            throw new BusinessException(ActivityErrorCode.PARTICIPANT_NOT_CONFIRMED);
+        }
+
+        participant.updateParticipantStatus(ParticipantStatus.CANCELLED);
+        // TODO: 선착순 모임이면 차순위 대기자 자동 승격 + 알림
+        log.info("참여 취소: userId={}, activityId={}", userId, activityId);
     }
 
     @Transactional
