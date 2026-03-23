@@ -59,6 +59,11 @@ public class StarRatingService {
             throw new BusinessException(ActivityErrorCode.INVALID_RATING_SCORE);
         }
 
+        // 0.1단위 검증 (소수점 둘째자리 이하 불가)
+        if (score.stripTrailingZeros().scale() > 1) {
+            throw new BusinessException(ActivityErrorCode.INVALID_RATING_SCORE);
+        }
+
         User rater = userRepository.findById(raterId)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
         User ratee = userRepository.findById(rateeId)
