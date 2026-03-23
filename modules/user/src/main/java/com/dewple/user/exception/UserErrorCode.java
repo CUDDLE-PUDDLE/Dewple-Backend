@@ -48,6 +48,11 @@ public enum UserErrorCode implements ErrorCode {
     KAKAO_ONLY_NO_USER_ID(4405, HttpStatus.BAD_REQUEST, "카카오 로그인 전용 계정입니다. 자체 회원가입을 먼저 진행해주세요."),
     EMAIL_VERIFICATION_REQUIRED(4403, HttpStatus.BAD_REQUEST, "이메일 인증이 필요합니다."),
     INTEREST_LIMIT_EXCEEDED(4404, HttpStatus.BAD_REQUEST, "관심 설정은 최대 20개까지 가능합니다."),
+
+    // 4500: 개인 자료실 관련 오류
+    FILE_NOT_FOUND(4500, HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다."),
+    STORAGE_LIMIT_EXCEEDED(4501, HttpStatus.BAD_REQUEST, "저장 용량을 초과했습니다. 스토리지를 추가 구매해주세요."),
+    FILE_UPLOAD_FAILED(4502, HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드에 실패했습니다."),
     ;
 
     private final int code;
