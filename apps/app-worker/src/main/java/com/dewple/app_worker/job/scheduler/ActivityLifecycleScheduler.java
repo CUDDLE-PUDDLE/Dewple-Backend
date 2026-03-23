@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ActivityCancelScheduler {
+public class ActivityLifecycleScheduler {
 
     private final ActivityService activityService;
 
@@ -24,6 +24,30 @@ public class ActivityCancelScheduler {
         int cancelled = activityService.cancelActivitiesAutomatically();
         if (cancelled > 0) {
             log.info("모임 자동 취소 완료: {}건", cancelled);
+        }
+    }
+
+    /**
+     * 5분마다 실행.
+     * 종료 시점(endAt)이 지난 RECRUITING/IN_PROGRESS 모임을 ENDED로 전환.
+     */
+    @Scheduled(fixedDelay = 300_000)
+    public void endCompletedActivities() {
+        int ended = activityService.endActivitiesAutomatically();
+        if (ended > 0) {
+            log.info("모임 종료 처리 완료: {}건", ended);
+        }
+    }
+
+    /**
+     * 1시간마다 실행.
+     * ENDED 상태에서 7일 경과한 모임을 DELETED로 전환.
+     */
+    @Scheduled(fixedDelay = 3_600_000)
+    public void deleteExpiredActivities() {
+        int deleted = activityService.deleteEndedActivitiesAutomatically();
+        if (deleted > 0) {
+            log.info("종료 모임 삭제 완료: {}건", deleted);
         }
     }
 }

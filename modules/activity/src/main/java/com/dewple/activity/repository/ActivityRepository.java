@@ -19,4 +19,8 @@ public interface ActivityRepository extends JpaRepository<Activity, Long>, Activ
     List<Activity> findByCreatorIdAndStatus(Long creatorId, BaseStatus status);
 
     List<Activity> findByLifecycleStatusAndStartAtBefore(ActivityLifecycleStatus lifecycleStatus, OffsetDateTime startAt);
+
+    List<Activity> findByLifecycleStatusInAndEndAtBefore(List<ActivityLifecycleStatus> statuses, OffsetDateTime endAt);
+
+    List<Activity> findByLifecycleStatusAndEndAtBefore(ActivityLifecycleStatus lifecycleStatus, OffsetDateTime endAt);
 }

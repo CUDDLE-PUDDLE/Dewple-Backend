@@ -416,6 +416,50 @@ public class ActivityService {
         }
     }
 
+    // ========== 모임 종료 ==========
+
+    /**
+     * 종료 시점(endAt)이 지난 RECRUITING/IN_PROGRESS 모임을 ENDED로 전환.
+     * app-worker 스케줄러에서 주기적으로 호출.
+     */
+    @Transactional
+    public int endActivitiesAutomatically() {
+        List<Activity> candidates = activityRepository.findByLifecycleStatusInAndEndAtBefore(
+                List.of(ActivityLifecycleStatus.RECRUITING, ActivityLifecycleStatus.IN_PROGRESS),
+                OffsetDateTime.now());
+
+        for (Activity activity : candidates) {
+            activity.markEnded();
+            // TODO: 별점 평가 요청 알림 발송 (참여 확정자들에게)
+            // TODO: 지원서 보관 결정 안내 알림 발송
+            // TODO: 출석기록 이관 (동아리/연합회 → 출석부, 개인 → 삭제)
+            // TODO: 참여자의 모임 이력에 자동 기록
+            log.info("모임 종료 처리: activityId={}", activity.getId());
+        }
+
+        return candidates.size();
+    }
+
+    /**
+     * ENDED 상태에서 7일 경과한 모임을 DELETED로 전환.
+     * app-worker 스케줄러에서 주기적으로 호출.
+     */
+    @Transactional
+    public int deleteEndedActivitiesAutomatically() {
+        OffsetDateTime sevenDaysAgo = OffsetDateTime.now().minusDays(7);
+        List<Activity> candidates = activityRepository.findByLifecycleStatusAndEndAtBefore(
+                ActivityLifecycleStatus.ENDED, sevenDaysAgo);
+
+        for (Activity activity : candidates) {
+            activity.markDeleted();
+            // TODO: 보관 미결정 지원서 응답 삭제
+            // TODO: 문의/공지 데이터 삭제
+            log.info("종료 모임 삭제: activityId={}", activity.getId());
+        }
+
+        return candidates.size();
+    }
+
     @Transactional
     public void addActivityInterest(Long userId, Long activityId) {
         Activity activity = findActiveActivity(activityId);
