@@ -36,6 +36,7 @@ public class UserService {
     private final WithdrawalActivityPort withdrawalActivityPort;
     private final WithdrawalClubPort withdrawalClubPort;
     private final RandomNicknameGenerator randomNicknameGenerator;
+    private final PersonalFileService personalFileService;
 
     private static final String TEMP_PASSWORD_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
     private static final int TEMP_PASSWORD_LENGTH = 12;
@@ -266,6 +267,9 @@ public class UserService {
         for (User user : expiredUsers) {
             // 모든 동아리에서 탈퇴 처리
             withdrawalClubPort.removeFromAllClubs(user.getId());
+
+            // 개인 자료실 파일 삭제 (S3 + DB)
+            personalFileService.deleteAllByUserId(user.getId());
 
             // TODO: 게시물/댓글 유저명 → '(알 수 없음)' (게시물/댓글 엔티티 미구현)
             // TODO: 지원서 응답 삭제 (지원서 응답 삭제 로직 필요)

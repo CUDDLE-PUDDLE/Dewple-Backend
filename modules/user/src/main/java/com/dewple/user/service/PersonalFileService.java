@@ -91,4 +91,17 @@ public class PersonalFileService {
         long usedBytes = personalFileRepository.sumFileSizeByUserIdAndStatus(userId, BaseStatus.ACTIVE);
         return new StorageUsageResult(usedBytes, FREE_STORAGE_BYTES);
     }
+
+    @Transactional
+    public void deleteAllByUserId(Long userId) {
+        List<PersonalFile> files = personalFileRepository.findByUserIdAndStatusOrderByCreatedAtDesc(
+                userId, BaseStatus.ACTIVE);
+
+        for (PersonalFile file : files) {
+            fileStoragePort.delete(file.getStoredKey());
+        }
+
+        personalFileRepository.deleteAll(files);
+        log.info("개인 자료실 전체 삭제: userId={}, count={}", userId, files.size());
+    }
 }
