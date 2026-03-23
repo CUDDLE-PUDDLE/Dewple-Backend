@@ -26,6 +26,9 @@ public interface ActivityParticipantRepository extends JpaRepository<ActivityPar
 
     long countByActivityIdAndStatusAndRole(Long activityId, BaseStatus status, ParticipantRole role);
 
+    long countByActivityIdAndStatusAndParticipantStatusAndRole(
+            Long activityId, BaseStatus status, ParticipantStatus participantStatus, ParticipantRole role);
+
     Optional<ActivityParticipant> findByActivityIdAndParticipantIdAndStatusAndRole(
             Long activityId, Long participantId, BaseStatus status, ParticipantRole role);
 }

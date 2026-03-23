@@ -42,6 +42,7 @@ public enum ActivityErrorCode implements ErrorCode {
     ALREADY_MANAGER(5029, HttpStatus.CONFLICT, "이미 모임관리자로 등록되어 있습니다."),
     MANAGER_NOT_FOUND(5030, HttpStatus.NOT_FOUND, "해당 모임관리자를 찾을 수 없습니다."),
     CANNOT_REMOVE_LEADER(5031, HttpStatus.BAD_REQUEST, "모임장은 제거할 수 없습니다."),
+    ACTIVITY_ALREADY_CANCELLED(5032, HttpStatus.BAD_REQUEST, "이미 취소된 모임입니다."),
     ;
 
     private final int code;

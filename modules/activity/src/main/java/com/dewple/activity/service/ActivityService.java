@@ -17,6 +17,7 @@ import com.dewple.common.entity.Category;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.Region;
 import com.dewple.common.entity.User;
+import com.dewple.common.enums.ActivityLifecycleStatus;
 import com.dewple.common.enums.ParticipantRole;
 import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.enums.Permission;
@@ -174,12 +175,7 @@ public class ActivityService {
 
     @Transactional
     public void deleteActivity(Long userId, Long activityId) {
-        Activity activity = activityRepository.findById(activityId)
-                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-
-        if (activity.getStatus() == BaseStatus.INACTIVE) {
-            throw new BusinessException(ActivityErrorCode.ACTIVITY_ALREADY_INACTIVE);
-        }
+        Activity activity = findActiveActivity(activityId);
 
         boolean isCreator = activity.getCreator().getId().equals(userId);
 
@@ -198,18 +194,13 @@ public class ActivityService {
             }
         }
 
-        activity.inactivate();
-        log.info("모임 삭제 완료: activityId={}, userId={}", activityId, userId);
+        activity.cancel();
+        log.info("모임 삭제(취소) 완료: activityId={}, userId={}", activityId, userId);
     }
 
     @Transactional(readOnly = true)
     public GetActivityDetailResult getActivityDetail(Long activityId) {
-        Activity activity = activityRepository.findById(activityId)
-                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-
-        if (activity.getStatus() == BaseStatus.INACTIVE) {
-            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
-        }
+        Activity activity = findActiveActivity(activityId);
 
         List<ActivityParticipant> participants = activityParticipantRepository
                 .findByActivityIdAndStatusWithParticipant(activityId, BaseStatus.ACTIVE);
@@ -253,12 +244,7 @@ public class ActivityService {
 
     @Transactional(readOnly = true)
     public Slice<ParticipantResult> getParticipantList(Long userId, Long activityId, Pageable pageable) {
-        Activity activity = activityRepository.findById(activityId)
-                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-
-        if (activity.getStatus() == BaseStatus.INACTIVE) {
-            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
-        }
+        Activity activity = findActiveActivity(activityId);
 
         boolean isCreator = activity.getCreator().getId().equals(userId);
 
@@ -286,12 +272,7 @@ public class ActivityService {
             throw new BusinessException(ActivityErrorCode.INVALID_PARTICIPANT_STATUS);
         }
 
-        Activity activity = activityRepository.findById(activityId)
-                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-
-        if (activity.getStatus() == BaseStatus.INACTIVE) {
-            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
-        }
+        Activity activity = findActiveActivity(activityId);
 
         boolean isCreator = activity.getCreator().getId().equals(userId);
 
@@ -325,12 +306,7 @@ public class ActivityService {
             throw new BusinessException(ActivityErrorCode.INVALID_PARTICIPATION_RESPONSE);
         }
 
-        Activity activity = activityRepository.findById(activityId)
-                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-
-        if (activity.getStatus() == BaseStatus.INACTIVE) {
-            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
-        }
+        Activity activity = findActiveActivity(activityId);
 
         ActivityParticipant participant = activityParticipantRepository.findByActivityIdAndParticipantId(activityId, userId)
                 .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
@@ -346,12 +322,7 @@ public class ActivityService {
 
     @Transactional
     public void cancelParticipation(Long userId, Long activityId) {
-        Activity activity = activityRepository.findById(activityId)
-                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-
-        if (activity.getStatus() == BaseStatus.INACTIVE) {
-            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
-        }
+        Activity activity = findActiveActivity(activityId);
 
         // #18: 모임 시작 후 취소 불가
         if (activity.getStartAt().isBefore(OffsetDateTime.now())) {
@@ -380,14 +351,74 @@ public class ActivityService {
         log.info("참여 취소: userId={}, activityId={}", userId, activityId);
     }
 
+    // ========== 모임 취소 ==========
+
+    @Transactional
+    public void cancelActivityManually(Long userId, Long activityId) {
+        Activity activity = findActiveActivity(activityId);
+        validateLeader(activity, userId);
+
+        cancelActivity(activity);
+        // TODO: 참여 확정자에게 '모임이 취소되었습니다' 알림 발송
+        // TODO: 대기자에게도 '모임이 취소되었습니다' 알림 발송
+        // TODO: 미확정 지원자에게 '모임이 취소되어 지원이 취소되었습니다' 알림 발송
+        log.info("모임 수동 취소: activityId={}, by userId={}", activityId, userId);
+    }
+
+    /**
+     * 모임 시작 시점이 지났는데 일반 참여자(PARTICIPANT)가 한 명도 CONFIRMED가 아닌 모임을 자동 취소.
+     * app-worker 스케줄러에서 주기적으로 호출.
+     */
+    @Transactional
+    public int cancelActivitiesAutomatically() {
+        List<Activity> candidates = activityRepository.findByLifecycleStatusAndStartAtBefore(
+                ActivityLifecycleStatus.RECRUITING, OffsetDateTime.now());
+
+        int cancelledCount = 0;
+        for (Activity activity : candidates) {
+            // capacity 0명 모임은 자동 취소 대상 제외
+            if (activity.getCapacity() != null && activity.getCapacity() == 0) {
+                continue;
+            }
+
+            // PARTICIPANT role 중 CONFIRMED 상태인 사람이 있는지 확인 (LEADER/MANAGER 제외)
+            long confirmedParticipants = activityParticipantRepository
+                    .countByActivityIdAndStatusAndParticipantStatusAndRole(
+                            activity.getId(), BaseStatus.ACTIVE,
+                            ParticipantStatus.CONFIRMED, ParticipantRole.PARTICIPANT);
+
+            if (confirmedParticipants == 0) {
+                cancelActivity(activity);
+                // TODO: 모임장/모임관리자에게 '참여 확정자가 없어 모임이 자동 취소되었습니다' 알림
+                // TODO: 대기자/미확정 지원자에게 '모임이 취소되었습니다' 알림
+                log.info("모임 자동 취소: activityId={}", activity.getId());
+                cancelledCount++;
+            }
+        }
+        return cancelledCount;
+    }
+
+    private void cancelActivity(Activity activity) {
+        activity.cancel();
+
+        // 해당 모임의 모든 활성 참여자를 CANCELLED 처리
+        List<ActivityParticipant> participants = activityParticipantRepository
+                .findByActivityId(activity.getId()).stream()
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .toList();
+
+        for (ActivityParticipant p : participants) {
+            if (p.getParticipantStatus() != ParticipantStatus.CANCELLED
+                    && p.getParticipantStatus() != ParticipantStatus.REJECTED
+                    && p.getParticipantStatus() != ParticipantStatus.DECLINED) {
+                p.updateParticipantStatus(ParticipantStatus.CANCELLED);
+            }
+        }
+    }
+
     @Transactional
     public void addActivityInterest(Long userId, Long activityId) {
-        Activity activity = activityRepository.findById(activityId)
-                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-
-        if (activity.getStatus() == BaseStatus.INACTIVE) {
-            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
-        }
+        Activity activity = findActiveActivity(activityId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
@@ -420,12 +451,7 @@ public class ActivityService {
 
     @Transactional
     public void removeActivityInterest(Long userId, Long activityId) {
-        Activity activity = activityRepository.findById(activityId)
-                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-
-        if (activity.getStatus() == BaseStatus.INACTIVE) {
-            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
-        }
+        Activity activity = findActiveActivity(activityId);
 
         ActivityInterest interest = activityInterestRepository.findByActivityIdAndUserId(activityId, userId)
                 .filter(i -> i.getStatus() == BaseStatus.ACTIVE)
@@ -443,12 +469,7 @@ public class ActivityService {
 
     @Transactional(readOnly = true)
     public String getInviteCode(Long userId, Long activityId) {
-        Activity activity = activityRepository.findById(activityId)
-                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-
-        if (activity.getStatus() == BaseStatus.INACTIVE) {
-            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
-        }
+        Activity activity = findActiveActivity(activityId);
 
         if (activity.getOpenType() != OpenType.PRIVATE) {
             throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_PRIVATE);
@@ -470,9 +491,7 @@ public class ActivityService {
         Activity activity = activityRepository.findByInviteCode(inviteCode)
                 .orElseThrow(() -> new BusinessException(ActivityErrorCode.INVITE_CODE_NOT_FOUND));
 
-        if (activity.getStatus() == BaseStatus.INACTIVE) {
-            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
-        }
+        validateActivityNotCancelledOrDeleted(activity);
 
         if (activity.getCreator().getId().equals(userId)) {
             throw new BusinessException(ActivityErrorCode.CANNOT_JOIN_OWN_ACTIVITY);
@@ -523,9 +542,7 @@ public class ActivityService {
         Activity activity = activityRepository.findByManagerInviteCode(managerInviteCode)
                 .orElseThrow(() -> new BusinessException(ActivityErrorCode.INVITE_CODE_NOT_FOUND));
 
-        if (activity.getStatus() == BaseStatus.INACTIVE) {
-            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
-        }
+        validateActivityNotCancelledOrDeleted(activity);
 
         if (activity.getCreator().getId().equals(userId)) {
             throw new BusinessException(ActivityErrorCode.CANNOT_JOIN_OWN_ACTIVITY);
@@ -600,12 +617,24 @@ public class ActivityService {
         if (activity.getStatus() == BaseStatus.INACTIVE) {
             throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
         }
+        if (activity.getLifecycleStatus() == ActivityLifecycleStatus.CANCELLED
+                || activity.getLifecycleStatus() == ActivityLifecycleStatus.DELETED) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_ALREADY_CANCELLED);
+        }
         return activity;
     }
 
     private void validateLeader(Activity activity, Long userId) {
         if (!activity.getCreator().getId().equals(userId)) {
             throw new BusinessException(ActivityErrorCode.NOT_ACTIVITY_LEADER);
+        }
+    }
+
+    private void validateActivityNotCancelledOrDeleted(Activity activity) {
+        if (activity.getStatus() == BaseStatus.INACTIVE
+                || activity.getLifecycleStatus() == ActivityLifecycleStatus.CANCELLED
+                || activity.getLifecycleStatus() == ActivityLifecycleStatus.DELETED) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
         }
     }
 

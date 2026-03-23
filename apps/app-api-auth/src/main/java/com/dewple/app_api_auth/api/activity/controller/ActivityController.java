@@ -123,6 +123,17 @@ public class ActivityController {
         return ApiResponse.ok();
     }
 
+    @Operation(summary = "모임 수동 취소", description = "모임장만 모임을 취소할 수 있습니다. 모든 참여자에게 취소 알림이 발송됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{activityId}/cancel")
+    public ApiResponse<Void> cancelActivity(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.cancelActivityManually(userId, activityId);
+        return ApiResponse.ok();
+    }
+
     @Operation(summary = "모임 상세 조회", description = "모임의 상세 정보를 조회합니다. 모임 기본 정보와 참가자 목록을 반환합니다.")
     @SecurityRequirement(name = BEARER_AUTH)
     @GetMapping("/{activityId}")

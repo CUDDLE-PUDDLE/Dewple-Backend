@@ -13,6 +13,7 @@ import com.dewple.common.entity.Category;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.Region;
 import com.dewple.common.entity.User;
+import com.dewple.common.enums.ActivityLifecycleStatus;
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.AttendanceCheckMethod;
 import com.dewple.common.enums.Gender;
@@ -131,6 +132,10 @@ public class Activity extends BaseEntity {
     @Column(name = "has_application_form", nullable = false)
     private Boolean hasApplicationForm = false;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "lifecycle_status", nullable = false, length = 20)
+    private ActivityLifecycleStatus lifecycleStatus = ActivityLifecycleStatus.RECRUITING;
+
     @Builder
     public Activity(Club club, Organization organization, User creator, OpenType openType,
                     String name, String description, Integer capacity,
@@ -171,6 +176,25 @@ public class Activity extends BaseEntity {
         this.applicationDeadline = applicationDeadline;
         this.resultDate = resultDate;
         this.hasApplicationForm = hasApplicationForm != null ? hasApplicationForm : false;
+        this.lifecycleStatus = ActivityLifecycleStatus.RECRUITING;
+    }
+
+    public void cancel() {
+        this.lifecycleStatus = ActivityLifecycleStatus.CANCELLED;
+        this.inactivate();
+    }
+
+    public void markEnded() {
+        this.lifecycleStatus = ActivityLifecycleStatus.ENDED;
+    }
+
+    public void markDeleted() {
+        this.lifecycleStatus = ActivityLifecycleStatus.DELETED;
+        this.inactivate();
+    }
+
+    public void startProgress() {
+        this.lifecycleStatus = ActivityLifecycleStatus.IN_PROGRESS;
     }
 
     public void increaseLikeCount() {
