@@ -33,11 +33,24 @@ public class WithdrawalActivityAdapter implements WithdrawalActivityPort {
             participant.updateParticipantStatus(ParticipantStatus.DECLINED);
             participant.inactivate();
 
-            // TODO: 선착순 모임(hasApplicationForm=false)이면 대기자 자동 승격
-            //       현재 대기열(waitlist) 기능이 미구현 상태이므로 추후 구현 필요
+            // 선착순 모임이면 대기자 자동 승격
+            Activity activity = participant.getActivity();
+            if (!activity.getHasApplicationForm()) {
+                activityParticipantRepository
+                        .findFirstByActivityIdAndStatusAndParticipantStatusAndRoleOrderByWaitlistOrderAsc(
+                                activity.getId(), BaseStatus.ACTIVE,
+                                ParticipantStatus.PENDING, ParticipantRole.PARTICIPANT)
+                        .ifPresent(next -> {
+                            next.updateParticipantStatus(ParticipantStatus.CONFIRMED);
+                            next.clearWaitlistOrder();
+                            // TODO: 승격된 대기자에게 알림 (푸시+알림톡)
+                            log.info("탈퇴로 인한 대기자 자동 승격: userId={}, activityId={}",
+                                    next.getParticipant().getId(), activity.getId());
+                        });
+            }
 
             log.info("탈퇴로 인한 참여 취소: userId={}, activityId={}",
-                    userId, participant.getActivity().getId());
+                    userId, activity.getId());
         }
     }
 
