@@ -6,5 +6,6 @@ public enum ParticipantStatus {
     REJECTED,
     CONFIRMED,
     DECLINED,
-    CANCELLED
+    CANCELLED,
+    NO_SHOW
 }

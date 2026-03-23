@@ -50,6 +50,11 @@ public enum ActivityErrorCode implements ErrorCode {
     NOT_FIRST_COME_ACTIVITY(5037, HttpStatus.BAD_REQUEST, "선착순 모임이 아닙니다."),
     NOT_IN_WAITLIST(5038, HttpStatus.BAD_REQUEST, "대기열에 등록되어 있지 않습니다."),
     VERIFICATION_REQUIRED_FOR_SELECT(5039, HttpStatus.BAD_REQUEST, "본인인증 필수 모임에서만 대기자 선택 참여가 가능합니다."),
+    CANNOT_RATE_SELF(5040, HttpStatus.BAD_REQUEST, "자기 자신에게는 별점을 줄 수 없습니다."),
+    ALREADY_RATED(5041, HttpStatus.CONFLICT, "이미 별점을 부여한 참여자입니다."),
+    INVALID_RATING_SCORE(5042, HttpStatus.BAD_REQUEST, "별점은 0~5 범위여야 합니다."),
+    RATING_NOT_AVAILABLE(5043, HttpStatus.BAD_REQUEST, "별점 평가가 가능한 상태가 아닙니다."),
+    RATING_PERIOD_EXPIRED(5044, HttpStatus.BAD_REQUEST, "별점 평가 기간(7일)이 만료되었습니다."),
     ;
 
     private final int code;

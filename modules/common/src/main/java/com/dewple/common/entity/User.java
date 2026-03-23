@@ -142,6 +142,10 @@ public class User extends BaseEntity {
         this.lastLoginAt = OffsetDateTime.now();
     }
 
+    public void updateReputationScore(BigDecimal score) {
+        this.reputationScore = score;
+    }
+
     public void markAsDeleted() {
         this.deletedAt = OffsetDateTime.now();
         this.inactivate();
