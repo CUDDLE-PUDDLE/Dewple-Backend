@@ -37,6 +37,11 @@ public enum ActivityErrorCode implements ErrorCode {
     CANCEL_DEADLINE_EXCEEDED(5024, HttpStatus.BAD_REQUEST, "참여 취소 가능 기한이 지났습니다."),
     ACTIVITY_ALREADY_STARTED(5025, HttpStatus.BAD_REQUEST, "이미 시작된 모임은 참여를 취소할 수 없습니다."),
     PARTICIPANT_NOT_CONFIRMED(5026, HttpStatus.BAD_REQUEST, "참여 확정 상태가 아닙니다."),
+    MANAGER_LIMIT_EXCEEDED(5027, HttpStatus.BAD_REQUEST, "모임관리자는 최대 50명까지 초대 가능합니다."),
+    NOT_ACTIVITY_LEADER(5028, HttpStatus.FORBIDDEN, "모임장만 수행할 수 있습니다."),
+    ALREADY_MANAGER(5029, HttpStatus.CONFLICT, "이미 모임관리자로 등록되어 있습니다."),
+    MANAGER_NOT_FOUND(5030, HttpStatus.NOT_FOUND, "해당 모임관리자를 찾을 수 없습니다."),
+    CANNOT_REMOVE_LEADER(5031, HttpStatus.BAD_REQUEST, "모임장은 제거할 수 없습니다."),
     ;
 
     private final int code;

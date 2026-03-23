@@ -12,5 +12,7 @@ public interface ActivityRepository extends JpaRepository<Activity, Long>, Activ
 
     Optional<Activity> findByInviteCode(String inviteCode);
 
+    Optional<Activity> findByManagerInviteCode(String managerInviteCode);
+
     List<Activity> findByCreatorIdAndStatus(Long creatorId, BaseStatus status);
 }

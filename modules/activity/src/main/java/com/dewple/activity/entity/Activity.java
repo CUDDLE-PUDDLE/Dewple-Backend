@@ -110,6 +110,9 @@ public class Activity extends BaseEntity {
     @Column(name = "invite_code", length = 36, unique = true)
     private String inviteCode;
 
+    @Column(name = "manager_invite_code", length = 36, unique = true)
+    private String managerInviteCode;
+
     @Column(name = "emergency_contact", length = 100)
     private String emergencyContact;
 
@@ -137,7 +140,8 @@ public class Activity extends BaseEntity {
                     Category category, Region region, ActivityType activityType,
                     Boolean isVerificationRequired, Integer minAge, Integer maxAge,
                     Gender gender, String thumbnailUrl, String inviteCode,
-                    String emergencyContact, Integer cancelDeadlineDays,
+                    String managerInviteCode, String emergencyContact,
+                    Integer cancelDeadlineDays,
                     OffsetDateTime applicationDeadline, OffsetDateTime resultDate,
                     Boolean hasApplicationForm) {
         this.club = club;
@@ -161,6 +165,7 @@ public class Activity extends BaseEntity {
         this.gender = gender != null ? gender : Gender.ANY;
         this.thumbnailUrl = thumbnailUrl;
         this.inviteCode = inviteCode;
+        this.managerInviteCode = managerInviteCode;
         this.emergencyContact = emergencyContact;
         this.cancelDeadlineDays = cancelDeadlineDays != null ? cancelDeadlineDays : 1;
         this.applicationDeadline = applicationDeadline;

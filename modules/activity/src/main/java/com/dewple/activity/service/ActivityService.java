@@ -17,6 +17,7 @@ import com.dewple.common.entity.Category;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.Region;
 import com.dewple.common.entity.User;
+import com.dewple.common.enums.ParticipantRole;
 import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
@@ -107,6 +108,8 @@ public class ActivityService {
             inviteCode = UUID.randomUUID().toString();
         }
 
+        String managerInviteCode = UUID.randomUUID().toString();
+
         Activity activity = Activity.builder()
                 .club(club)
                 .creator(creator)
@@ -126,11 +129,22 @@ public class ActivityService {
                 .maxAge(param.maxAge())
                 .gender(param.gender())
                 .inviteCode(inviteCode)
+                .managerInviteCode(managerInviteCode)
                 .emergencyContact(param.emergencyContact())
                 .cancelDeadlineDays(param.cancelDeadlineDays())
                 .build();
 
         activityRepository.save(activity);
+
+        // 모임장을 LEADER로 참여자 등록 (capacity에 미포함, 별도 카운트)
+        ActivityParticipant leaderParticipant = ActivityParticipant.builder()
+                .activity(activity)
+                .participant(creator)
+                .participantStatus(ParticipantStatus.CONFIRMED)
+                .role(ParticipantRole.LEADER)
+                .build();
+        activityParticipantRepository.save(leaderParticipant);
+
         log.info("모임 생성 완료: activityId={}, creatorId={}", activity.getId(), userId);
 
         return new CreateActivityResult(
@@ -491,5 +505,117 @@ public class ActivityService {
 
         activityParticipantRepository.save(participant);
         log.info("초대 코드로 모임 참여: userId={}, activityId={}", userId, activity.getId());
+    }
+
+    // ========== 모임관리자 ==========
+
+    private static final int MAX_MANAGERS = 50;
+
+    @Transactional(readOnly = true)
+    public String getManagerInviteCode(Long userId, Long activityId) {
+        Activity activity = findActiveActivity(activityId);
+        validateLeader(activity, userId);
+        return activity.getManagerInviteCode();
+    }
+
+    @Transactional
+    public void joinAsManager(Long userId, String managerInviteCode) {
+        Activity activity = activityRepository.findByManagerInviteCode(managerInviteCode)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.INVITE_CODE_NOT_FOUND));
+
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+
+        if (activity.getCreator().getId().equals(userId)) {
+            throw new BusinessException(ActivityErrorCode.CANNOT_JOIN_OWN_ACTIVITY);
+        }
+
+        // 이미 참여자인지 확인
+        activityParticipantRepository.findByActivityIdAndParticipantId(activity.getId(), userId)
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .ifPresent(p -> {
+                    if (p.getRole() == ParticipantRole.MANAGER) {
+                        throw new BusinessException(ActivityErrorCode.ALREADY_MANAGER);
+                    }
+                    throw new BusinessException(ActivityErrorCode.ALREADY_PARTICIPANT);
+                });
+
+        // 매니저 50명 제한
+        long managerCount = activityParticipantRepository.countByActivityIdAndStatusAndRole(
+                activity.getId(), BaseStatus.ACTIVE, ParticipantRole.MANAGER);
+        if (managerCount >= MAX_MANAGERS) {
+            throw new BusinessException(ActivityErrorCode.MANAGER_LIMIT_EXCEEDED);
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        // 모임관리자는 자동 참여 확정 + MANAGER role (capacity에 미포함)
+        ActivityParticipant manager = ActivityParticipant.builder()
+                .activity(activity)
+                .participant(user)
+                .participantStatus(ParticipantStatus.CONFIRMED)
+                .role(ParticipantRole.MANAGER)
+                .build();
+        activityParticipantRepository.save(manager);
+
+        log.info("모임관리자 등록: userId={}, activityId={}", userId, activity.getId());
+    }
+
+    @Transactional
+    public void removeManager(Long userId, Long activityId, Long managerId) {
+        Activity activity = findActiveActivity(activityId);
+        validateLeader(activity, userId);
+
+        ActivityParticipant manager = activityParticipantRepository
+                .findByActivityIdAndParticipantIdAndStatusAndRole(
+                        activityId, managerId, BaseStatus.ACTIVE, ParticipantRole.MANAGER)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.MANAGER_NOT_FOUND));
+
+        // 자격 해제 시 참여 확정도 함께 취소
+        manager.inactivate();
+        log.info("모임관리자 제거: managerId={}, activityId={}", managerId, activityId);
+    }
+
+    @Transactional
+    public void leaveAsManager(Long userId, Long activityId) {
+        Activity activity = findActiveActivity(activityId);
+
+        ActivityParticipant manager = activityParticipantRepository
+                .findByActivityIdAndParticipantIdAndStatusAndRole(
+                        activityId, userId, BaseStatus.ACTIVE, ParticipantRole.MANAGER)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.MANAGER_NOT_FOUND));
+
+        // 자격 해제 시 참여 확정도 함께 취소
+        manager.inactivate();
+        log.info("모임관리자 자발적 탈퇴: userId={}, activityId={}", userId, activityId);
+    }
+
+    // ========== 헬퍼 ==========
+
+    private Activity findActiveActivity(Long activityId) {
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+        if (activity.getStatus() == BaseStatus.INACTIVE) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
+        }
+        return activity;
+    }
+
+    private void validateLeader(Activity activity, Long userId) {
+        if (!activity.getCreator().getId().equals(userId)) {
+            throw new BusinessException(ActivityErrorCode.NOT_ACTIVITY_LEADER);
+        }
+    }
+
+    /**
+     * 모임장 또는 모임관리자인지 확인
+     */
+    private boolean isLeaderOrManager(Long activityId, Long userId) {
+        return activityParticipantRepository.findByActivityIdAndParticipantId(activityId, userId)
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .map(p -> p.getRole() == ParticipantRole.LEADER || p.getRole() == ParticipantRole.MANAGER)
+                .orElse(false);
     }
 }

@@ -255,4 +255,51 @@ public class ActivityController {
         activityService.joinByInviteCode(userId, request.inviteCode());
         return ApiResponse.ok();
     }
+
+    // ========== 모임관리자 API ==========
+
+    @Operation(summary = "모임관리자 초대 코드 조회", description = "모임장만 조회 가능합니다. 이 코드를 공유하여 모임관리자를 초대합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/{activityId}/manager-invite-code")
+    public ApiResponse<GetInviteCodeResponse> getManagerInviteCode(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        String code = activityService.getManagerInviteCode(userId, activityId);
+        return ApiResponse.ok(new GetInviteCodeResponse(code));
+    }
+
+    @Operation(summary = "모임관리자로 참여", description = "모임관리자 초대 코드를 사용하여 모임관리자로 등록됩니다. 자동 참여 확정되며 최대 모집 인원에 포함되지 않습니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/join-as-manager")
+    public ApiResponse<Void> joinAsManager(
+            @CurrentUserId Long userId,
+            @Valid @RequestBody JoinByInviteCodeRequest request
+    ) {
+        activityService.joinAsManager(userId, request.inviteCode());
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "모임관리자 제거", description = "모임장이 특정 모임관리자를 제거합니다. 참여 확정도 함께 취소됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{activityId}/managers/{managerId}")
+    public ApiResponse<Void> removeManager(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId,
+            @PathVariable Long managerId
+    ) {
+        activityService.removeManager(userId, activityId, managerId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "모임관리자 자발적 탈퇴", description = "본인의 모임관리자 자격을 해제합니다. 참여 확정도 함께 취소됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{activityId}/managers/me")
+    public ApiResponse<Void> leaveAsManager(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.leaveAsManager(userId, activityId);
+        return ApiResponse.ok();
+    }
 }
