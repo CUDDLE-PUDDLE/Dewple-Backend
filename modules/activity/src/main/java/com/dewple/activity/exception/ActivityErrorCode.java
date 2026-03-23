@@ -43,6 +43,9 @@ public enum ActivityErrorCode implements ErrorCode {
     MANAGER_NOT_FOUND(5030, HttpStatus.NOT_FOUND, "해당 모임관리자를 찾을 수 없습니다."),
     CANNOT_REMOVE_LEADER(5031, HttpStatus.BAD_REQUEST, "모임장은 제거할 수 없습니다."),
     ACTIVITY_ALREADY_CANCELLED(5032, HttpStatus.BAD_REQUEST, "이미 취소된 모임입니다."),
+    INQUIRY_NOT_FOUND(5033, HttpStatus.NOT_FOUND, "문의를 찾을 수 없습니다."),
+    INQUIRY_ALREADY_ANSWERED(5034, HttpStatus.BAD_REQUEST, "답변이 달린 문의는 수정/삭제할 수 없습니다."),
+    INQUIRY_NOT_ANSWERED(5035, HttpStatus.BAD_REQUEST, "아직 답변이 없는 문의입니다."),
     ;
 
     private final int code;
