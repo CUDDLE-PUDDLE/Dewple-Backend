@@ -1,5 +1,6 @@
 package com.dewple.app_worker.job.scheduler;
 
+import com.dewple.activity.service.ActivityReportService;
 import com.dewple.activity.service.ActivityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 public class ActivityLifecycleScheduler {
 
     private final ActivityService activityService;
+    private final ActivityReportService activityReportService;
 
     /**
      * 5분마다 실행.
@@ -48,6 +50,18 @@ public class ActivityLifecycleScheduler {
         int deleted = activityService.deleteEndedActivitiesAutomatically();
         if (deleted > 0) {
             log.info("종료 모임 삭제 완료: {}건", deleted);
+        }
+    }
+
+    /**
+     * 매일 1회 실행.
+     * 신고 처리 완료 후 6개월 경과한 스냅샷 자동 삭제.
+     */
+    @Scheduled(fixedDelay = 86_400_000)
+    public void deleteExpiredReportSnapshots() {
+        int deleted = activityReportService.deleteExpiredSnapshots();
+        if (deleted > 0) {
+            log.info("만료 신고 스냅샷 삭제 완료: {}건", deleted);
         }
     }
 }
