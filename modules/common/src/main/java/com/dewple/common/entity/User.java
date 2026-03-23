@@ -134,6 +134,47 @@ public class User extends BaseEntity {
         this.phone = phone;
     }
 
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
+
+    public void updateLastLoginAt() {
+        this.lastLoginAt = OffsetDateTime.now();
+    }
+
+    public void updateReputationScore(BigDecimal score) {
+        this.reputationScore = score;
+    }
+
+    public void markAsDeleted() {
+        this.deletedAt = OffsetDateTime.now();
+        this.inactivate();
+    }
+
+    public void cancelDeletion() {
+        this.deletedAt = null;
+        this.activate();
+    }
+
+    public boolean isInDeletionPeriod() {
+        return this.deletedAt != null
+                && OffsetDateTime.now().isBefore(this.deletedAt.plusDays(7));
+    }
+
+    public void changeUserId(String newUserId) {
+        this.userId = newUserId;
+        this.userIdChangedAt = OffsetDateTime.now();
+    }
+
+    public boolean canChangeUserId() {
+        if (this.userIdChangedAt == null) return true;
+        return OffsetDateTime.now().isAfter(this.userIdChangedAt.plusDays(7));
+    }
+
+    public void markEmailVerified() {
+        this.isEmailVerified = true;
+    }
+
     public void editProfile(String nickname, String email, LocalDate birthdate,
                             Gender gender, University university, Boolean isGraduated,
                             String workplace, String profileImg, String selfIntroduction,

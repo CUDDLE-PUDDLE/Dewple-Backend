@@ -35,6 +35,7 @@ public class SecurityConfig {
                     "/auth/signup",
                     "/auth/login",
                     "/auth/token/refresh",
+                    "/auth/password/reset",
                     // User APIs (인증 불필요)
                     "/users/check-userid",
                     // Recruitment APIs (인증 불필요)

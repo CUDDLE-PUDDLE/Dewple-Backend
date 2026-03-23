@@ -30,8 +30,7 @@ public record CreateActivityRequest(
         @NotBlank(message = "모임 설명은 필수입니다.")
         String description,
 
-        @Schema(description = "최대 모집 인원 (null이면 제한 없음)", example = "20")
-        @Positive(message = "최대 모집 인원은 1 이상이어야 합니다.")
+        @Schema(description = "최대 모집 인원 (null이면 제한 없음, 0이면 참여 모집 안 함)", example = "20")
         Integer capacity,
 
         @Schema(description = "출석 체크 여부", example = "false")
@@ -48,10 +47,19 @@ public record CreateActivityRequest(
         @NotNull(message = "종료 시간은 필수입니다.")
         OffsetDateTime endAt,
 
+        @Schema(description = "비상연락처 (이메일 또는 전화번호)", example = "010-1234-5678")
+        @NotBlank(message = "비상연락처는 필수입니다.")
+        String emergencyContact,
+
+        @Schema(description = "참여 취소 가능 기한 (모임 시작 n일 전, 0~30, 기본 1)", example = "1")
+        Integer cancelDeadlineDays,
+
         @Schema(description = "카테고리 ID", example = "1")
+        @NotNull(message = "카테고리는 필수입니다.")
         Long categoryId,
 
         @Schema(description = "지역 ID", example = "1")
+        @NotNull(message = "지역은 필수입니다.")
         Long regionId,
 
         @Schema(description = "활동 방식 (ONLINE, OFFLINE, BOTH)", example = "BOTH")

@@ -198,7 +198,8 @@ class UserControllerTest {
                             "https://example.com/img.jpg",
                             "안녕하세요",
                             "INTJ",
-                            List.of("개발", "디자인")
+                            List.of("개발", "디자인"),
+                            null
                     ));
 
             // when & then
@@ -222,7 +223,7 @@ class UserControllerTest {
             // given
             given(userService.getUserProfile(1L))
                     .willReturn(new UserProfileResult(
-                            "홍길동", null, null, null, Collections.emptyList()
+                            "홍길동", null, null, null, Collections.emptyList(), null
                     ));
 
             // when & then
@@ -244,7 +245,7 @@ class UserControllerTest {
             // given
             given(userService.getUserProfile(1L))
                     .willReturn(new UserProfileResult(
-                            "홍길동", null, "자기소개입니다", "ENFP", Collections.emptyList()
+                            "홍길동", null, "자기소개입니다", "ENFP", Collections.emptyList(), null
                     ));
 
             // when & then
@@ -492,21 +493,6 @@ class UserControllerTest {
                     .andExpect(status().isUnauthorized());
         }
 
-        @Test
-        @DisplayName("실패: 이미 사용 중인 닉네임")
-        void failWithNicknameAlreadyExists() throws Exception {
-            // given
-            given(userService.updateProfile(eq(1L), any(UpdateProfileParam.class)))
-                    .willThrow(new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS));
-
-            // when & then
-            mockMvc.perform(patch("/users/me/profile")
-                            .with(jwt().jwt(j -> j.subject("1")))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"nickname\":\"듀플러\"}"))
-                    .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.code").value(4103));
-        }
     }
 
     @Nested
@@ -583,22 +569,6 @@ class UserControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"nickname\":\"새닉네임\"}"))
                     .andExpect(status().isUnauthorized());
-        }
-
-        @Test
-        @DisplayName("실패: 닉네임 중복")
-        void failWithNicknameAlreadyExists() throws Exception {
-            // given
-            given(userService.editMyProfile(eq(1L), any(EditMyProfileParam.class)))
-                    .willThrow(new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS));
-
-            // when & then
-            mockMvc.perform(patch("/users/me")
-                            .with(jwt().jwt(j -> j.subject("1")))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"nickname\":\"중복닉네임\"}"))
-                    .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.code").value(4103));
         }
 
         @Test

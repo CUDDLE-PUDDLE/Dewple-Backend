@@ -117,7 +117,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "봄맞이 독서 모임", "함께 책을 읽어요",
                     20, false, true, START_AT, END_AT,
-                    1L, 1L, ActivityType.OFFLINE, true, 20, 30, Gender.ANY
+                    "010-1234-5678", 1, 1L, 1L, ActivityType.OFFLINE, true, 20, 30, Gender.ANY
             );
 
             // when
@@ -181,7 +181,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     CLUB_ID, OpenType.PRIVATE, "동아리 정기 모임", "이번 주 정기 모임입니다",
                     null, true, false, START_AT, END_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when
@@ -219,7 +219,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "오픈 모임", "누구나 환영",
                     null, null, null, START_AT, END_AT,
-                    null, null, null, null, null, null, null
+                    null, null, null, null, null, null, null, null, null
             );
 
             // when
@@ -243,7 +243,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, START_AT, END_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -265,7 +265,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, END_AT, START_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -288,7 +288,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, sameTime, sameTime,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -312,7 +312,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, pastStart, futureEnd,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -335,7 +335,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     999L, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, START_AT, END_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -364,7 +364,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     CLUB_ID, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, START_AT, END_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -399,7 +399,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     CLUB_ID, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, START_AT, END_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -440,7 +440,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     CLUB_ID, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, START_AT, END_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -572,7 +572,7 @@ class ActivityServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_ALREADY_INACTIVE);
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_NOT_FOUND);
                     });
         }
 

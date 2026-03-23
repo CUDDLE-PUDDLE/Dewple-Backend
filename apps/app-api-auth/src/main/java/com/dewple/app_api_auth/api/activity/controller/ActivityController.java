@@ -17,6 +17,7 @@ import com.dewple.app_api_auth.global.security.CurrentUserId;
 import com.dewple.activity.service.ActivityListSection;
 import com.dewple.activity.service.ActivityService;
 import com.dewple.activity.service.ActivitySummaryResult;
+import com.dewple.activity.service.ActivityHistoryResult;
 import com.dewple.activity.service.CreateActivityParam;
 import com.dewple.activity.service.CreateActivityResult;
 import com.dewple.activity.service.GetActivityDetailResult;
@@ -74,6 +75,8 @@ public class ActivityController {
                 request.isSearchable(),
                 request.startAt(),
                 request.endAt(),
+                request.emergencyContact(),
+                request.cancelDeadlineDays(),
                 request.categoryId(),
                 request.regionId(),
                 request.activityType(),
@@ -118,6 +121,17 @@ public class ActivityController {
             @PathVariable Long activityId
     ) {
         activityService.deleteActivity(userId, activityId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "모임 수동 취소", description = "모임장만 모임을 취소할 수 있습니다. 모든 참여자에게 취소 알림이 발송됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{activityId}/cancel")
+    public ApiResponse<Void> cancelActivity(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.cancelActivityManually(userId, activityId);
         return ApiResponse.ok();
     }
 
@@ -187,6 +201,51 @@ public class ActivityController {
         return ApiResponse.ok();
     }
 
+    @Operation(summary = "선착순 참여 신청", description = "선착순 모임에 참여 신청합니다. 정원 이내면 즉시 확정, 초과 시 대기열에 등록됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{activityId}/apply")
+    public ApiResponse<Void> applyFirstCome(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.applyFirstCome(userId, activityId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "대기열 취소", description = "선착순 모임의 대기열 등록을 취소합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{activityId}/waitlist")
+    public ApiResponse<Void> cancelWaitlist(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.cancelWaitlist(userId, activityId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "대기자 선택 참여", description = "본인인증 필수 모임에서 모임장/관리자가 대기자를 선택하여 참여 확정시킵니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{activityId}/waitlist/{participantId}/select")
+    public ApiResponse<Void> selectFromWaitlist(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId,
+            @PathVariable Long participantId
+    ) {
+        activityService.selectFromWaitlist(userId, activityId, participantId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "참여 취소", description = "참여 확정된 모임의 참여를 취소합니다. 모임 시작 전 + 취소 기한 내에만 가능합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{activityId}/participation")
+    public ApiResponse<Void> cancelParticipation(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.cancelParticipation(userId, activityId);
+        return ApiResponse.ok();
+    }
+
     @Operation(summary = "관심 모임 추가", description = "모임을 관심 모임으로 등록합니다.")
     @SecurityRequirement(name = BEARER_AUTH)
     @PostMapping("/{activityId}/interest")
@@ -221,6 +280,17 @@ public class ActivityController {
         return ApiResponse.ok(SliceResponse.from(responseSlice));
     }
 
+    @Operation(summary = "모임 이력 조회", description = "본인이 참여했던 모임 목록을 조회합니다. 취소/강제퇴장 모임은 제외됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/history")
+    public ApiResponse<SliceResponse<ActivityHistoryResult>> getActivityHistory(
+            @CurrentUserId Long userId,
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        Slice<ActivityHistoryResult> results = activityService.getActivityHistory(userId, pageable);
+        return ApiResponse.ok(SliceResponse.from(results));
+    }
+
     @Operation(summary = "초대 코드 조회", description = "비공개 개인 모임의 초대 코드를 조회합니다. 모임 생성자만 조회할 수 있습니다.")
     @SecurityRequirement(name = BEARER_AUTH)
     @GetMapping("/{activityId}/invite-code")
@@ -240,6 +310,53 @@ public class ActivityController {
             @Valid @RequestBody JoinByInviteCodeRequest request
     ) {
         activityService.joinByInviteCode(userId, request.inviteCode());
+        return ApiResponse.ok();
+    }
+
+    // ========== 모임관리자 API ==========
+
+    @Operation(summary = "모임관리자 초대 코드 조회", description = "모임장만 조회 가능합니다. 이 코드를 공유하여 모임관리자를 초대합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/{activityId}/manager-invite-code")
+    public ApiResponse<GetInviteCodeResponse> getManagerInviteCode(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        String code = activityService.getManagerInviteCode(userId, activityId);
+        return ApiResponse.ok(new GetInviteCodeResponse(code));
+    }
+
+    @Operation(summary = "모임관리자로 참여", description = "모임관리자 초대 코드를 사용하여 모임관리자로 등록됩니다. 자동 참여 확정되며 최대 모집 인원에 포함되지 않습니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/join-as-manager")
+    public ApiResponse<Void> joinAsManager(
+            @CurrentUserId Long userId,
+            @Valid @RequestBody JoinByInviteCodeRequest request
+    ) {
+        activityService.joinAsManager(userId, request.inviteCode());
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "모임관리자 제거", description = "모임장이 특정 모임관리자를 제거합니다. 참여 확정도 함께 취소됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{activityId}/managers/{managerId}")
+    public ApiResponse<Void> removeManager(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId,
+            @PathVariable Long managerId
+    ) {
+        activityService.removeManager(userId, activityId, managerId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "모임관리자 자발적 탈퇴", description = "본인의 모임관리자 자격을 해제합니다. 참여 확정도 함께 취소됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{activityId}/managers/me")
+    public ApiResponse<Void> leaveAsManager(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.leaveAsManager(userId, activityId);
         return ApiResponse.ok();
     }
 }
