@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Slf4j
@@ -250,6 +251,32 @@ public class UserService {
         user.cancelDeletion();
 
         log.info("회원 탈퇴 취소: userId={}", user.getUserId());
+    }
+
+    /**
+     * deletedAt으로부터 7일 경과한 유저를 하드삭제.
+     * app-worker 스케줄러에서 주기적으로 호출.
+     */
+    @Transactional
+    public int hardDeleteExpiredUsers() {
+        OffsetDateTime sevenDaysAgo = OffsetDateTime.now().minusDays(7);
+        List<User> expiredUsers = userRepository.findByDeletedAtNotNullAndDeletedAtBefore(sevenDaysAgo);
+
+        int count = 0;
+        for (User user : expiredUsers) {
+            // 모든 동아리에서 탈퇴 처리
+            withdrawalClubPort.removeFromAllClubs(user.getId());
+
+            // TODO: 게시물/댓글 유저명 → '(알 수 없음)' (게시물/댓글 엔티티 미구현)
+            // TODO: 지원서 응답 삭제 (지원서 응답 삭제 로직 필요)
+            // 별점(StarRating)은 받은 유저 종속 데이터이므로 삭제하지 않음 (3-7d)
+
+            userRepository.delete(user);
+            log.info("회원 하드삭제 완료: userId={}", user.getUserId());
+            count++;
+        }
+
+        return count;
     }
 
     @Transactional

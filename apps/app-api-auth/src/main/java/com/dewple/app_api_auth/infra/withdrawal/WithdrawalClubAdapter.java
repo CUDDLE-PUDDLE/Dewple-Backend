@@ -64,4 +64,17 @@ public class WithdrawalClubAdapter implements WithdrawalClubPort {
                     clubId, successor.getUser().getId());
         }
     }
+
+    @Override
+    public void removeFromAllClubs(Long userId) {
+        List<ClubMember> memberships = clubMemberRepository.findByUserIdAndStatusAndActivityStatus(
+                userId, BaseStatus.ACTIVE, ActivityStatus.ACTIVE);
+
+        for (ClubMember membership : memberships) {
+            membership.updateActivityStatus(ActivityStatus.LEFT);
+            membership.inactivate();
+            log.info("하드삭제로 인한 동아리 탈퇴: userId={}, clubId={}",
+                    userId, membership.getClub().getId());
+        }
+    }
 }

@@ -63,4 +63,8 @@ public class ClubMember extends BaseEntity {
     public void changeRole(ClubRole role) {
         this.role = role;
     }
+
+    public void updateActivityStatus(ActivityStatus activityStatus) {
+        this.activityStatus = activityStatus;
+    }
 }
