@@ -47,6 +47,9 @@ public enum ActivityErrorCode implements ErrorCode {
     INQUIRY_ALREADY_ANSWERED(5034, HttpStatus.BAD_REQUEST, "답변이 달린 문의는 수정/삭제할 수 없습니다."),
     INQUIRY_NOT_ANSWERED(5035, HttpStatus.BAD_REQUEST, "아직 답변이 없는 문의입니다."),
     REPORT_COOLDOWN(5036, HttpStatus.TOO_MANY_REQUESTS, "동일 대상에 대한 신고는 7일 후 가능합니다."),
+    NOT_FIRST_COME_ACTIVITY(5037, HttpStatus.BAD_REQUEST, "선착순 모임이 아닙니다."),
+    NOT_IN_WAITLIST(5038, HttpStatus.BAD_REQUEST, "대기열에 등록되어 있지 않습니다."),
+    VERIFICATION_REQUIRED_FOR_SELECT(5039, HttpStatus.BAD_REQUEST, "본인인증 필수 모임에서만 대기자 선택 참여가 가능합니다."),
     ;
 
     private final int code;

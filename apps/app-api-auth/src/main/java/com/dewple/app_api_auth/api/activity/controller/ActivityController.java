@@ -200,6 +200,40 @@ public class ActivityController {
         return ApiResponse.ok();
     }
 
+    @Operation(summary = "선착순 참여 신청", description = "선착순 모임에 참여 신청합니다. 정원 이내면 즉시 확정, 초과 시 대기열에 등록됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{activityId}/apply")
+    public ApiResponse<Void> applyFirstCome(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.applyFirstCome(userId, activityId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "대기열 취소", description = "선착순 모임의 대기열 등록을 취소합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{activityId}/waitlist")
+    public ApiResponse<Void> cancelWaitlist(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId
+    ) {
+        activityService.cancelWaitlist(userId, activityId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "대기자 선택 참여", description = "본인인증 필수 모임에서 모임장/관리자가 대기자를 선택하여 참여 확정시킵니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{activityId}/waitlist/{participantId}/select")
+    public ApiResponse<Void> selectFromWaitlist(
+            @CurrentUserId Long userId,
+            @PathVariable Long activityId,
+            @PathVariable Long participantId
+    ) {
+        activityService.selectFromWaitlist(userId, activityId, participantId);
+        return ApiResponse.ok();
+    }
+
     @Operation(summary = "참여 취소", description = "참여 확정된 모임의 참여를 취소합니다. 모임 시작 전 + 취소 기한 내에만 가능합니다.")
     @SecurityRequirement(name = BEARER_AUTH)
     @DeleteMapping("/{activityId}/participation")

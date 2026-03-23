@@ -63,4 +63,8 @@ public class ActivityParticipant extends BaseEntity {
     public void updateRole(ParticipantRole role) {
         this.role = role;
     }
+
+    public void clearWaitlistOrder() {
+        this.waitlistOrder = null;
+    }
 }

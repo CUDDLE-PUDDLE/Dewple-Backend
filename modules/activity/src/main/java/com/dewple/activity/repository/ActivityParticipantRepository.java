@@ -31,4 +31,16 @@ public interface ActivityParticipantRepository extends JpaRepository<ActivityPar
 
     Optional<ActivityParticipant> findByActivityIdAndParticipantIdAndStatusAndRole(
             Long activityId, Long participantId, BaseStatus status, ParticipantRole role);
+
+    long countByActivityIdAndStatusAndParticipantStatusInAndRole(
+            Long activityId, BaseStatus status, List<ParticipantStatus> statuses, ParticipantRole role);
+
+    Optional<ActivityParticipant> findFirstByActivityIdAndStatusAndParticipantStatusAndRoleOrderByWaitlistOrderAsc(
+            Long activityId, BaseStatus status, ParticipantStatus participantStatus, ParticipantRole role);
+
+    Optional<ActivityParticipant> findFirstByActivityIdAndStatusAndRoleOrderByWaitlistOrderDesc(
+            Long activityId, BaseStatus status, ParticipantRole role);
+
+    List<ActivityParticipant> findByActivityIdAndStatusAndParticipantStatusAndRoleOrderByWaitlistOrderAsc(
+            Long activityId, BaseStatus status, ParticipantStatus participantStatus, ParticipantRole role);
 }

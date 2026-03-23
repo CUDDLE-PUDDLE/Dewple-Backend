@@ -347,8 +347,114 @@ public class ActivityService {
         }
 
         participant.updateParticipantStatus(ParticipantStatus.CANCELLED);
-        // TODO: 선착순 모임이면 차순위 대기자 자동 승격 + 알림
+
+        if (!activity.getHasApplicationForm()) {
+            promoteFromWaitlist(activity);
+        }
+
         log.info("참여 취소: userId={}, activityId={}", userId, activityId);
+    }
+
+    // ========== 선착순 대기열 ==========
+
+    @Transactional
+    public void applyFirstCome(Long userId, Long activityId) {
+        Activity activity = findActiveActivity(activityId);
+
+        if (activity.getHasApplicationForm()) {
+            throw new BusinessException(ActivityErrorCode.NOT_FIRST_COME_ACTIVITY);
+        }
+        if (activity.getStartAt().isBefore(OffsetDateTime.now())) {
+            throw new BusinessException(ActivityErrorCode.ACTIVITY_ALREADY_STARTED);
+        }
+        if (activity.getCreator().getId().equals(userId)) {
+            throw new BusinessException(ActivityErrorCode.CANNOT_JOIN_OWN_ACTIVITY);
+        }
+
+        activityParticipantRepository.findByActivityIdAndParticipantId(activityId, userId)
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .ifPresent(p -> { throw new BusinessException(ActivityErrorCode.ALREADY_PARTICIPANT); });
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        long confirmedCount = activityParticipantRepository
+                .countByActivityIdAndStatusAndParticipantStatusInAndRole(
+                        activityId, BaseStatus.ACTIVE,
+                        List.of(ParticipantStatus.CONFIRMED), ParticipantRole.PARTICIPANT);
+
+        boolean withinCapacity = activity.getCapacity() == null || confirmedCount < activity.getCapacity();
+
+        if (withinCapacity) {
+            activityParticipantRepository.save(ActivityParticipant.builder()
+                    .activity(activity).participant(user)
+                    .participantStatus(ParticipantStatus.CONFIRMED)
+                    .role(ParticipantRole.PARTICIPANT).build());
+            log.info("선착순 즉시 확정: userId={}, activityId={}", userId, activityId);
+        } else {
+            int nextOrder = activityParticipantRepository
+                    .findFirstByActivityIdAndStatusAndRoleOrderByWaitlistOrderDesc(
+                            activityId, BaseStatus.ACTIVE, ParticipantRole.PARTICIPANT)
+                    .map(p -> p.getWaitlistOrder() != null ? p.getWaitlistOrder() + 1 : 1)
+                    .orElse(1);
+
+            activityParticipantRepository.save(ActivityParticipant.builder()
+                    .activity(activity).participant(user)
+                    .participantStatus(ParticipantStatus.PENDING)
+                    .role(ParticipantRole.PARTICIPANT).waitlistOrder(nextOrder).build());
+            log.info("선착순 대기열 등록: userId={}, activityId={}, order={}", userId, activityId, nextOrder);
+        }
+    }
+
+    @Transactional
+    public void cancelWaitlist(Long userId, Long activityId) {
+        findActiveActivity(activityId);
+
+        ActivityParticipant participant = activityParticipantRepository
+                .findByActivityIdAndParticipantId(activityId, userId)
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .filter(p -> p.getParticipantStatus() == ParticipantStatus.PENDING)
+                .filter(p -> p.getWaitlistOrder() != null)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.NOT_IN_WAITLIST));
+
+        participant.updateParticipantStatus(ParticipantStatus.CANCELLED);
+        log.info("대기열 취소: userId={}, activityId={}", userId, activityId);
+    }
+
+    @Transactional
+    public void selectFromWaitlist(Long userId, Long activityId, Long participantId) {
+        Activity activity = findActiveActivity(activityId);
+
+        if (!isLeaderOrManager(activityId, userId)) {
+            throw new BusinessException(ActivityErrorCode.NOT_ACTIVITY_LEADER);
+        }
+        if (!activity.getIsVerificationRequired()) {
+            throw new BusinessException(ActivityErrorCode.VERIFICATION_REQUIRED_FOR_SELECT);
+        }
+
+        ActivityParticipant participant = activityParticipantRepository.findById(participantId)
+                .filter(p -> p.getActivity().getId().equals(activityId))
+                .filter(p -> p.getStatus() == BaseStatus.ACTIVE)
+                .filter(p -> p.getParticipantStatus() == ParticipantStatus.PENDING)
+                .orElseThrow(() -> new BusinessException(ActivityErrorCode.NOT_IN_WAITLIST));
+
+        participant.updateParticipantStatus(ParticipantStatus.CONFIRMED);
+        participant.clearWaitlistOrder();
+        log.info("대기자 선택 참여: participantId={}, activityId={}", participantId, activityId);
+    }
+
+    private void promoteFromWaitlist(Activity activity) {
+        activityParticipantRepository
+                .findFirstByActivityIdAndStatusAndParticipantStatusAndRoleOrderByWaitlistOrderAsc(
+                        activity.getId(), BaseStatus.ACTIVE,
+                        ParticipantStatus.PENDING, ParticipantRole.PARTICIPANT)
+                .ifPresent(next -> {
+                    next.updateParticipantStatus(ParticipantStatus.CONFIRMED);
+                    next.clearWaitlistOrder();
+                    // TODO: 승격된 대기자에게 알림 (푸시+알림톡)
+                    log.info("대기자 자동 승격: userId={}, activityId={}",
+                            next.getParticipant().getId(), activity.getId());
+                });
     }
 
     // ========== 모임 취소 ==========
@@ -430,11 +536,22 @@ public class ActivityService {
 
         for (Activity activity : candidates) {
             activity.markEnded();
+
+            // 대기열 소멸
+            List<ActivityParticipant> waitlist = activityParticipantRepository
+                    .findByActivityIdAndStatusAndParticipantStatusAndRoleOrderByWaitlistOrderAsc(
+                            activity.getId(), BaseStatus.ACTIVE,
+                            ParticipantStatus.PENDING, ParticipantRole.PARTICIPANT);
+            for (ActivityParticipant waiter : waitlist) {
+                waiter.updateParticipantStatus(ParticipantStatus.CANCELLED);
+                // TODO: 대기자에게 '대기가 종료되었습니다' 알림
+            }
+
             // TODO: 별점 평가 요청 알림 발송 (참여 확정자들에게)
             // TODO: 지원서 보관 결정 안내 알림 발송
             // TODO: 출석기록 이관 (동아리/연합회 → 출석부, 개인 → 삭제)
             // TODO: 참여자의 모임 이력에 자동 기록
-            log.info("모임 종료 처리: activityId={}", activity.getId());
+            log.info("모임 종료 처리: activityId={}, 대기열 소멸 {}명", activity.getId(), waitlist.size());
         }
 
         return candidates.size();
