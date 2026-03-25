@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+import org.springframework.data.domain.Slice;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -86,6 +88,11 @@ public class OrganizationService {
     @Transactional(readOnly = true)
     public List<Organization> getPendingApplications() {
         return organizationRepository.findByApprovalStatus(ApprovalStatus.PENDING);
+    }
+
+    @Transactional(readOnly = true)
+    public Slice<OrganizationSummaryResult> getOrganizationList(GetOrganizationListParam param) {
+        return organizationRepository.findOrganizationList(param);
     }
 
     @Transactional(readOnly = true)

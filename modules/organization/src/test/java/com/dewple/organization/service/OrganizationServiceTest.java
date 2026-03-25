@@ -15,6 +15,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -164,6 +167,84 @@ class OrganizationServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
                             .isEqualTo(OrganizationErrorCode.REGION_REQUIRED));
+        }
+    }
+
+    @Nested
+    @DisplayName("getOrganizationList - 연합회 목록 조회")
+    class GetOrganizationList {
+
+        @Test
+        @DisplayName("성공: 필터 없이 목록 조회")
+        void successWithoutFilters() {
+            // given
+            List<OrganizationSummaryResult> content = List.of(
+                    new OrganizationSummaryResult(1L, "서울대 연합회", null,
+                            OrganizationType.UNIVERSITY, ActivityType.BOTH, "[1, 2]", "[1]"),
+                    new OrganizationSummaryResult(2L, "기업 연합회", "cover.jpg",
+                            OrganizationType.ENTERPRISE, ActivityType.OFFLINE, "[3]", "[2]")
+            );
+            Slice<OrganizationSummaryResult> slice = new SliceImpl<>(content, PageRequest.of(0, 10), false);
+
+            GetOrganizationListParam param = new GetOrganizationListParam(
+                    null, null, null, null, PageRequest.of(0, 10)
+            );
+            given(organizationRepository.findOrganizationList(any(GetOrganizationListParam.class)))
+                    .willReturn(slice);
+
+            // when
+            Slice<OrganizationSummaryResult> result = organizationService.getOrganizationList(param);
+
+            // then
+            assertThat(result.getContent()).hasSize(2);
+            assertThat(result.getContent().get(0).name()).isEqualTo("서울대 연합회");
+            assertThat(result.hasNext()).isFalse();
+        }
+
+        @Test
+        @DisplayName("성공: 종류 필터로 조회")
+        void successWithTypeFilter() {
+            // given
+            List<OrganizationSummaryResult> content = List.of(
+                    new OrganizationSummaryResult(1L, "서울대 연합회", null,
+                            OrganizationType.UNIVERSITY, ActivityType.BOTH, "[1]", "[1]")
+            );
+            Slice<OrganizationSummaryResult> slice = new SliceImpl<>(content, PageRequest.of(0, 10), false);
+
+            GetOrganizationListParam param = new GetOrganizationListParam(
+                    null, null, null, OrganizationType.UNIVERSITY, PageRequest.of(0, 10)
+            );
+            given(organizationRepository.findOrganizationList(any(GetOrganizationListParam.class)))
+                    .willReturn(slice);
+
+            // when
+            Slice<OrganizationSummaryResult> result = organizationService.getOrganizationList(param);
+
+            // then
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.getContent().get(0).type()).isEqualTo(OrganizationType.UNIVERSITY);
+        }
+
+        @Test
+        @DisplayName("성공: 빈 결과")
+        void successEmptyResult() {
+            // given
+            Slice<OrganizationSummaryResult> slice = new SliceImpl<>(
+                    List.of(), PageRequest.of(0, 10), false
+            );
+
+            GetOrganizationListParam param = new GetOrganizationListParam(
+                    999L, null, null, null, PageRequest.of(0, 10)
+            );
+            given(organizationRepository.findOrganizationList(any(GetOrganizationListParam.class)))
+                    .willReturn(slice);
+
+            // when
+            Slice<OrganizationSummaryResult> result = organizationService.getOrganizationList(param);
+
+            // then
+            assertThat(result.getContent()).isEmpty();
+            assertThat(result.hasNext()).isFalse();
         }
     }
 
