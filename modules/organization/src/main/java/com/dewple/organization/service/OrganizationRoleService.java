@@ -4,9 +4,9 @@ import com.dewple.common.enums.ApprovalStatus;
 import com.dewple.common.enums.OrganizationPermission;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.organization.entity.Organization;
+import com.dewple.organization.entity.OrganizationMember;
 import com.dewple.organization.entity.OrganizationRole;
 import com.dewple.organization.exception.OrganizationErrorCode;
-import com.dewple.organization.entity.OrganizationMember;
 import com.dewple.organization.repository.OrganizationMemberRepository;
 import com.dewple.organization.repository.OrganizationRepository;
 import com.dewple.organization.repository.OrganizationRoleRepository;
@@ -32,7 +32,7 @@ public class OrganizationRoleService {
     @Transactional
     public OrganizationRoleResult createRole(Long userId, Long organizationId, CreateOrganizationRoleParam param) {
         Organization organization = findApprovedOrganization(organizationId);
-        validateRoleManagePermission(organization, userId);
+        validateRoleManagePermission(organizationId, userId);
 
         if (organizationRoleRepository.existsByOrganizationIdAndName(organizationId, param.name())) {
             throw new BusinessException(OrganizationErrorCode.ROLE_NAME_DUPLICATED);
@@ -56,14 +56,19 @@ public class OrganizationRoleService {
     @Transactional
     public OrganizationRoleResult updateRole(Long userId, Long organizationId, Long roleId,
                                              UpdateOrganizationRoleParam param) {
-        Organization organization = findApprovedOrganization(organizationId);
-        validateRoleManagePermission(organization, userId);
+        findApprovedOrganization(organizationId);
 
         OrganizationRole role = organizationRoleRepository.findById(roleId)
                 .orElseThrow(() -> new BusinessException(OrganizationErrorCode.ROLE_NOT_FOUND));
 
+        if (REPRESENTATIVE_ROLE_NAME.equals(role.getName()) && role.getIsDefault()) {
+            throw new BusinessException(OrganizationErrorCode.REPRESENTATIVE_ROLE_NOT_MODIFIABLE);
+        }
+
         if (role.getIsDefault()) {
-            throw new BusinessException(OrganizationErrorCode.ROLE_DEFAULT_NOT_MODIFIABLE);
+            validateRepresentative(organizationId, userId);
+        } else {
+            validateRoleManagePermission(organizationId, userId);
         }
 
         if (!role.getName().equals(param.name())
@@ -80,8 +85,8 @@ public class OrganizationRoleService {
 
     @Transactional
     public void deleteRole(Long userId, Long organizationId, Long roleId) {
-        Organization organization = findApprovedOrganization(organizationId);
-        validateRoleManagePermission(organization, userId);
+        findApprovedOrganization(organizationId);
+        validateRoleManagePermission(organizationId, userId);
 
         OrganizationRole role = organizationRoleRepository.findById(roleId)
                 .orElseThrow(() -> new BusinessException(OrganizationErrorCode.ROLE_NOT_FOUND));
@@ -90,9 +95,18 @@ public class OrganizationRoleService {
             throw new BusinessException(OrganizationErrorCode.ROLE_DEFAULT_NOT_DELETABLE);
         }
 
-        // TODO: 해당 역할이 부여된 회원은 연합회원 역할로 자동 전환
+        OrganizationRole defaultMemberRole = organizationRoleRepository
+                .findByOrganizationIdAndName(organizationId, DEFAULT_MEMBER_ROLE_NAME)
+                .orElseThrow(() -> new BusinessException(OrganizationErrorCode.ROLE_NOT_FOUND));
+
+        List<OrganizationMember> membersWithRole = organizationMemberRepository.findByRole(role);
+        for (OrganizationMember member : membersWithRole) {
+            member.changeRole(defaultMemberRole);
+        }
+
         organizationRoleRepository.delete(role);
-        log.info("연합회 역할 삭제: organizationId={}, roleId={}", organizationId, roleId);
+        log.info("연합회 역할 삭제: organizationId={}, roleId={}, 전환된 멤버 수={}",
+                organizationId, roleId, membersWithRole.size());
     }
 
     @Transactional(readOnly = true)
@@ -121,10 +135,15 @@ public class OrganizationRoleService {
                 .name("관리자")
                 .permissions(OrganizationPermission.combine(
                         OrganizationPermission.MANAGE_ORGANIZATION,
+                        OrganizationPermission.DISSOLVE_ORGANIZATION,
                         OrganizationPermission.MANAGE_NOTICE,
-                        OrganizationPermission.MANAGE_ROLE,
+                        OrganizationPermission.CREATE_ACTIVITY,
                         OrganizationPermission.APPROVE_JOIN,
-                        OrganizationPermission.ANSWER_INQUIRY
+                        OrganizationPermission.ANSWER_INQUIRY,
+                        OrganizationPermission.MANAGE_FEED,
+                        OrganizationPermission.MANAGE_ATTENDANCE,
+                        OrganizationPermission.MANAGE_CALENDAR,
+                        OrganizationPermission.MANAGE_STORAGE
                 ))
                 .isStaff(true)
                 .isDefault(true)
@@ -151,8 +170,8 @@ public class OrganizationRoleService {
 
     @Transactional
     public void assignRole(Long userId, Long organizationId, Long memberId, Long roleId) {
-        Organization organization = findApprovedOrganization(organizationId);
-        validateRoleManagePermission(organization, userId);
+        findApprovedOrganization(organizationId);
+        validateRoleManagePermission(organizationId, userId);
 
         OrganizationMember member = organizationMemberRepository.findByOrganizationIdAndId(organizationId, memberId)
                 .orElseThrow(() -> new BusinessException(OrganizationErrorCode.MEMBER_NOT_FOUND));
@@ -170,7 +189,7 @@ public class OrganizationRoleService {
 
     @Transactional
     public void delegateRepresentative(Long userId, Long organizationId, Long targetMemberId) {
-        Organization organization = findApprovedOrganization(organizationId);
+        findApprovedOrganization(organizationId);
 
         OrganizationMember currentRepMember = organizationMemberRepository
                 .findByOrganizationIdAndUserId(organizationId, userId)
@@ -211,10 +230,27 @@ public class OrganizationRoleService {
         return organization;
     }
 
-    private void validateRoleManagePermission(Organization organization, Long userId) {
-        // TODO: 역할/권한 시스템 완성 후 8번 권한(MANAGE_ROLE) 체크로 변경
-        if (!organization.getCreator().getId().equals(userId)) {
+    private void validateRoleManagePermission(Long organizationId, Long userId) {
+        OrganizationMember member = organizationMemberRepository
+                .findByOrganizationIdAndUserId(organizationId, userId)
+                .orElseThrow(() -> new BusinessException(OrganizationErrorCode.NOT_ORGANIZATION_MEMBER));
+
+        OrganizationRole role = member.getRole();
+        boolean isRepresentative = REPRESENTATIVE_ROLE_NAME.equals(role.getName()) && role.getIsDefault();
+
+        if (!isRepresentative && !role.hasPermission(OrganizationPermission.MANAGE_ROLE)) {
             throw new BusinessException(OrganizationErrorCode.ROLE_MANAGE_FORBIDDEN);
+        }
+    }
+
+    private void validateRepresentative(Long organizationId, Long userId) {
+        OrganizationMember member = organizationMemberRepository
+                .findByOrganizationIdAndUserId(organizationId, userId)
+                .orElseThrow(() -> new BusinessException(OrganizationErrorCode.NOT_ORGANIZATION_MEMBER));
+
+        OrganizationRole role = member.getRole();
+        if (!REPRESENTATIVE_ROLE_NAME.equals(role.getName()) || !role.getIsDefault()) {
+            throw new BusinessException(OrganizationErrorCode.DEFAULT_ROLE_MODIFY_FORBIDDEN);
         }
     }
 

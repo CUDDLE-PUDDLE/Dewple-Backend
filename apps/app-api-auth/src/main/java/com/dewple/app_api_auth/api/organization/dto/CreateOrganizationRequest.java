@@ -45,6 +45,9 @@ public record CreateOrganizationRequest(
         @Size(max = 500, message = "설명은 500자 이내여야 합니다.")
         String targetClubsDescription,
 
+        @Schema(description = "관리 대상 동아리 ID 목록", example = "[1, 2]")
+        List<Long> targetClubIds,
+
         @Schema(description = "카테고리 ID 목록 (1~3개)", example = "[1, 2]")
         @NotNull(message = "카테고리는 필수입니다.")
         @Size(min = 1, max = 3, message = "카테고리는 1~3개 선택 가능합니다.")

@@ -72,7 +72,7 @@ public class OrganizationController {
                 request.name(), request.purpose(), request.type(),
                 request.activityType(), request.contactEmail(),
                 request.contactPhone(), request.contactPreference(),
-                request.targetClubsDescription(),
+                request.targetClubsDescription(), request.targetClubIds(),
                 request.categoryIds(), request.regionIds()
         );
 

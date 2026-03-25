@@ -84,6 +84,10 @@ public class Organization extends BaseEntity {
     private String targetClubsDescription;
 
     @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "target_club_ids", columnDefinition = "jsonb")
+    private String targetClubIds;
+
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "category_ids", columnDefinition = "jsonb")
     private String categoryIds;
 
@@ -107,13 +111,16 @@ public class Organization extends BaseEntity {
     @Column(name = "scheduled_delete_at")
     private LocalDateTime scheduledDeleteAt;
 
+    @Column(name = "is_sanction_deletion", nullable = false)
+    private Boolean isSanctionDeletion = false;
+
     @Builder
     public Organization(User creator, String name, String description,
                         String coverImg, String landingPage, Boolean isPublic,
                         OrganizationType type, ActivityType activityType, LocalDate foundedDate,
                         String purpose, String contactEmail, String contactPhone,
                         ContactPreference contactPreference, String targetClubsDescription,
-                        String categoryIds, String regionIds) {
+                        String targetClubIds, String categoryIds, String regionIds) {
         this.creator = creator;
         this.name = name;
         this.description = description;
@@ -128,6 +135,7 @@ public class Organization extends BaseEntity {
         this.contactPhone = contactPhone;
         this.contactPreference = contactPreference;
         this.targetClubsDescription = targetClubsDescription;
+        this.targetClubIds = targetClubIds;
         this.categoryIds = categoryIds;
         this.regionIds = regionIds;
     }
@@ -178,5 +186,13 @@ public class Organization extends BaseEntity {
         this.dissolutionRequestedAt = null;
         this.dissolutionApprovedAt = null;
         this.scheduledDeleteAt = null;
+        this.isSanctionDeletion = false;
+    }
+
+    public void sanctionDeletion() {
+        this.dissolutionStatus = DissolutionStatus.APPROVED;
+        this.dissolutionApprovedAt = LocalDateTime.now();
+        this.scheduledDeleteAt = this.dissolutionApprovedAt.plusDays(1);
+        this.isSanctionDeletion = true;
     }
 }

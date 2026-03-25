@@ -20,7 +20,9 @@ public record GetOrganizationListResponse(
         @Schema(description = "카테고리 ID 목록 (JSON)")
         String categoryIds,
         @Schema(description = "지역 ID 목록 (JSON)")
-        String regionIds
+        String regionIds,
+        @Schema(description = "소속 회원 수")
+        Long memberCount
 ) {
     public static GetOrganizationListResponse from(OrganizationSummaryResult result) {
         return new GetOrganizationListResponse(
@@ -30,7 +32,8 @@ public record GetOrganizationListResponse(
                 result.type(),
                 result.activityType(),
                 result.categoryIds(),
-                result.regionIds()
+                result.regionIds(),
+                result.memberCount()
         );
     }
 }

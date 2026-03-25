@@ -356,9 +356,9 @@ class OrganizationControllerTest {
             // given
             List<OrganizationSummaryResult> content = List.of(
                     new OrganizationSummaryResult(1L, "서울대 연합회", null,
-                            OrganizationType.UNIVERSITY, ActivityType.BOTH, "[1, 2]", "[1]"),
+                            OrganizationType.UNIVERSITY, ActivityType.BOTH, "[1, 2]", "[1]", 50L),
                     new OrganizationSummaryResult(2L, "기업 연합회", "cover.jpg",
-                            OrganizationType.ENTERPRISE, ActivityType.OFFLINE, "[3]", "[2]")
+                            OrganizationType.ENTERPRISE, ActivityType.OFFLINE, "[3]", "[2]", 30L)
             );
             var slice = new SliceImpl<>(content, PageRequest.of(0, 10), false);
 
@@ -386,7 +386,7 @@ class OrganizationControllerTest {
             // given
             List<OrganizationSummaryResult> content = List.of(
                     new OrganizationSummaryResult(1L, "서울대 연합회", null,
-                            OrganizationType.UNIVERSITY, ActivityType.BOTH, "[1]", "[1]")
+                            OrganizationType.UNIVERSITY, ActivityType.BOTH, "[1]", "[1]", 50L)
             );
             var slice = new SliceImpl<>(content, PageRequest.of(0, 10), false);
 
@@ -427,7 +427,7 @@ class OrganizationControllerTest {
             // given
             List<OrganizationSummaryResult> content = List.of(
                     new OrganizationSummaryResult(1L, "대학 연합회", null,
-                            OrganizationType.UNIVERSITY, ActivityType.OFFLINE, "[1]", "[3]")
+                            OrganizationType.UNIVERSITY, ActivityType.OFFLINE, "[1]", "[3]", 20L)
             );
             var slice = new SliceImpl<>(content, PageRequest.of(0, 10), false);
 
@@ -451,7 +451,7 @@ class OrganizationControllerTest {
             // given
             List<OrganizationSummaryResult> content = List.of(
                     new OrganizationSummaryResult(1L, "연합회1", null,
-                            OrganizationType.OTHER, ActivityType.BOTH, "[1]", "[1]")
+                            OrganizationType.OTHER, ActivityType.BOTH, "[1]", "[1]", 10L)
             );
             var slice = new SliceImpl<>(content, PageRequest.of(0, 1), true);
 

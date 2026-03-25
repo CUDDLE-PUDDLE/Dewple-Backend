@@ -15,6 +15,7 @@ public record CreateOrganizationParam(
         String contactPhone,
         ContactPreference contactPreference,
         String targetClubsDescription,
+        List<Long> targetClubIds,
         List<Long> categoryIds,
         List<Long> regionIds
 ) {

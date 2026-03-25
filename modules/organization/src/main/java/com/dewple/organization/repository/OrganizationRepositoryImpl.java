@@ -5,6 +5,7 @@ import com.dewple.common.enums.ApprovalStatus;
 import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.enums.OrganizationType;
 import com.dewple.organization.entity.QOrganization;
+import com.dewple.organization.entity.QOrganizationMember;
 import com.dewple.organization.service.GetOrganizationListParam;
 import com.dewple.organization.service.OrganizationSummaryResult;
 import com.querydsl.core.types.Projections;
@@ -24,6 +25,7 @@ public class OrganizationRepositoryImpl implements OrganizationRepositoryCustom 
     private final JPAQueryFactory queryFactory;
 
     private static final QOrganization organization = QOrganization.organization;
+    private static final QOrganizationMember organizationMember = QOrganizationMember.organizationMember;
 
     @Override
     public Slice<OrganizationSummaryResult> findOrganizationList(GetOrganizationListParam param) {
@@ -37,9 +39,13 @@ public class OrganizationRepositoryImpl implements OrganizationRepositoryCustom 
                         organization.type,
                         organization.activityType,
                         organization.categoryIds,
-                        organization.regionIds
+                        organization.regionIds,
+                        organizationMember.id.count()
                 ))
                 .from(organization)
+                .leftJoin(organizationMember)
+                    .on(organizationMember.organization.id.eq(organization.id)
+                            .and(organizationMember.status.eq(BaseStatus.ACTIVE)))
                 .where(
                         organization.approvalStatus.eq(ApprovalStatus.APPROVED),
                         organization.status.eq(BaseStatus.ACTIVE),
@@ -48,8 +54,8 @@ public class OrganizationRepositoryImpl implements OrganizationRepositoryCustom 
                         activityTypeEq(param.activityType()),
                         typeEq(param.type())
                 )
-                // TODO: 소속 회원수 순 정렬 (멤버십 기능 구현 후 변경)
-                .orderBy(organization.createdAt.desc())
+                .groupBy(organization.id)
+                .orderBy(organizationMember.id.count().desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize() + 1)
                 .fetch();

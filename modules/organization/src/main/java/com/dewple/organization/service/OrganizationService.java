@@ -3,21 +3,25 @@ package com.dewple.organization.service;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.ApprovalStatus;
 import com.dewple.common.enums.DissolutionStatus;
+import com.dewple.common.enums.OrganizationPermission;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.organization.entity.Organization;
+import com.dewple.organization.entity.OrganizationMember;
+import com.dewple.organization.entity.OrganizationRole;
 import com.dewple.organization.exception.OrganizationErrorCode;
+import com.dewple.organization.repository.OrganizationMemberRepository;
 import com.dewple.organization.repository.OrganizationRepository;
+import com.dewple.organization.repository.OrganizationRoleRepository;
 import com.dewple.user.exception.UserErrorCode;
 import com.dewple.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
-import org.springframework.data.domain.Slice;
 
 @Slf4j
 @Service
@@ -26,6 +30,11 @@ public class OrganizationService {
 
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
+    private final OrganizationRoleService organizationRoleService;
+    private final OrganizationMemberRepository organizationMemberRepository;
+    private final OrganizationRoleRepository organizationRoleRepository;
+
+    private static final String REPRESENTATIVE_ROLE_NAME = "대표";
 
     @Transactional
     public Organization apply(Long userId, CreateOrganizationParam param) {
@@ -42,6 +51,9 @@ public class OrganizationService {
             throw new BusinessException(OrganizationErrorCode.REGION_REQUIRED);
         }
 
+        String targetClubIds = param.targetClubIds() != null && !param.targetClubIds().isEmpty()
+                ? param.targetClubIds().toString() : null;
+
         Organization organization = Organization.builder()
                 .creator(creator)
                 .name(param.name())
@@ -52,6 +64,7 @@ public class OrganizationService {
                 .contactPhone(param.contactPhone())
                 .contactPreference(param.contactPreference())
                 .targetClubsDescription(param.targetClubsDescription())
+                .targetClubIds(targetClubIds)
                 .categoryIds(param.categoryIds().toString())
                 .regionIds(param.regionIds().toString())
                 .build();
@@ -70,8 +83,21 @@ public class OrganizationService {
         }
 
         organization.approve();
-        // TODO: 신청자에게 승인 알림 발송
-        log.info("연합회 생성 승인: organizationId={}", organizationId);
+
+        organizationRoleService.initializeDefaultRoles(organization);
+
+        OrganizationRole representativeRole = organizationRoleRepository
+                .findByOrganizationIdAndName(organizationId, REPRESENTATIVE_ROLE_NAME)
+                .orElseThrow(() -> new BusinessException(OrganizationErrorCode.ROLE_NOT_FOUND));
+
+        OrganizationMember creatorMember = OrganizationMember.builder()
+                .organization(organization)
+                .user(organization.getCreator())
+                .role(representativeRole)
+                .build();
+        organizationMemberRepository.save(creatorMember);
+
+        log.info("연합회 생성 승인: organizationId={}, creatorMemberId={}", organizationId, creatorMember.getId());
     }
 
     @Transactional
@@ -83,7 +109,6 @@ public class OrganizationService {
         }
 
         organization.reject(reason);
-        // TODO: 신청자에게 반려 알림 발송 (반려 사유 포함)
         log.info("연합회 생성 반려: organizationId={}, reason={}", organizationId, reason);
     }
 
@@ -116,10 +141,7 @@ public class OrganizationService {
             throw new BusinessException(OrganizationErrorCode.ORGANIZATION_NOT_APPROVED);
         }
 
-        // TODO: 역할/권한 시스템 구현 후 2번 권한(연합회관리) 체크로 변경
-        if (!organization.getCreator().getId().equals(userId)) {
-            throw new BusinessException(OrganizationErrorCode.ORGANIZATION_UPDATE_FORBIDDEN);
-        }
+        validatePermission(organizationId, userId, OrganizationPermission.MANAGE_ORGANIZATION);
 
         if (param.categoryIds() == null || param.categoryIds().isEmpty()) {
             throw new BusinessException(OrganizationErrorCode.CATEGORY_REQUIRED);
@@ -154,10 +176,7 @@ public class OrganizationService {
             throw new BusinessException(OrganizationErrorCode.DISSOLUTION_ALREADY_REQUESTED);
         }
 
-        // TODO: 역할/권한 시스템 구현 후 3번 권한(연합회해산) 체크로 변경
-        if (!organization.getCreator().getId().equals(userId)) {
-            throw new BusinessException(OrganizationErrorCode.DISSOLUTION_REQUEST_FORBIDDEN);
-        }
+        validatePermission(organizationId, userId, OrganizationPermission.DISSOLVE_ORGANIZATION);
 
         organization.requestDissolution(reason);
         log.info("연합회 해산 신청: organizationId={}, userId={}", organizationId, userId);
@@ -172,7 +191,6 @@ public class OrganizationService {
         }
 
         organization.approveDissolution();
-        // TODO: 신청자에게 해산 승인 알림 발송
         log.info("연합회 해산 승인: organizationId={}, scheduledDeleteAt={}",
                 organizationId, organization.getScheduledDeleteAt());
     }
@@ -185,11 +203,11 @@ public class OrganizationService {
             throw new BusinessException(OrganizationErrorCode.DISSOLUTION_NOT_IN_GRACE_PERIOD);
         }
 
-        // 대표만 취소 가능
-        // TODO: 역할/권한 시스템 구현 후 대표 역할 체크로 변경
-        if (!organization.getCreator().getId().equals(userId)) {
-            throw new BusinessException(OrganizationErrorCode.DISSOLUTION_CANCEL_FORBIDDEN);
+        if (organization.getIsSanctionDeletion()) {
+            throw new BusinessException(OrganizationErrorCode.DISSOLUTION_SANCTION_NOT_CANCELABLE);
         }
+
+        validateRepresentative(organizationId, userId);
 
         if (organization.getScheduledDeleteAt() != null
                 && LocalDateTime.now().isAfter(organization.getScheduledDeleteAt())) {
@@ -208,5 +226,26 @@ public class OrganizationService {
     private Organization findById(Long organizationId) {
         return organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new BusinessException(OrganizationErrorCode.ORGANIZATION_NOT_FOUND));
+    }
+
+    private void validatePermission(Long organizationId, Long userId, OrganizationPermission permission) {
+        OrganizationMember member = organizationMemberRepository
+                .findByOrganizationIdAndUserId(organizationId, userId)
+                .orElseThrow(() -> new BusinessException(OrganizationErrorCode.NOT_ORGANIZATION_MEMBER));
+
+        if (!member.getRole().hasPermission(permission)) {
+            throw new BusinessException(OrganizationErrorCode.PERMISSION_DENIED);
+        }
+    }
+
+    private void validateRepresentative(Long organizationId, Long userId) {
+        OrganizationMember member = organizationMemberRepository
+                .findByOrganizationIdAndUserId(organizationId, userId)
+                .orElseThrow(() -> new BusinessException(OrganizationErrorCode.NOT_ORGANIZATION_MEMBER));
+
+        OrganizationRole role = member.getRole();
+        if (!REPRESENTATIVE_ROLE_NAME.equals(role.getName()) || !role.getIsDefault()) {
+            throw new BusinessException(OrganizationErrorCode.DISSOLUTION_CANCEL_FORBIDDEN);
+        }
     }
 }

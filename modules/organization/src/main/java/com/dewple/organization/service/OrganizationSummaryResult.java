@@ -10,6 +10,7 @@ public record OrganizationSummaryResult(
         OrganizationType type,
         ActivityType activityType,
         String categoryIds,
-        String regionIds
+        String regionIds,
+        Long memberCount
 ) {
 }
