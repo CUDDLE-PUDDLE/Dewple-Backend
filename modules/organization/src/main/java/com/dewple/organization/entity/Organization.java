@@ -13,9 +13,11 @@ import com.dewple.common.entity.User;
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.ApprovalStatus;
 import com.dewple.common.enums.ContactPreference;
+import com.dewple.common.enums.DissolutionStatus;
 import com.dewple.common.enums.OrganizationType;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "organization")
@@ -89,6 +91,21 @@ public class Organization extends BaseEntity {
     @Column(name = "region_ids", columnDefinition = "jsonb")
     private String regionIds;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "dissolution_status", nullable = false, length = 20)
+    private DissolutionStatus dissolutionStatus = DissolutionStatus.NONE;
+
+    @Column(name = "dissolution_reason", length = 500)
+    private String dissolutionReason;
+
+    @Column(name = "dissolution_requested_at")
+    private LocalDateTime dissolutionRequestedAt;
+
+    @Column(name = "dissolution_approved_at")
+    private LocalDateTime dissolutionApprovedAt;
+
+    @Column(name = "scheduled_delete_at")
+    private LocalDateTime scheduledDeleteAt;
 
     @Builder
     public Organization(User creator, String name, String description,
@@ -141,5 +158,25 @@ public class Organization extends BaseEntity {
     public void reject(String reason) {
         this.approvalStatus = ApprovalStatus.REJECTED;
         this.rejectionReason = reason;
+    }
+
+    public void requestDissolution(String reason) {
+        this.dissolutionStatus = DissolutionStatus.REQUESTED;
+        this.dissolutionReason = reason;
+        this.dissolutionRequestedAt = LocalDateTime.now();
+    }
+
+    public void approveDissolution() {
+        this.dissolutionStatus = DissolutionStatus.APPROVED;
+        this.dissolutionApprovedAt = LocalDateTime.now();
+        this.scheduledDeleteAt = this.dissolutionApprovedAt.plusDays(1);
+    }
+
+    public void cancelDissolution() {
+        this.dissolutionStatus = DissolutionStatus.NONE;
+        this.dissolutionReason = null;
+        this.dissolutionRequestedAt = null;
+        this.dissolutionApprovedAt = null;
+        this.scheduledDeleteAt = null;
     }
 }

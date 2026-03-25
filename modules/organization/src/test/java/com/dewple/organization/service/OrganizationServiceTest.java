@@ -2,6 +2,7 @@ package com.dewple.organization.service;
 
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.*;
+import com.dewple.common.enums.DissolutionStatus;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.organization.entity.Organization;
 import com.dewple.organization.exception.OrganizationErrorCode;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -65,6 +67,12 @@ class OrganizationServiceTest {
                 List.of(1L, 2L),
                 List.of(1L)
         );
+    }
+
+    private Organization createApprovedOrganization() {
+        Organization org = createPendingOrganization();
+        org.approve();
+        return org;
     }
 
     private Organization createPendingOrganization() {
@@ -437,6 +445,168 @@ class OrganizationServiceTest {
             // then
             assertThat(result.getContent()).isEmpty();
             assertThat(result.hasNext()).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("requestDissolution - 연합회 해산 신청")
+    class RequestDissolution {
+
+        @Test
+        @DisplayName("성공: 해산 신청")
+        void success() {
+            // given
+            Organization org = createApprovedOrganization();
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            // when
+            organizationService.requestDissolution(USER_ID, 100L, "운영 지속 불가");
+
+            // then
+            assertThat(org.getDissolutionStatus()).isEqualTo(DissolutionStatus.REQUESTED);
+            assertThat(org.getDissolutionReason()).isEqualTo("운영 지속 불가");
+            assertThat(org.getDissolutionRequestedAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("실패: 승인되지 않은 연합회")
+        void failNotApproved() {
+            Organization org = createPendingOrganization();
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            assertThatThrownBy(() -> organizationService.requestDissolution(USER_ID, 100L, "사유"))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.ORGANIZATION_NOT_APPROVED));
+        }
+
+        @Test
+        @DisplayName("실패: 이미 해산 신청된 연합회")
+        void failAlreadyRequested() {
+            Organization org = createApprovedOrganization();
+            org.requestDissolution("이전 사유");
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            assertThatThrownBy(() -> organizationService.requestDissolution(USER_ID, 100L, "새 사유"))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.DISSOLUTION_ALREADY_REQUESTED));
+        }
+
+        @Test
+        @DisplayName("실패: 권한 없는 유저")
+        void failForbidden() {
+            Organization org = createApprovedOrganization();
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            assertThatThrownBy(() -> organizationService.requestDissolution(999L, 100L, "사유"))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.DISSOLUTION_REQUEST_FORBIDDEN));
+        }
+    }
+
+    @Nested
+    @DisplayName("approveDissolution - 연합회 해산 승인")
+    class ApproveDissolution {
+
+        @Test
+        @DisplayName("성공: 해산 승인 → 1일 유예 시작")
+        void success() {
+            // given
+            Organization org = createApprovedOrganization();
+            org.requestDissolution("사유");
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            // when
+            organizationService.approveDissolution(100L);
+
+            // then
+            assertThat(org.getDissolutionStatus()).isEqualTo(DissolutionStatus.APPROVED);
+            assertThat(org.getDissolutionApprovedAt()).isNotNull();
+            assertThat(org.getScheduledDeleteAt()).isNotNull();
+            assertThat(org.getScheduledDeleteAt())
+                    .isAfter(org.getDissolutionApprovedAt());
+        }
+
+        @Test
+        @DisplayName("실패: 해산 신청 상태가 아님")
+        void failNotRequested() {
+            Organization org = createApprovedOrganization(); // dissolutionStatus = NONE
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            assertThatThrownBy(() -> organizationService.approveDissolution(100L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.DISSOLUTION_NOT_REQUESTED));
+        }
+    }
+
+    @Nested
+    @DisplayName("cancelDissolution - 연합회 해산 취소")
+    class CancelDissolution {
+
+        @Test
+        @DisplayName("성공: 유예 기간 중 해산 취소")
+        void success() {
+            // given
+            Organization org = createApprovedOrganization();
+            org.requestDissolution("사유");
+            org.approveDissolution();
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            // when
+            organizationService.cancelDissolution(USER_ID, 100L);
+
+            // then
+            assertThat(org.getDissolutionStatus()).isEqualTo(DissolutionStatus.NONE);
+            assertThat(org.getDissolutionReason()).isNull();
+            assertThat(org.getDissolutionRequestedAt()).isNull();
+            assertThat(org.getDissolutionApprovedAt()).isNull();
+            assertThat(org.getScheduledDeleteAt()).isNull();
+        }
+
+        @Test
+        @DisplayName("실패: 해산 승인 상태가 아님 (신청만 한 상태)")
+        void failNotInGracePeriod() {
+            Organization org = createApprovedOrganization();
+            org.requestDissolution("사유"); // REQUESTED, not APPROVED
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            assertThatThrownBy(() -> organizationService.cancelDissolution(USER_ID, 100L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.DISSOLUTION_NOT_IN_GRACE_PERIOD));
+        }
+
+        @Test
+        @DisplayName("실패: 대표가 아닌 유저의 취소 시도")
+        void failForbidden() {
+            Organization org = createApprovedOrganization();
+            org.requestDissolution("사유");
+            org.approveDissolution();
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            assertThatThrownBy(() -> organizationService.cancelDissolution(999L, 100L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.DISSOLUTION_CANCEL_FORBIDDEN));
+        }
+
+        @Test
+        @DisplayName("실패: 유예 기간 만료 후 취소 시도")
+        void failGracePeriodExpired() {
+            Organization org = createApprovedOrganization();
+            org.requestDissolution("사유");
+            org.approveDissolution();
+            // 유예 기간을 과거로 설정
+            ReflectionTestUtils.setField(org, "scheduledDeleteAt", LocalDateTime.now().minusHours(1));
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            assertThatThrownBy(() -> organizationService.cancelDissolution(USER_ID, 100L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.DISSOLUTION_NOT_IN_GRACE_PERIOD));
         }
     }
 

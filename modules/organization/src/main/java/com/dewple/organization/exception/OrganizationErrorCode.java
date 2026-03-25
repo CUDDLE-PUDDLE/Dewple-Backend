@@ -16,6 +16,11 @@ public enum OrganizationErrorCode implements ErrorCode {
     REGION_REQUIRED(7004, HttpStatus.BAD_REQUEST, "지역은 필수입니다."),
     ORGANIZATION_NOT_APPROVED(7005, HttpStatus.BAD_REQUEST, "승인되지 않은 연합회입니다."),
     ORGANIZATION_UPDATE_FORBIDDEN(7006, HttpStatus.FORBIDDEN, "연합회 정보를 수정할 권한이 없습니다."),
+    DISSOLUTION_ALREADY_REQUESTED(7010, HttpStatus.BAD_REQUEST, "이미 해산 신청된 연합회입니다."),
+    DISSOLUTION_REQUEST_FORBIDDEN(7011, HttpStatus.FORBIDDEN, "연합회 해산을 신청할 권한이 없습니다."),
+    DISSOLUTION_NOT_REQUESTED(7012, HttpStatus.BAD_REQUEST, "해산 신청 상태가 아닙니다."),
+    DISSOLUTION_CANCEL_FORBIDDEN(7013, HttpStatus.FORBIDDEN, "대표만 해산을 취소할 수 있습니다."),
+    DISSOLUTION_NOT_IN_GRACE_PERIOD(7014, HttpStatus.BAD_REQUEST, "유예 기간이 아니므로 취소할 수 없습니다."),
     ;
 
     private final int code;

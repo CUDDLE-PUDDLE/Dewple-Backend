@@ -34,8 +34,10 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(OrganizationController.class)
@@ -53,6 +55,91 @@ class OrganizationControllerTest {
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
+
+    @Nested
+    @DisplayName("POST /organizations/{id}/dissolution - 연합회 해산 신청")
+    class RequestDissolution {
+
+        @Test
+        @DisplayName("성공: 해산 신청")
+        void success() throws Exception {
+            willDoNothing().given(organizationService)
+                    .requestDissolution(eq(1L), eq(100L), any(String.class));
+
+            String json = objectMapper.writeValueAsString(
+                    java.util.Map.of("reason", "운영 지속이 어렵습니다.")
+            );
+
+            mockMvc.perform(post("/organizations/100/dissolution")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 해산 신청")
+        void failWithoutAuth() throws Exception {
+            String json = objectMapper.writeValueAsString(
+                    java.util.Map.of("reason", "사유")
+            );
+
+            mockMvc.perform(post("/organizations/100/dissolution")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 해산 사유 누락")
+        void failReasonBlank() throws Exception {
+            String json = objectMapper.writeValueAsString(
+                    java.util.Map.of("reason", "")
+            );
+
+            mockMvc.perform(post("/organizations/100/dissolution")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE /organizations/{id}/dissolution - 연합회 해산 취소")
+    class CancelDissolution {
+
+        @Test
+        @DisplayName("성공: 해산 취소")
+        void success() throws Exception {
+            willDoNothing().given(organizationService)
+                    .cancelDissolution(eq(1L), eq(100L));
+
+            mockMvc.perform(delete("/organizations/100/dissolution")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 대표가 아닌 유저의 취소")
+        void failForbidden() throws Exception {
+            willThrow(new BusinessException(OrganizationErrorCode.DISSOLUTION_CANCEL_FORBIDDEN))
+                    .given(organizationService).cancelDissolution(eq(999L), eq(100L));
+
+            mockMvc.perform(delete("/organizations/100/dissolution")
+                            .with(jwt().jwt(j -> j.subject("999"))))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 취소")
+        void failWithoutAuth() throws Exception {
+            mockMvc.perform(delete("/organizations/100/dissolution"))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
 
     @Nested
     @DisplayName("PATCH /organizations/{organizationId} - 연합회 정보 수정")

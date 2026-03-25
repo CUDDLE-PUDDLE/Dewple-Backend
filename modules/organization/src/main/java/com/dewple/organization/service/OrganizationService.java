@@ -2,6 +2,7 @@ package com.dewple.organization.service;
 
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.ApprovalStatus;
+import com.dewple.common.enums.DissolutionStatus;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.organization.entity.Organization;
 import com.dewple.organization.exception.OrganizationErrorCode;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Slice;
@@ -138,6 +140,64 @@ public class OrganizationService {
         );
 
         log.info("연합회 정보 수정: organizationId={}, userId={}", organizationId, userId);
+    }
+
+    @Transactional
+    public void requestDissolution(Long userId, Long organizationId, String reason) {
+        Organization organization = findById(organizationId);
+
+        if (organization.getApprovalStatus() != ApprovalStatus.APPROVED) {
+            throw new BusinessException(OrganizationErrorCode.ORGANIZATION_NOT_APPROVED);
+        }
+
+        if (organization.getDissolutionStatus() != DissolutionStatus.NONE) {
+            throw new BusinessException(OrganizationErrorCode.DISSOLUTION_ALREADY_REQUESTED);
+        }
+
+        // TODO: 역할/권한 시스템 구현 후 3번 권한(연합회해산) 체크로 변경
+        if (!organization.getCreator().getId().equals(userId)) {
+            throw new BusinessException(OrganizationErrorCode.DISSOLUTION_REQUEST_FORBIDDEN);
+        }
+
+        organization.requestDissolution(reason);
+        log.info("연합회 해산 신청: organizationId={}, userId={}", organizationId, userId);
+    }
+
+    @Transactional
+    public void approveDissolution(Long organizationId) {
+        Organization organization = findById(organizationId);
+
+        if (organization.getDissolutionStatus() != DissolutionStatus.REQUESTED) {
+            throw new BusinessException(OrganizationErrorCode.DISSOLUTION_NOT_REQUESTED);
+        }
+
+        organization.approveDissolution();
+        // TODO: 신청자에게 해산 승인 알림 발송
+        log.info("연합회 해산 승인: organizationId={}, scheduledDeleteAt={}",
+                organizationId, organization.getScheduledDeleteAt());
+    }
+
+    @Transactional
+    public void cancelDissolution(Long userId, Long organizationId) {
+        Organization organization = findById(organizationId);
+
+        if (organization.getDissolutionStatus() != DissolutionStatus.APPROVED) {
+            throw new BusinessException(OrganizationErrorCode.DISSOLUTION_NOT_IN_GRACE_PERIOD);
+        }
+
+        // 대표만 취소 가능
+        // TODO: 역할/권한 시스템 구현 후 대표 역할 체크로 변경
+        if (!organization.getCreator().getId().equals(userId)) {
+            throw new BusinessException(OrganizationErrorCode.DISSOLUTION_CANCEL_FORBIDDEN);
+        }
+
+        if (organization.getScheduledDeleteAt() != null
+                && LocalDateTime.now().isAfter(organization.getScheduledDeleteAt())) {
+            throw new BusinessException(OrganizationErrorCode.DISSOLUTION_NOT_IN_GRACE_PERIOD);
+        }
+
+        organization.cancelDissolution();
+        log.info("연합회 해산 취소: organizationId={}, userId={}", organizationId, userId);
     }
 
     @Transactional(readOnly = true)
