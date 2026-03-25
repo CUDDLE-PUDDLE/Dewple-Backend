@@ -11,9 +11,13 @@ import org.hibernate.type.SqlTypes;
 import com.dewple.common.entity.BaseEntity;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.ActivityType;
+import com.dewple.common.enums.ApprovalStatus;
+import com.dewple.common.enums.ContactPreference;
+import com.dewple.common.enums.DissolutionStatus;
 import com.dewple.common.enums.OrganizationType;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "organization")
@@ -56,11 +60,67 @@ public class Organization extends BaseEntity {
     @Column(name = "founded_date")
     private LocalDate foundedDate;
 
+    @Column(name = "purpose", length = 1000)
+    private String purpose;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", nullable = false, length = 20)
+    private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
+
+    @Column(name = "rejection_reason", length = 500)
+    private String rejectionReason;
+
+    @Column(name = "contact_email", length = 100)
+    private String contactEmail;
+
+    @Column(name = "contact_phone", length = 20)
+    private String contactPhone;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "contact_preference", length = 10)
+    private ContactPreference contactPreference;
+
+    @Column(name = "target_clubs_description", length = 500)
+    private String targetClubsDescription;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "target_club_ids", columnDefinition = "jsonb")
+    private String targetClubIds;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "category_ids", columnDefinition = "jsonb")
+    private String categoryIds;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "region_ids", columnDefinition = "jsonb")
+    private String regionIds;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "dissolution_status", nullable = false, length = 20)
+    private DissolutionStatus dissolutionStatus = DissolutionStatus.NONE;
+
+    @Column(name = "dissolution_reason", length = 500)
+    private String dissolutionReason;
+
+    @Column(name = "dissolution_requested_at")
+    private LocalDateTime dissolutionRequestedAt;
+
+    @Column(name = "dissolution_approved_at")
+    private LocalDateTime dissolutionApprovedAt;
+
+    @Column(name = "scheduled_delete_at")
+    private LocalDateTime scheduledDeleteAt;
+
+    @Column(name = "is_sanction_deletion", nullable = false)
+    private Boolean isSanctionDeletion = false;
 
     @Builder
     public Organization(User creator, String name, String description,
                         String coverImg, String landingPage, Boolean isPublic,
-                        OrganizationType type, ActivityType activityType, LocalDate foundedDate) {
+                        OrganizationType type, ActivityType activityType, LocalDate foundedDate,
+                        String purpose, String contactEmail, String contactPhone,
+                        ContactPreference contactPreference, String targetClubsDescription,
+                        String targetClubIds, String categoryIds, String regionIds) {
         this.creator = creator;
         this.name = name;
         this.description = description;
@@ -70,5 +130,69 @@ public class Organization extends BaseEntity {
         this.type = type;
         this.activityType = activityType != null ? activityType : ActivityType.BOTH;
         this.foundedDate = foundedDate;
+        this.purpose = purpose;
+        this.contactEmail = contactEmail;
+        this.contactPhone = contactPhone;
+        this.contactPreference = contactPreference;
+        this.targetClubsDescription = targetClubsDescription;
+        this.targetClubIds = targetClubIds;
+        this.categoryIds = categoryIds;
+        this.regionIds = regionIds;
+    }
+
+    public void update(String name, String description, String coverImg,
+                       OrganizationType type, ActivityType activityType,
+                       String purpose, String contactEmail, String contactPhone,
+                       ContactPreference contactPreference, String targetClubsDescription,
+                       String categoryIds, String regionIds) {
+        this.name = name;
+        this.description = description;
+        this.coverImg = coverImg;
+        this.type = type;
+        this.activityType = activityType;
+        this.purpose = purpose;
+        this.contactEmail = contactEmail;
+        this.contactPhone = contactPhone;
+        this.contactPreference = contactPreference;
+        this.targetClubsDescription = targetClubsDescription;
+        this.categoryIds = categoryIds;
+        this.regionIds = regionIds;
+    }
+
+    public void approve() {
+        this.approvalStatus = ApprovalStatus.APPROVED;
+    }
+
+    public void reject(String reason) {
+        this.approvalStatus = ApprovalStatus.REJECTED;
+        this.rejectionReason = reason;
+    }
+
+    public void requestDissolution(String reason) {
+        this.dissolutionStatus = DissolutionStatus.REQUESTED;
+        this.dissolutionReason = reason;
+        this.dissolutionRequestedAt = LocalDateTime.now();
+    }
+
+    public void approveDissolution() {
+        this.dissolutionStatus = DissolutionStatus.APPROVED;
+        this.dissolutionApprovedAt = LocalDateTime.now();
+        this.scheduledDeleteAt = this.dissolutionApprovedAt.plusDays(1);
+    }
+
+    public void cancelDissolution() {
+        this.dissolutionStatus = DissolutionStatus.NONE;
+        this.dissolutionReason = null;
+        this.dissolutionRequestedAt = null;
+        this.dissolutionApprovedAt = null;
+        this.scheduledDeleteAt = null;
+        this.isSanctionDeletion = false;
+    }
+
+    public void sanctionDeletion() {
+        this.dissolutionStatus = DissolutionStatus.APPROVED;
+        this.dissolutionApprovedAt = LocalDateTime.now();
+        this.scheduledDeleteAt = this.dissolutionApprovedAt.plusDays(1);
+        this.isSanctionDeletion = true;
     }
 }
