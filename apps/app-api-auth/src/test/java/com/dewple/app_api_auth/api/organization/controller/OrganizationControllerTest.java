@@ -9,6 +9,8 @@ import com.dewple.organization.service.GetOrganizationListParam;
 import com.dewple.organization.service.OrganizationDetailResult;
 import com.dewple.organization.service.OrganizationService;
 import com.dewple.organization.service.OrganizationSummaryResult;
+import com.dewple.organization.service.UpdateOrganizationParam;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.SliceImpl;
+import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -28,7 +31,11 @@ import java.time.LocalDate;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(OrganizationController.class)
@@ -38,11 +45,115 @@ class OrganizationControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @MockitoBean
     private OrganizationService organizationService;
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
+
+    @Nested
+    @DisplayName("PATCH /organizations/{organizationId} - 연합회 정보 수정")
+    class UpdateOrganization {
+
+        private String createUpdateRequestJson() throws Exception {
+            return objectMapper.writeValueAsString(java.util.Map.ofEntries(
+                    java.util.Map.entry("name", "수정된 연합회"),
+                    java.util.Map.entry("description", "수정된 설명"),
+                    java.util.Map.entry("coverImg", "new-cover.jpg"),
+                    java.util.Map.entry("type", "ENTERPRISE"),
+                    java.util.Map.entry("activityType", "ONLINE"),
+                    java.util.Map.entry("purpose", "수정된 목적"),
+                    java.util.Map.entry("contactEmail", "new@email.com"),
+                    java.util.Map.entry("contactPhone", "01099999999"),
+                    java.util.Map.entry("contactPreference", "PHONE"),
+                    java.util.Map.entry("targetClubsDescription", "수정된 대상"),
+                    java.util.Map.entry("categoryIds", List.of(2, 3)),
+                    java.util.Map.entry("regionIds", List.of(2))
+            ));
+        }
+
+        @Test
+        @DisplayName("성공: 연합회 정보 수정")
+        void success() throws Exception {
+            // given
+            willDoNothing().given(organizationService)
+                    .updateOrganization(eq(1L), eq(100L), any(UpdateOrganizationParam.class));
+
+            // when & then
+            mockMvc.perform(patch("/organizations/100")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createUpdateRequestJson()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 수정 시도")
+        void failWithoutAuth() throws Exception {
+            mockMvc.perform(patch("/organizations/100")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createUpdateRequestJson()))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 권한 없는 유저의 수정 시도")
+        void failForbidden() throws Exception {
+            // given
+            willThrow(new BusinessException(OrganizationErrorCode.ORGANIZATION_UPDATE_FORBIDDEN))
+                    .given(organizationService)
+                    .updateOrganization(eq(999L), eq(100L), any(UpdateOrganizationParam.class));
+
+            // when & then
+            mockMvc.perform(patch("/organizations/100")
+                            .with(jwt().jwt(j -> j.subject("999")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createUpdateRequestJson()))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("실패: 승인되지 않은 연합회 수정")
+        void failNotApproved() throws Exception {
+            // given
+            willThrow(new BusinessException(OrganizationErrorCode.ORGANIZATION_NOT_APPROVED))
+                    .given(organizationService)
+                    .updateOrganization(eq(1L), eq(100L), any(UpdateOrganizationParam.class));
+
+            // when & then
+            mockMvc.perform(patch("/organizations/100")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createUpdateRequestJson()))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("실패: 이름 누락 (Validation)")
+        void failNameBlank() throws Exception {
+            String json = objectMapper.writeValueAsString(java.util.Map.ofEntries(
+                    java.util.Map.entry("name", ""),
+                    java.util.Map.entry("type", "UNIVERSITY"),
+                    java.util.Map.entry("activityType", "BOTH"),
+                    java.util.Map.entry("purpose", "목적"),
+                    java.util.Map.entry("contactEmail", "a@b.com"),
+                    java.util.Map.entry("contactPhone", "010"),
+                    java.util.Map.entry("contactPreference", "EMAIL"),
+                    java.util.Map.entry("categoryIds", List.of(1)),
+                    java.util.Map.entry("regionIds", List.of(1))
+            ));
+
+            mockMvc.perform(patch("/organizations/100")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json))
+                    .andExpect(status().isBadRequest());
+        }
+    }
 
     @Nested
     @DisplayName("GET /organizations/{organizationId} - 연합회 단건 조회")

@@ -171,6 +171,131 @@ class OrganizationServiceTest {
     }
 
     @Nested
+    @DisplayName("updateOrganization - 연합회 정보 수정")
+    class UpdateOrganization {
+
+        private UpdateOrganizationParam createUpdateParam() {
+            return new UpdateOrganizationParam(
+                    "수정된 연합회", "수정된 설명", "new-cover.jpg",
+                    OrganizationType.ENTERPRISE, ActivityType.ONLINE,
+                    "수정된 목적", "new@email.com", "01099999999",
+                    ContactPreference.PHONE, "수정된 대상 설명",
+                    List.of(2L, 3L), List.of(2L)
+            );
+        }
+
+        @Test
+        @DisplayName("성공: 승인된 연합회 정보 수정")
+        void success() {
+            // given
+            Organization org = createPendingOrganization();
+            org.approve();
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            // when
+            organizationService.updateOrganization(USER_ID, 100L, createUpdateParam());
+
+            // then
+            assertThat(org.getName()).isEqualTo("수정된 연합회");
+            assertThat(org.getDescription()).isEqualTo("수정된 설명");
+            assertThat(org.getCoverImg()).isEqualTo("new-cover.jpg");
+            assertThat(org.getType()).isEqualTo(OrganizationType.ENTERPRISE);
+            assertThat(org.getActivityType()).isEqualTo(ActivityType.ONLINE);
+            assertThat(org.getPurpose()).isEqualTo("수정된 목적");
+            assertThat(org.getContactEmail()).isEqualTo("new@email.com");
+            assertThat(org.getContactPhone()).isEqualTo("01099999999");
+            assertThat(org.getContactPreference()).isEqualTo(ContactPreference.PHONE);
+            assertThat(org.getTargetClubsDescription()).isEqualTo("수정된 대상 설명");
+            assertThat(org.getCategoryIds()).isEqualTo("[2, 3]");
+            assertThat(org.getRegionIds()).isEqualTo("[2]");
+        }
+
+        @Test
+        @DisplayName("실패: 승인되지 않은 연합회 수정")
+        void failNotApproved() {
+            // given
+            Organization org = createPendingOrganization(); // PENDING 상태
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            // when & then
+            assertThatThrownBy(() -> organizationService.updateOrganization(USER_ID, 100L, createUpdateParam()))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.ORGANIZATION_NOT_APPROVED));
+        }
+
+        @Test
+        @DisplayName("실패: 생성자가 아닌 유저의 수정 시도")
+        void failForbidden() {
+            // given
+            Organization org = createPendingOrganization();
+            org.approve();
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            // when & then
+            assertThatThrownBy(() -> organizationService.updateOrganization(999L, 100L, createUpdateParam()))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.ORGANIZATION_UPDATE_FORBIDDEN));
+        }
+
+        @Test
+        @DisplayName("실패: 카테고리 미선택")
+        void failNoCategoryIds() {
+            // given
+            Organization org = createPendingOrganization();
+            org.approve();
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            UpdateOrganizationParam param = new UpdateOrganizationParam(
+                    "이름", null, null, OrganizationType.OTHER, ActivityType.BOTH,
+                    "목적", "a@b.com", "010", ContactPreference.EMAIL, null,
+                    List.of(), List.of(1L)
+            );
+
+            // when & then
+            assertThatThrownBy(() -> organizationService.updateOrganization(USER_ID, 100L, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.CATEGORY_REQUIRED));
+        }
+
+        @Test
+        @DisplayName("실패: 카테고리 4개 초과")
+        void failTooManyCategories() {
+            // given
+            Organization org = createPendingOrganization();
+            org.approve();
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            UpdateOrganizationParam param = new UpdateOrganizationParam(
+                    "이름", null, null, OrganizationType.OTHER, ActivityType.BOTH,
+                    "목적", "a@b.com", "010", ContactPreference.EMAIL, null,
+                    List.of(1L, 2L, 3L, 4L), List.of(1L)
+            );
+
+            // when & then
+            assertThatThrownBy(() -> organizationService.updateOrganization(USER_ID, 100L, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.CATEGORY_LIMIT_EXCEEDED));
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 연합회 수정")
+        void failNotFound() {
+            // given
+            given(organizationRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> organizationService.updateOrganization(USER_ID, 999L, createUpdateParam()))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.ORGANIZATION_NOT_FOUND));
+        }
+    }
+
+    @Nested
     @DisplayName("getOrganizationDetail - 연합회 단건 조회")
     class GetOrganizationDetail {
 

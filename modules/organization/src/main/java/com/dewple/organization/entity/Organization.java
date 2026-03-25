@@ -115,6 +115,25 @@ public class Organization extends BaseEntity {
         this.regionIds = regionIds;
     }
 
+    public void update(String name, String description, String coverImg,
+                       OrganizationType type, ActivityType activityType,
+                       String purpose, String contactEmail, String contactPhone,
+                       ContactPreference contactPreference, String targetClubsDescription,
+                       String categoryIds, String regionIds) {
+        this.name = name;
+        this.description = description;
+        this.coverImg = coverImg;
+        this.type = type;
+        this.activityType = activityType;
+        this.purpose = purpose;
+        this.contactEmail = contactEmail;
+        this.contactPhone = contactPhone;
+        this.contactPreference = contactPreference;
+        this.targetClubsDescription = targetClubsDescription;
+        this.categoryIds = categoryIds;
+        this.regionIds = regionIds;
+    }
+
     public void approve() {
         this.approvalStatus = ApprovalStatus.APPROVED;
     }

@@ -106,6 +106,40 @@ public class OrganizationService {
         return OrganizationDetailResult.from(organization);
     }
 
+    @Transactional
+    public void updateOrganization(Long userId, Long organizationId, UpdateOrganizationParam param) {
+        Organization organization = findById(organizationId);
+
+        if (organization.getApprovalStatus() != ApprovalStatus.APPROVED) {
+            throw new BusinessException(OrganizationErrorCode.ORGANIZATION_NOT_APPROVED);
+        }
+
+        // TODO: 역할/권한 시스템 구현 후 2번 권한(연합회관리) 체크로 변경
+        if (!organization.getCreator().getId().equals(userId)) {
+            throw new BusinessException(OrganizationErrorCode.ORGANIZATION_UPDATE_FORBIDDEN);
+        }
+
+        if (param.categoryIds() == null || param.categoryIds().isEmpty()) {
+            throw new BusinessException(OrganizationErrorCode.CATEGORY_REQUIRED);
+        }
+        if (param.categoryIds().size() > 3) {
+            throw new BusinessException(OrganizationErrorCode.CATEGORY_LIMIT_EXCEEDED);
+        }
+        if (param.regionIds() == null || param.regionIds().isEmpty()) {
+            throw new BusinessException(OrganizationErrorCode.REGION_REQUIRED);
+        }
+
+        organization.update(
+                param.name(), param.description(), param.coverImg(),
+                param.type(), param.activityType(), param.purpose(),
+                param.contactEmail(), param.contactPhone(), param.contactPreference(),
+                param.targetClubsDescription(),
+                param.categoryIds().toString(), param.regionIds().toString()
+        );
+
+        log.info("연합회 정보 수정: organizationId={}, userId={}", organizationId, userId);
+    }
+
     @Transactional(readOnly = true)
     public Organization getById(Long organizationId) {
         return findById(organizationId);

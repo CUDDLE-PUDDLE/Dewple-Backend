@@ -7,6 +7,7 @@ import com.dewple.app_api_auth.api.organization.dto.GetOrganizationDetailRespons
 import com.dewple.app_api_auth.api.organization.dto.GetOrganizationListResponse;
 import com.dewple.app_api_auth.api.organization.dto.OrganizationResponse;
 import com.dewple.app_api_auth.api.organization.dto.RejectOrganizationRequest;
+import com.dewple.app_api_auth.api.organization.dto.UpdateOrganizationRequest;
 import com.dewple.app_api_auth.global.response.ApiResponse;
 import com.dewple.app_api_auth.global.response.SliceResponse;
 import com.dewple.app_api_auth.global.security.CurrentUserId;
@@ -18,6 +19,7 @@ import com.dewple.organization.service.GetOrganizationListParam;
 import com.dewple.organization.service.OrganizationDetailResult;
 import com.dewple.organization.service.OrganizationService;
 import com.dewple.organization.service.OrganizationSummaryResult;
+import com.dewple.organization.service.UpdateOrganizationParam;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -82,6 +84,26 @@ public class OrganizationController {
     public ApiResponse<GetOrganizationDetailResponse> getOrganizationDetail(@PathVariable Long organizationId) {
         OrganizationDetailResult result = organizationService.getOrganizationDetail(organizationId);
         return ApiResponse.ok(GetOrganizationDetailResponse.from(result));
+    }
+
+    @Operation(summary = "연합회 정보 수정", description = "연합회 기본 정보를 수정합니다. 승인된 연합회만 수정 가능합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/{organizationId}")
+    public ApiResponse<Void> updateOrganization(
+            @CurrentUserId Long userId,
+            @PathVariable Long organizationId,
+            @Valid @RequestBody UpdateOrganizationRequest request
+    ) {
+        UpdateOrganizationParam param = new UpdateOrganizationParam(
+                request.name(), request.description(), request.coverImg(),
+                request.type(), request.activityType(), request.purpose(),
+                request.contactEmail(), request.contactPhone(), request.contactPreference(),
+                request.targetClubsDescription(),
+                request.categoryIds(), request.regionIds()
+        );
+
+        organizationService.updateOrganization(userId, organizationId, param);
+        return ApiResponse.ok();
     }
 
     @Operation(summary = "연합회 생성 승인 (관리자)")
