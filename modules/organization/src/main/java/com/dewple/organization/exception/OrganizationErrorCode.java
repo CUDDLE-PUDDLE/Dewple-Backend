@@ -26,6 +26,10 @@ public enum OrganizationErrorCode implements ErrorCode {
     ROLE_DEFAULT_NOT_MODIFIABLE(7022, HttpStatus.BAD_REQUEST, "기본 역할은 수정할 수 없습니다."),
     ROLE_DEFAULT_NOT_DELETABLE(7023, HttpStatus.BAD_REQUEST, "기본 역할은 삭제할 수 없습니다."),
     ROLE_MANAGE_FORBIDDEN(7024, HttpStatus.FORBIDDEN, "역할을 관리할 권한이 없습니다."),
+    MEMBER_NOT_FOUND(7030, HttpStatus.NOT_FOUND, "연합회 멤버를 찾을 수 없습니다."),
+    DELEGATE_FORBIDDEN(7031, HttpStatus.FORBIDDEN, "대표만 대표 위임을 할 수 있습니다."),
+    DELEGATE_SELF(7032, HttpStatus.BAD_REQUEST, "자기 자신에게 위임할 수 없습니다."),
+    REPRESENTATIVE_ROLE_NOT_ASSIGNABLE(7033, HttpStatus.BAD_REQUEST, "대표 역할은 직접 할당할 수 없습니다. 대표 위임을 사용하세요."),
     ;
 
     private final int code;

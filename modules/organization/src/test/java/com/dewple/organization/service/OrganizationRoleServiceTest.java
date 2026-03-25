@@ -4,8 +4,10 @@ import com.dewple.common.entity.User;
 import com.dewple.common.enums.*;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.organization.entity.Organization;
+import com.dewple.organization.entity.OrganizationMember;
 import com.dewple.organization.entity.OrganizationRole;
 import com.dewple.organization.exception.OrganizationErrorCode;
+import com.dewple.organization.repository.OrganizationMemberRepository;
 import com.dewple.organization.repository.OrganizationRepository;
 import com.dewple.organization.repository.OrganizationRoleRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +36,9 @@ class OrganizationRoleServiceTest {
 
     @Mock
     private OrganizationRoleRepository organizationRoleRepository;
+
+    @Mock
+    private OrganizationMemberRepository organizationMemberRepository;
 
     @InjectMocks
     private OrganizationRoleService organizationRoleService;
@@ -80,6 +85,27 @@ class OrganizationRoleServiceTest {
                 .build();
         ReflectionTestUtils.setField(role, "id", 10L);
         return role;
+    }
+
+    private OrganizationRole createDefaultMemberRole(Organization org) {
+        OrganizationRole role = OrganizationRole.builder()
+                .organization(org)
+                .name("연합회원")
+                .permissions(0L)
+                .isStaff(false)
+                .isDefault(true)
+                .build();
+        ReflectionTestUtils.setField(role, "id", 4L);
+        return role;
+    }
+
+    private OrganizationMember createMember(Organization org, OrganizationRole role, Long memberId, Long userId) {
+        User user = User.builder().userId("user" + userId).name("유저" + userId).phone("010").build();
+        ReflectionTestUtils.setField(user, "id", userId);
+        OrganizationMember member = OrganizationMember.builder()
+                .organization(org).user(user).role(role).build();
+        ReflectionTestUtils.setField(member, "id", memberId);
+        return member;
     }
 
     private OrganizationRole createDefaultRole(Organization org) {
@@ -298,6 +324,143 @@ class OrganizationRoleServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
                             .isEqualTo(OrganizationErrorCode.ORGANIZATION_NOT_FOUND));
+        }
+    }
+
+    @Nested
+    @DisplayName("assignRole - 멤버에 역할 부여")
+    class AssignRole {
+
+        @Test
+        @DisplayName("성공: 멤버에 커스텀 역할 부여")
+        void success() {
+            Organization org = createApprovedOrganization();
+            OrganizationRole customRole = createCustomRole(org);
+            OrganizationRole defaultMemberRole = createDefaultMemberRole(org);
+            OrganizationMember member = createMember(org, defaultMemberRole, 50L, 2L);
+
+            given(organizationRepository.findById(ORG_ID)).willReturn(Optional.of(org));
+            given(organizationMemberRepository.findByOrganizationIdAndId(ORG_ID, 50L)).willReturn(Optional.of(member));
+            given(organizationRoleRepository.findById(10L)).willReturn(Optional.of(customRole));
+
+            organizationRoleService.assignRole(USER_ID, ORG_ID, 50L, 10L);
+
+            assertThat(member.getRole().getName()).isEqualTo("홍보담당");
+        }
+
+        @Test
+        @DisplayName("실패: 대표 역할 직접 할당 시도")
+        void failAssignRepresentative() {
+            Organization org = createApprovedOrganization();
+            OrganizationRole repRole = createDefaultRole(org);
+            OrganizationRole defaultMemberRole = createDefaultMemberRole(org);
+            OrganizationMember member = createMember(org, defaultMemberRole, 50L, 2L);
+
+            given(organizationRepository.findById(ORG_ID)).willReturn(Optional.of(org));
+            given(organizationMemberRepository.findByOrganizationIdAndId(ORG_ID, 50L)).willReturn(Optional.of(member));
+            given(organizationRoleRepository.findById(1L)).willReturn(Optional.of(repRole));
+
+            assertThatThrownBy(() -> organizationRoleService.assignRole(USER_ID, ORG_ID, 50L, 1L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.REPRESENTATIVE_ROLE_NOT_ASSIGNABLE));
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 멤버")
+        void failMemberNotFound() {
+            Organization org = createApprovedOrganization();
+            given(organizationRepository.findById(ORG_ID)).willReturn(Optional.of(org));
+            given(organizationMemberRepository.findByOrganizationIdAndId(ORG_ID, 999L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> organizationRoleService.assignRole(USER_ID, ORG_ID, 999L, 10L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.MEMBER_NOT_FOUND));
+        }
+    }
+
+    @Nested
+    @DisplayName("delegateRepresentative - 대표 위임")
+    class DelegateRepresentative {
+
+        @Test
+        @DisplayName("성공: 대표 위임")
+        void success() {
+            Organization org = createApprovedOrganization();
+            OrganizationRole repRole = createDefaultRole(org);
+            OrganizationRole defaultMemberRole = createDefaultMemberRole(org);
+
+            OrganizationMember currentRep = createMember(org, repRole, 50L, USER_ID);
+            OrganizationMember targetMember = createMember(org, defaultMemberRole, 51L, 2L);
+
+            given(organizationRepository.findById(ORG_ID)).willReturn(Optional.of(org));
+            given(organizationMemberRepository.findByOrganizationIdAndUserId(ORG_ID, USER_ID))
+                    .willReturn(Optional.of(currentRep));
+            given(organizationMemberRepository.findByOrganizationIdAndId(ORG_ID, 51L))
+                    .willReturn(Optional.of(targetMember));
+            given(organizationRoleRepository.findByOrganizationIdAndName(ORG_ID, "연합회원"))
+                    .willReturn(Optional.of(defaultMemberRole));
+
+            organizationRoleService.delegateRepresentative(USER_ID, ORG_ID, 51L);
+
+            assertThat(targetMember.getRole().getName()).isEqualTo("대표");
+            assertThat(currentRep.getRole().getName()).isEqualTo("연합회원");
+        }
+
+        @Test
+        @DisplayName("실패: 대표가 아닌 유저의 위임 시도")
+        void failNotRepresentative() {
+            Organization org = createApprovedOrganization();
+            OrganizationRole customRole = createCustomRole(org);
+            OrganizationMember member = createMember(org, customRole, 50L, USER_ID);
+
+            given(organizationRepository.findById(ORG_ID)).willReturn(Optional.of(org));
+            given(organizationMemberRepository.findByOrganizationIdAndUserId(ORG_ID, USER_ID))
+                    .willReturn(Optional.of(member));
+
+            assertThatThrownBy(() -> organizationRoleService.delegateRepresentative(USER_ID, ORG_ID, 51L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.DELEGATE_FORBIDDEN));
+        }
+
+        @Test
+        @DisplayName("실패: 자기 자신에게 위임")
+        void failDelegateSelf() {
+            Organization org = createApprovedOrganization();
+            OrganizationRole repRole = createDefaultRole(org);
+            OrganizationMember currentRep = createMember(org, repRole, 50L, USER_ID);
+
+            given(organizationRepository.findById(ORG_ID)).willReturn(Optional.of(org));
+            given(organizationMemberRepository.findByOrganizationIdAndUserId(ORG_ID, USER_ID))
+                    .willReturn(Optional.of(currentRep));
+            given(organizationMemberRepository.findByOrganizationIdAndId(ORG_ID, 50L))
+                    .willReturn(Optional.of(currentRep));
+
+            assertThatThrownBy(() -> organizationRoleService.delegateRepresentative(USER_ID, ORG_ID, 50L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.DELEGATE_SELF));
+        }
+
+        @Test
+        @DisplayName("실패: 대상 멤버 없음")
+        void failTargetNotFound() {
+            Organization org = createApprovedOrganization();
+            OrganizationRole repRole = createDefaultRole(org);
+            OrganizationMember currentRep = createMember(org, repRole, 50L, USER_ID);
+
+            given(organizationRepository.findById(ORG_ID)).willReturn(Optional.of(org));
+            given(organizationMemberRepository.findByOrganizationIdAndUserId(ORG_ID, USER_ID))
+                    .willReturn(Optional.of(currentRep));
+            given(organizationMemberRepository.findByOrganizationIdAndId(ORG_ID, 999L))
+                    .willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> organizationRoleService.delegateRepresentative(USER_ID, ORG_ID, 999L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.MEMBER_NOT_FOUND));
         }
     }
 }

@@ -82,4 +82,29 @@ public class OrganizationRoleController {
         organizationRoleService.deleteRole(userId, organizationId, roleId);
         return ApiResponse.ok();
     }
+
+    @Operation(summary = "멤버에 역할 부여", description = "멤버에게 역할을 할당합니다. 대표 역할은 직접 할당할 수 없으며, 대표 위임 API를 사용해야 합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/members/{memberId}")
+    public ApiResponse<Void> assignRole(
+            @CurrentUserId Long userId,
+            @PathVariable Long organizationId,
+            @PathVariable Long memberId,
+            @RequestParam Long roleId
+    ) {
+        organizationRoleService.assignRole(userId, organizationId, memberId, roleId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "대표 위임", description = "대표만 다른 멤버에게 대표를 위임할 수 있습니다. 기존 대표는 연합회원으로 전환됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/delegate/{targetMemberId}")
+    public ApiResponse<Void> delegateRepresentative(
+            @CurrentUserId Long userId,
+            @PathVariable Long organizationId,
+            @PathVariable Long targetMemberId
+    ) {
+        organizationRoleService.delegateRepresentative(userId, organizationId, targetMemberId);
+        return ApiResponse.ok();
+    }
 }

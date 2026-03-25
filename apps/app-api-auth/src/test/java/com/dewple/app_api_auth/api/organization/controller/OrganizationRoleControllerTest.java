@@ -201,4 +201,79 @@ class OrganizationRoleControllerTest {
                     .andExpect(status().isBadRequest());
         }
     }
+
+    @Nested
+    @DisplayName("PATCH /organizations/{id}/roles/members/{memberId} - 멤버에 역할 부여")
+    class AssignRole {
+
+        @Test
+        @DisplayName("성공: 멤버에 역할 부여")
+        void success() throws Exception {
+            willDoNothing().given(organizationRoleService).assignRole(eq(1L), eq(100L), eq(50L), eq(10L));
+
+            mockMvc.perform(patch("/organizations/100/roles/members/50")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .param("roleId", "10"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 대표 역할 직접 할당")
+        void failRepresentativeRole() throws Exception {
+            willThrow(new BusinessException(OrganizationErrorCode.REPRESENTATIVE_ROLE_NOT_ASSIGNABLE))
+                    .given(organizationRoleService).assignRole(eq(1L), eq(100L), eq(50L), eq(1L));
+
+            mockMvc.perform(patch("/organizations/100/roles/members/50")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .param("roleId", "1"))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없음")
+        void failNoAuth() throws Exception {
+            mockMvc.perform(patch("/organizations/100/roles/members/50")
+                            .param("roleId", "10"))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /organizations/{id}/roles/delegate/{targetMemberId} - 대표 위임")
+    class DelegateRepresentative {
+
+        @Test
+        @DisplayName("성공: 대표 위임")
+        void success() throws Exception {
+            willDoNothing().given(organizationRoleService).delegateRepresentative(eq(1L), eq(100L), eq(51L));
+
+            mockMvc.perform(post("/organizations/100/roles/delegate/51")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 대표가 아닌 유저")
+        void failNotRepresentative() throws Exception {
+            willThrow(new BusinessException(OrganizationErrorCode.DELEGATE_FORBIDDEN))
+                    .given(organizationRoleService).delegateRepresentative(eq(999L), eq(100L), eq(51L));
+
+            mockMvc.perform(post("/organizations/100/roles/delegate/51")
+                            .with(jwt().jwt(j -> j.subject("999"))))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("실패: 자기 자신에게 위임")
+        void failDelegateSelf() throws Exception {
+            willThrow(new BusinessException(OrganizationErrorCode.DELEGATE_SELF))
+                    .given(organizationRoleService).delegateRepresentative(eq(1L), eq(100L), eq(50L));
+
+            mockMvc.perform(post("/organizations/100/roles/delegate/50")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isBadRequest());
+        }
+    }
 }

@@ -6,6 +6,8 @@ import com.dewple.common.exception.BusinessException;
 import com.dewple.organization.entity.Organization;
 import com.dewple.organization.entity.OrganizationRole;
 import com.dewple.organization.exception.OrganizationErrorCode;
+import com.dewple.organization.entity.OrganizationMember;
+import com.dewple.organization.repository.OrganizationMemberRepository;
 import com.dewple.organization.repository.OrganizationRepository;
 import com.dewple.organization.repository.OrganizationRoleRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,10 @@ public class OrganizationRoleService {
 
     private final OrganizationRepository organizationRepository;
     private final OrganizationRoleRepository organizationRoleRepository;
+    private final OrganizationMemberRepository organizationMemberRepository;
+
+    private static final String REPRESENTATIVE_ROLE_NAME = "대표";
+    private static final String DEFAULT_MEMBER_ROLE_NAME = "연합회원";
 
     @Transactional
     public OrganizationRoleResult createRole(Long userId, Long organizationId, CreateOrganizationRoleParam param) {
@@ -141,6 +147,58 @@ public class OrganizationRoleService {
                 .build();
 
         organizationRoleRepository.saveAll(List.of(representative, manager, clubRepresentative, member));
+    }
+
+    @Transactional
+    public void assignRole(Long userId, Long organizationId, Long memberId, Long roleId) {
+        Organization organization = findApprovedOrganization(organizationId);
+        validateRoleManagePermission(organization, userId);
+
+        OrganizationMember member = organizationMemberRepository.findByOrganizationIdAndId(organizationId, memberId)
+                .orElseThrow(() -> new BusinessException(OrganizationErrorCode.MEMBER_NOT_FOUND));
+
+        OrganizationRole role = organizationRoleRepository.findById(roleId)
+                .orElseThrow(() -> new BusinessException(OrganizationErrorCode.ROLE_NOT_FOUND));
+
+        if (REPRESENTATIVE_ROLE_NAME.equals(role.getName()) && role.getIsDefault()) {
+            throw new BusinessException(OrganizationErrorCode.REPRESENTATIVE_ROLE_NOT_ASSIGNABLE);
+        }
+
+        member.changeRole(role);
+        log.info("연합회 멤버 역할 변경: organizationId={}, memberId={}, roleId={}", organizationId, memberId, roleId);
+    }
+
+    @Transactional
+    public void delegateRepresentative(Long userId, Long organizationId, Long targetMemberId) {
+        Organization organization = findApprovedOrganization(organizationId);
+
+        OrganizationMember currentRepMember = organizationMemberRepository
+                .findByOrganizationIdAndUserId(organizationId, userId)
+                .orElseThrow(() -> new BusinessException(OrganizationErrorCode.MEMBER_NOT_FOUND));
+
+        OrganizationRole currentRole = currentRepMember.getRole();
+        if (!REPRESENTATIVE_ROLE_NAME.equals(currentRole.getName()) || !currentRole.getIsDefault()) {
+            throw new BusinessException(OrganizationErrorCode.DELEGATE_FORBIDDEN);
+        }
+
+        OrganizationMember targetMember = organizationMemberRepository
+                .findByOrganizationIdAndId(organizationId, targetMemberId)
+                .orElseThrow(() -> new BusinessException(OrganizationErrorCode.MEMBER_NOT_FOUND));
+
+        if (currentRepMember.getId().equals(targetMember.getId())) {
+            throw new BusinessException(OrganizationErrorCode.DELEGATE_SELF);
+        }
+
+        OrganizationRole repRole = currentRepMember.getRole();
+        OrganizationRole defaultMemberRole = organizationRoleRepository
+                .findByOrganizationIdAndName(organizationId, DEFAULT_MEMBER_ROLE_NAME)
+                .orElseThrow(() -> new BusinessException(OrganizationErrorCode.ROLE_NOT_FOUND));
+
+        targetMember.changeRole(repRole);
+        currentRepMember.changeRole(defaultMemberRole);
+
+        log.info("연합회 대표 위임: organizationId={}, from={}, to={}",
+                organizationId, currentRepMember.getId(), targetMemberId);
     }
 
     private Organization findApprovedOrganization(Long organizationId) {
