@@ -3,6 +3,7 @@ package com.dewple.app_api_auth.api.organization.controller;
 import static com.dewple.app_api_auth.global.config.SwaggerConfig.BEARER_AUTH;
 
 import com.dewple.app_api_auth.api.organization.dto.CreateOrganizationRequest;
+import com.dewple.app_api_auth.api.organization.dto.GetOrganizationDetailResponse;
 import com.dewple.app_api_auth.api.organization.dto.GetOrganizationListResponse;
 import com.dewple.app_api_auth.api.organization.dto.OrganizationResponse;
 import com.dewple.app_api_auth.api.organization.dto.RejectOrganizationRequest;
@@ -14,6 +15,7 @@ import com.dewple.common.enums.OrganizationType;
 import com.dewple.organization.entity.Organization;
 import com.dewple.organization.service.CreateOrganizationParam;
 import com.dewple.organization.service.GetOrganizationListParam;
+import com.dewple.organization.service.OrganizationDetailResult;
 import com.dewple.organization.service.OrganizationService;
 import com.dewple.organization.service.OrganizationSummaryResult;
 import io.swagger.v3.oas.annotations.Operation;
@@ -75,11 +77,11 @@ public class OrganizationController {
         return ApiResponse.ok(OrganizationResponse.from(organization));
     }
 
-    @Operation(summary = "연합회 단건 조회")
+    @Operation(summary = "연합회 단건 조회", description = "승인된 연합회의 기본 정보와 소개페이지를 조회합니다.")
     @GetMapping("/{organizationId}")
-    public ApiResponse<OrganizationResponse> getOrganization(@PathVariable Long organizationId) {
-        Organization organization = organizationService.getById(organizationId);
-        return ApiResponse.ok(OrganizationResponse.from(organization));
+    public ApiResponse<GetOrganizationDetailResponse> getOrganizationDetail(@PathVariable Long organizationId) {
+        OrganizationDetailResult result = organizationService.getOrganizationDetail(organizationId);
+        return ApiResponse.ok(GetOrganizationDetailResponse.from(result));
     }
 
     @Operation(summary = "연합회 생성 승인 (관리자)")

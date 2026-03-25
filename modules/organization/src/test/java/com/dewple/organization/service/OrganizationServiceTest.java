@@ -171,6 +171,73 @@ class OrganizationServiceTest {
     }
 
     @Nested
+    @DisplayName("getOrganizationDetail - 연합회 단건 조회")
+    class GetOrganizationDetail {
+
+        @Test
+        @DisplayName("성공: 승인된 연합회 상세 조회")
+        void success() {
+            // given
+            Organization org = createPendingOrganization();
+            org.approve();
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            // when
+            OrganizationDetailResult result = organizationService.getOrganizationDetail(100L);
+
+            // then
+            assertThat(result.id()).isEqualTo(100L);
+            assertThat(result.name()).isEqualTo("테스트 연합회");
+            assertThat(result.type()).isEqualTo(OrganizationType.UNIVERSITY);
+            assertThat(result.activityType()).isEqualTo(ActivityType.BOTH);
+            assertThat(result.purpose()).isEqualTo("목적");
+            assertThat(result.creatorId()).isEqualTo(USER_ID);
+        }
+
+        @Test
+        @DisplayName("실패: 승인되지 않은 연합회 조회")
+        void failNotApproved() {
+            // given
+            Organization org = createPendingOrganization(); // PENDING 상태
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            // when & then
+            assertThatThrownBy(() -> organizationService.getOrganizationDetail(100L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.ORGANIZATION_NOT_APPROVED));
+        }
+
+        @Test
+        @DisplayName("실패: 반려된 연합회 조회")
+        void failRejected() {
+            // given
+            Organization org = createPendingOrganization();
+            org.reject("사유");
+            given(organizationRepository.findById(100L)).willReturn(Optional.of(org));
+
+            // when & then
+            assertThatThrownBy(() -> organizationService.getOrganizationDetail(100L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.ORGANIZATION_NOT_APPROVED));
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 연합회 조회")
+        void failNotFound() {
+            // given
+            given(organizationRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> organizationService.getOrganizationDetail(999L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(OrganizationErrorCode.ORGANIZATION_NOT_FOUND));
+        }
+    }
+
+    @Nested
     @DisplayName("getOrganizationList - 연합회 목록 조회")
     class GetOrganizationList {
 

@@ -96,6 +96,17 @@ public class OrganizationService {
     }
 
     @Transactional(readOnly = true)
+    public OrganizationDetailResult getOrganizationDetail(Long organizationId) {
+        Organization organization = findById(organizationId);
+
+        if (organization.getApprovalStatus() != ApprovalStatus.APPROVED) {
+            throw new BusinessException(OrganizationErrorCode.ORGANIZATION_NOT_APPROVED);
+        }
+
+        return OrganizationDetailResult.from(organization);
+    }
+
+    @Transactional(readOnly = true)
     public Organization getById(Long organizationId) {
         return findById(organizationId);
     }

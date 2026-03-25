@@ -14,6 +14,7 @@ public enum OrganizationErrorCode implements ErrorCode {
     CATEGORY_REQUIRED(7002, HttpStatus.BAD_REQUEST, "카테고리는 최소 1개 필수입니다."),
     CATEGORY_LIMIT_EXCEEDED(7003, HttpStatus.BAD_REQUEST, "카테고리는 최대 3개까지 선택 가능합니다."),
     REGION_REQUIRED(7004, HttpStatus.BAD_REQUEST, "지역은 필수입니다."),
+    ORGANIZATION_NOT_APPROVED(7005, HttpStatus.BAD_REQUEST, "승인되지 않은 연합회입니다."),
     ;
 
     private final int code;
