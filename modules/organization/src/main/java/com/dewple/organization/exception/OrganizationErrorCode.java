@@ -21,6 +21,11 @@ public enum OrganizationErrorCode implements ErrorCode {
     DISSOLUTION_NOT_REQUESTED(7012, HttpStatus.BAD_REQUEST, "해산 신청 상태가 아닙니다."),
     DISSOLUTION_CANCEL_FORBIDDEN(7013, HttpStatus.FORBIDDEN, "대표만 해산을 취소할 수 있습니다."),
     DISSOLUTION_NOT_IN_GRACE_PERIOD(7014, HttpStatus.BAD_REQUEST, "유예 기간이 아니므로 취소할 수 없습니다."),
+    ROLE_NOT_FOUND(7020, HttpStatus.NOT_FOUND, "역할을 찾을 수 없습니다."),
+    ROLE_NAME_DUPLICATED(7021, HttpStatus.BAD_REQUEST, "이미 존재하는 역할 이름입니다."),
+    ROLE_DEFAULT_NOT_MODIFIABLE(7022, HttpStatus.BAD_REQUEST, "기본 역할은 수정할 수 없습니다."),
+    ROLE_DEFAULT_NOT_DELETABLE(7023, HttpStatus.BAD_REQUEST, "기본 역할은 삭제할 수 없습니다."),
+    ROLE_MANAGE_FORBIDDEN(7024, HttpStatus.FORBIDDEN, "역할을 관리할 권한이 없습니다."),
     ;
 
     private final int code;
