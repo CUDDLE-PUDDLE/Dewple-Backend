@@ -2,6 +2,7 @@ description = 'Club Module - 동아리 도메인 (모집 공고, 지원서, 버�
 
 dependencies {
     implementation project(":modules:common")
+    implementation project(":modules:user")
 
     // Web (HttpStatus - ErrorCode 구현용)
     compileOnly 'org.springframework:spring-web'
@@ -26,4 +27,8 @@ dependencies {
     annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
 
     compileOnly 'org.springframework:spring-web'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework:spring-web'
 }
