@@ -7,8 +7,8 @@ import com.dewple.activity.exception.ActivityErrorCode;
 import com.dewple.activity.repository.ActivityInterestRepository;
 import com.dewple.activity.repository.ActivityParticipantRepository;
 import com.dewple.activity.repository.ActivityRepository;
-import com.dewple.activity.repository.CategoryRepository;
-import com.dewple.activity.repository.RegionRepository;
+import com.dewple.common.repository.CategoryRepository;
+import com.dewple.common.repository.RegionRepository;
 import com.dewple.club.entity.ClubMember;
 import com.dewple.club.exception.ClubErrorCode;
 import com.dewple.club.repository.ClubMemberRepository;
@@ -22,8 +22,8 @@ import com.dewple.common.enums.ParticipantRole;
 import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
-import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.repository.UserRepository;
+import com.dewple.common.exception.CommonErrorCode;
+import com.dewple.common.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -57,7 +57,7 @@ public class ActivityService {
     @Transactional
     public CreateActivityResult createActivity(Long userId, CreateActivityParam param) {
         User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         // #25: 모임장 동시 운영 최대 10개
         long leaderCount = activityRepository.findByCreatorIdAndStatus(userId, BaseStatus.ACTIVE).size();
@@ -95,13 +95,13 @@ public class ActivityService {
         Category category = null;
         if (param.categoryId() != null) {
             category = categoryRepository.findById(param.categoryId())
-                    .orElseThrow(() -> new BusinessException(ActivityErrorCode.CATEGORY_NOT_FOUND));
+                    .orElseThrow(() -> new BusinessException(CommonErrorCode.CATEGORY_NOT_FOUND));
         }
 
         Region region = null;
         if (param.regionId() != null) {
             region = regionRepository.findById(param.regionId())
-                    .orElseThrow(() -> new BusinessException(ActivityErrorCode.REGION_NOT_FOUND));
+                    .orElseThrow(() -> new BusinessException(CommonErrorCode.REGION_NOT_FOUND));
         }
 
         String inviteCode = null;
@@ -232,7 +232,7 @@ public class ActivityService {
     @Transactional(readOnly = true)
     public Slice<ActivitySummaryResult> getActivityList(Long userId, GetActivityListParam param) {
         if (!userRepository.existsById(userId)) {
-            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+            throw new BusinessException(CommonErrorCode.USER_NOT_FOUND);
         }
 
         return switch (param.section()) {
@@ -376,7 +376,7 @@ public class ActivityService {
                 .ifPresent(p -> { throw new BusinessException(ActivityErrorCode.ALREADY_PARTICIPANT); });
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         long confirmedCount = activityParticipantRepository
                 .countByActivityIdAndStatusAndParticipantStatusInAndRole(
@@ -582,7 +582,7 @@ public class ActivityService {
         Activity activity = findActiveActivity(activityId);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         long currentCount = activityInterestRepository.countByUserIdAndStatus(userId, BaseStatus.ACTIVE);
         if (currentCount >= 20) {
@@ -631,7 +631,7 @@ public class ActivityService {
     @Transactional(readOnly = true)
     public Slice<ActivityHistoryResult> getActivityHistory(Long userId, Pageable pageable) {
         if (!userRepository.existsById(userId)) {
-            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+            throw new BusinessException(CommonErrorCode.USER_NOT_FOUND);
         }
         return activityParticipantRepository.findActivityHistoryByUserId(userId, pageable);
     }
@@ -684,7 +684,7 @@ public class ActivityService {
         }
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         ActivityParticipant participant = ActivityParticipant.builder()
                 .activity(activity)
@@ -735,7 +735,7 @@ public class ActivityService {
         }
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         // 모임관리자는 자동 참여 확정 + MANAGER role (capacity에 미포함)
         ActivityParticipant manager = ActivityParticipant.builder()

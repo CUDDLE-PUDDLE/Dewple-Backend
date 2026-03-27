@@ -12,9 +12,10 @@ import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
-import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.repository.UserRepository;
-import jakarta.persistence.EntityManager;
+import com.dewple.common.exception.CommonErrorCode;
+import com.dewple.common.repository.CategoryRepository;
+import com.dewple.common.repository.RegionRepository;
+import com.dewple.common.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,8 @@ public class ClubService {
     private final ClubCategoryRepository clubCategoryRepository;
     private final ClubRegionRepository clubRegionRepository;
     private final UserRepository userRepository;
-    private final EntityManager entityManager;
+    private final CategoryRepository categoryRepository;
+    private final RegionRepository regionRepository;
 
     private static final String PRESIDENT_ROLE_NAME = "회장";
     private static final int MAX_PRESIDENT_CLUBS = 5;
@@ -41,7 +43,7 @@ public class ClubService {
     @Transactional
     public CreateClubResult createClub(Long userId, CreateClubParam param) {
         User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         validateCreateClub(userId, param);
 
@@ -103,14 +105,16 @@ public class ClubService {
 
     private void saveClubCategories(Club club, List<Long> categoryIds) {
         for (Long categoryId : categoryIds) {
-            Category category = entityManager.getReference(Category.class, categoryId);
+            Category category = categoryRepository.findById(categoryId)
+                    .orElseThrow(() -> new BusinessException(CommonErrorCode.CATEGORY_NOT_FOUND));
             clubCategoryRepository.save(ClubCategory.builder().club(club).category(category).build());
         }
     }
 
     private void saveClubRegions(Club club, List<Long> regionIds) {
         for (Long regionId : regionIds) {
-            Region region = entityManager.getReference(Region.class, regionId);
+            Region region = regionRepository.findById(regionId)
+                    .orElseThrow(() -> new BusinessException(CommonErrorCode.REGION_NOT_FOUND));
             clubRegionRepository.save(ClubRegion.builder().club(club).region(region).build());
         }
     }

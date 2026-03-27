@@ -13,8 +13,8 @@ import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.enums.ReportCategory;
 import com.dewple.common.enums.ReportStatus;
 import com.dewple.common.exception.BusinessException;
-import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.repository.UserRepository;
+import com.dewple.common.exception.CommonErrorCode;
+import com.dewple.common.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,7 +41,7 @@ public class ActivityReportService {
                 .orElseThrow(() -> new BusinessException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
         User reporter = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         // 중복 신고 체크 (동일 대상, 마지막 신고 후 7일 이내)
         reportRepository.findTopByActivityIdAndReporterIdOrderByCreatedAtDesc(activityId, userId)

@@ -109,7 +109,7 @@ class RecruitmentControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(createValidRequest())))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5001));
+                    .andExpect(jsonPath("$.code").value(5101));
         }
     }
 
@@ -175,7 +175,7 @@ class RecruitmentControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(createValidRequest())))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5008));
+                    .andExpect(jsonPath("$.code").value(5108));
         }
     }
 
@@ -212,7 +212,7 @@ class RecruitmentControllerTest {
             mockMvc.perform(post("/clubs/{clubId}/recruitment-posts/{postingId}/publish", 1L, 999L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5007));
+                    .andExpect(jsonPath("$.code").value(5107));
         }
     }
 
@@ -253,7 +253,7 @@ class RecruitmentControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(createValidUpdateRequest())))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5010));
+                    .andExpect(jsonPath("$.code").value(5110));
         }
 
         @Test
@@ -269,7 +269,7 @@ class RecruitmentControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(createValidUpdateRequest())))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5009));
+                    .andExpect(jsonPath("$.code").value(5109));
         }
     }
 
@@ -351,7 +351,7 @@ class RecruitmentControllerTest {
             mockMvc.perform(post("/clubs/{clubId}/recruitment-posts/{postingId}/close", 1L, 10L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5011));
+                    .andExpect(jsonPath("$.code").value(5111));
         }
     }
 
@@ -380,7 +380,7 @@ class RecruitmentControllerTest {
             // when & then
             mockMvc.perform(post("/recruitment-posts/{postingId}/view", 999L))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5007));
+                    .andExpect(jsonPath("$.code").value(5107));
         }
     }
 
@@ -416,7 +416,7 @@ class RecruitmentControllerTest {
             mockMvc.perform(get("/clubs/{clubId}/recruitment-posts", 1L)
                             .param("status", "INVALID"))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5013));
+                    .andExpect(jsonPath("$.code").value(5113));
         }
     }
 
@@ -450,7 +450,7 @@ class RecruitmentControllerTest {
             // when & then
             mockMvc.perform(get("/clubs/{clubId}/recruitment-posts/{postingId}", 1L, 999L))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5007));
+                    .andExpect(jsonPath("$.code").value(5107));
         }
     }
 
@@ -487,7 +487,7 @@ class RecruitmentControllerTest {
             mockMvc.perform(delete("/clubs/{clubId}/recruitment-posts/{postingId}", 1L, 999L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5007));
+                    .andExpect(jsonPath("$.code").value(5107));
         }
     }
 

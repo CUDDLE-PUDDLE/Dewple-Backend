@@ -13,8 +13,8 @@ import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.enums.ParticipantRole;
 import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.exception.BusinessException;
-import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.repository.UserRepository;
+import com.dewple.common.exception.CommonErrorCode;
+import com.dewple.common.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -65,9 +65,9 @@ public class StarRatingService {
         }
 
         User rater = userRepository.findById(raterId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
         User ratee = userRepository.findById(rateeId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         // No-show 여부 확인
         boolean isNoShow = participantRepository.findByActivityIdAndParticipantId(activityId, rateeId)
@@ -177,7 +177,7 @@ public class StarRatingService {
                     // 소수점 1자리, 올림
                     BigDecimal rounded = avg.setScale(1, RoundingMode.CEILING);
                     User user = userRepository.findById(userId)
-                            .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
                     user.updateReputationScore(rounded);
                 });
     }

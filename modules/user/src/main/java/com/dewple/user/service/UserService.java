@@ -5,14 +5,14 @@ import com.dewple.common.entity.User;
 import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.entity.UserCategory;
+import com.dewple.common.exception.CommonErrorCode;import com.dewple.user.entity.UserCategory;
 import com.dewple.user.port.PasswordEncoderPort;
 import com.dewple.user.port.SmsVerificationPort;
 import com.dewple.user.port.WithdrawalActivityPort;
 import com.dewple.user.port.WithdrawalClubPort;
-import com.dewple.user.repository.CategoryRepository;
+import com.dewple.common.repository.CategoryRepository;
 import com.dewple.user.repository.UserCategoryRepository;
-import com.dewple.user.repository.UserRepository;
+import com.dewple.common.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -78,7 +78,7 @@ public class UserService {
     @Transactional
     public User login(LoginParam param) {
         User user = userRepository.findByUserId(param.userId())
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         // 소프트삭제 기간이 아닌 비활성 계정은 로그인 차단
         if (user.getStatus() != BaseStatus.ACTIVE && !user.isInDeletionPeriod()) {
@@ -102,7 +102,7 @@ public class UserService {
     @Transactional
     public User updateProfile(Long id, UpdateProfileParam param) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         if (param.email() != null && userRepository.existsByEmail(param.email())) {
             throw new BusinessException(UserErrorCode.EMAIL_ALREADY_EXISTS);
@@ -118,7 +118,7 @@ public class UserService {
     @Transactional
     public MyProfileResult editMyProfile(Long userId, EditMyProfileParam param) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         if (param.email() != null && userRepository.existsByEmailAndIdNot(param.email(), userId)) {
             throw new BusinessException(UserErrorCode.EMAIL_ALREADY_EXISTS);
@@ -148,7 +148,7 @@ public class UserService {
             if (!param.categoryIds().isEmpty()) {
                 List<Category> categories = categoryRepository.findAllById(param.categoryIds());
                 if (categories.size() != param.categoryIds().size()) {
-                    throw new BusinessException(UserErrorCode.CATEGORY_NOT_FOUND);
+                    throw new BusinessException(CommonErrorCode.CATEGORY_NOT_FOUND);
                 }
 
                 List<UserCategory> userCategories = categories.stream()
@@ -172,7 +172,7 @@ public class UserService {
     @Transactional
     public void changeUserId(Long userId, String newUserId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         if (user.getUserId() == null) {
             throw new BusinessException(UserErrorCode.KAKAO_ONLY_NO_USER_ID);
@@ -195,7 +195,7 @@ public class UserService {
         String newPhone = verificationService.validateVerificationToken(verificationToken);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         if (newPhone.equals(user.getPhone())) {
             throw new BusinessException(UserErrorCode.PHONE_SAME_AS_CURRENT);
@@ -212,7 +212,7 @@ public class UserService {
     @Transactional
     public void withdraw(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         if (user.getStatus() != BaseStatus.ACTIVE) {
             throw new BusinessException(UserErrorCode.USER_INACTIVE);
@@ -242,10 +242,10 @@ public class UserService {
     @Transactional
     public void cancelWithdrawal(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         if (!user.isInDeletionPeriod()) {
-            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+            throw new BusinessException(CommonErrorCode.USER_NOT_FOUND);
         }
 
         // 계정 복원 (단, 승계된 직위는 미복원)
@@ -302,13 +302,13 @@ public class UserService {
     @Transactional(readOnly = true)
     public User findById(Long id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
     }
 
     @Transactional(readOnly = true)
     public UserProfileResult getUserProfile(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         List<String> interests = userCategoryRepository.findByUserIdWithCategory(id).stream()
                 .map(uc -> uc.getCategory().getName())
@@ -329,7 +329,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public MyProfileResult getMyProfile(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         List<String> interests = userCategoryRepository.findByUserIdWithCategory(id).stream()
                 .map(uc -> uc.getCategory().getName())

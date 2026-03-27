@@ -11,9 +11,10 @@ import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
-import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.repository.UserRepository;
-import jakarta.persistence.EntityManager;
+import com.dewple.common.exception.CommonErrorCode;
+import com.dewple.common.repository.CategoryRepository;
+import com.dewple.common.repository.RegionRepository;
+import com.dewple.common.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class ClubServiceTest {
@@ -43,7 +45,8 @@ class ClubServiceTest {
     @Mock private ClubCategoryRepository clubCategoryRepository;
     @Mock private ClubRegionRepository clubRegionRepository;
     @Mock private UserRepository userRepository;
-    @Mock private EntityManager entityManager;
+    @Mock private CategoryRepository categoryRepository;
+    @Mock private RegionRepository regionRepository;
 
     @InjectMocks
     private ClubService clubService;
@@ -79,7 +82,8 @@ class ClubServiceTest {
                 ReflectionTestUtils.setField(club, "id", 100L);
                 return club;
             });
-            given(entityManager.getReference(any(), any())).willReturn(null);
+            given(categoryRepository.findById(any())).willReturn(Optional.of(mock()));
+            given(regionRepository.findById(any())).willReturn(Optional.of(mock()));
 
             ClubRole presidentRole = ClubRole.builder().name("회장")
                     .permissions(Permission.all()).isStaff(true).isDefault(true).build();
@@ -108,7 +112,7 @@ class ClubServiceTest {
             assertThatThrownBy(() -> clubService.createClub(999L, createValidParam()))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
-                            .isEqualTo(UserErrorCode.USER_NOT_FOUND));
+                            .isEqualTo(CommonErrorCode.USER_NOT_FOUND));
         }
 
         @Test

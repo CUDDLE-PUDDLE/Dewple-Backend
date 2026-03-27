@@ -10,6 +10,7 @@ import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.RefreshToken;
 import com.dewple.user.entity.Verification;
 import com.dewple.user.exception.UserErrorCode;
+import com.dewple.common.exception.CommonErrorCode;
 import com.dewple.user.service.LoginParam;
 import com.dewple.user.service.RefreshTokenService;
 import com.dewple.user.service.SignupParam;
@@ -376,7 +377,7 @@ class AuthControllerTest {
                                     "gender", "MALE"
                             ))))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(4106));
+                    .andExpect(jsonPath("$.code").value(4105));
         }
 
         @Test
@@ -492,7 +493,7 @@ class AuthControllerTest {
         void failWithUserNotFound() throws Exception {
             // given
             given(userService.login(any(LoginParam.class)))
-                    .willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                    .willThrow(new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
             // when & then
             mockMvc.perform(post("/auth/login")
@@ -502,7 +503,7 @@ class AuthControllerTest {
                                     "password", "Password1!"
                             ))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(4201));
+                    .andExpect(jsonPath("$.code").value(9001));
         }
 
         @Test
@@ -520,7 +521,7 @@ class AuthControllerTest {
                                     "password", "WrongPassword1!"
                             ))))
                     .andExpect(status().isUnauthorized())
-                    .andExpect(jsonPath("$.code").value(4202));
+                    .andExpect(jsonPath("$.code").value(4201));
         }
 
         @Test
@@ -538,7 +539,7 @@ class AuthControllerTest {
                                     "password", "Password1!"
                             ))))
                     .andExpect(status().isForbidden())
-                    .andExpect(jsonPath("$.code").value(4203));
+                    .andExpect(jsonPath("$.code").value(4202));
         }
 
         @Test

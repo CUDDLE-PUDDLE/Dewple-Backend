@@ -145,13 +145,20 @@ modules/{domain}/
 - `@RestControllerAdvice` `GlobalExceptionHandler`에서 `BusinessException`을 잡아 `ApiResponse.error()` 변환
 - 에러코드 범위
   - 1000: 성공
-  - 2000~2999: 클라이언트 오류
-  - 3000~3999: 서버 오류
-  - 4000~4099: 본인인증 (verification)
-  - 4100~4199: 회원가입 (signup)
-  - 4200~4299: 로그인 (login)
-  - 4300~4399: 토큰 (refresh token)
-  - 4400~4499: 프로필 수정 (profile edit)
+  - 2000: 클라이언트 오류
+  - 3000: 서버 오류
+  - 4000: 회원 인증 (verification)
+  - 4100: 회원가입 (signup)
+  - 4200: 로그인 (login)
+  - 4300: 토큰 (refresh token)
+  - 4400: 프로필 수정 (profile edit)
+  - 4500: 개인 자료실 (personal file)
+  - 5000: 모임 (activity)
+  - 5100: 모집 공고 (recruitment posting)
+  - 5200: 지원서 (application)
+  - 6000: 동아리 (club)
+  - 7000: 연합회 (organization)
+  - 9000: 공통 (common)
 
 ### 테스트 패턴
 

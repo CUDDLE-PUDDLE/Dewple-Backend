@@ -12,8 +12,8 @@ import com.dewple.organization.exception.OrganizationErrorCode;
 import com.dewple.organization.repository.OrganizationMemberRepository;
 import com.dewple.organization.repository.OrganizationRepository;
 import com.dewple.organization.repository.OrganizationRoleRepository;
-import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.repository.UserRepository;
+import com.dewple.common.exception.CommonErrorCode;
+import com.dewple.common.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Slice;
@@ -39,7 +39,7 @@ public class OrganizationService {
     @Transactional
     public Organization apply(Long userId, CreateOrganizationParam param) {
         User creator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         if (param.categoryIds() == null || param.categoryIds().isEmpty()) {
             throw new BusinessException(OrganizationErrorCode.CATEGORY_REQUIRED);

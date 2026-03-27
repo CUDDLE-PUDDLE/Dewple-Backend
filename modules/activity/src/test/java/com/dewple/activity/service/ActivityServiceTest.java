@@ -7,8 +7,8 @@ import com.dewple.activity.exception.ActivityErrorCode;
 import com.dewple.activity.repository.ActivityInterestRepository;
 import com.dewple.activity.repository.ActivityParticipantRepository;
 import com.dewple.activity.repository.ActivityRepository;
-import com.dewple.activity.repository.CategoryRepository;
-import com.dewple.activity.repository.RegionRepository;
+import com.dewple.common.repository.CategoryRepository;
+import com.dewple.common.repository.RegionRepository;
 import com.dewple.club.entity.ClubMember;
 import com.dewple.club.entity.ClubRole;
 import com.dewple.club.exception.ClubErrorCode;
@@ -25,8 +25,8 @@ import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
-import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.repository.UserRepository;
+import com.dewple.common.exception.CommonErrorCode;
+import com.dewple.common.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -251,7 +251,7 @@ class ActivityServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                        assertThat(be.getErrorCode()).isEqualTo(CommonErrorCode.USER_NOT_FOUND);
                     });
         }
 
@@ -974,7 +974,7 @@ class ActivityServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                        assertThat(be.getErrorCode()).isEqualTo(CommonErrorCode.USER_NOT_FOUND);
                     });
         }
     }
