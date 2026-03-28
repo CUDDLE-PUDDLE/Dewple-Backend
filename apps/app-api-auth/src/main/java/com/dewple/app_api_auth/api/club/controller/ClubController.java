@@ -6,6 +6,7 @@ import com.dewple.app_api_auth.api.club.dto.CreateClubRequest;
 import com.dewple.app_api_auth.api.club.dto.CreateClubResponse;
 import com.dewple.app_api_auth.api.club.dto.GetClubDetailResponse;
 import com.dewple.app_api_auth.api.club.dto.GetClubListResponse;
+import com.dewple.app_api_auth.api.club.dto.UpdateClubRequest;
 import com.dewple.app_api_auth.global.response.ApiResponse;
 import com.dewple.app_api_auth.global.response.SliceResponse;
 import com.dewple.app_api_auth.global.security.CurrentUserId;
@@ -15,6 +16,7 @@ import com.dewple.club.service.ClubSummaryResult;
 import com.dewple.club.service.CreateClubParam;
 import com.dewple.club.service.CreateClubResult;
 import com.dewple.club.service.GetClubListParam;
+import com.dewple.club.service.UpdateClubParam;
 import com.dewple.common.enums.ActivityType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -77,5 +79,23 @@ public class ClubController {
 
         CreateClubResult result = clubService.createClub(userId, param);
         return ApiResponse.ok(CreateClubResponse.from(result));
+    }
+
+    @Operation(summary = "동아리 정보 수정", description = "동아리 기본 정보를 수정합니다. 동아리관리(3번) 권한이 필요합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/{clubId}")
+    public ApiResponse<Void> updateClub(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @Valid @RequestBody UpdateClubRequest request
+    ) {
+        UpdateClubParam param = new UpdateClubParam(
+                request.name(), request.description(), request.coverImg(),
+                request.activityType(), request.foundedDate(),
+                request.categoryIds(), request.regionIds()
+        );
+
+        clubService.updateClub(userId, clubId, param);
+        return ApiResponse.ok();
     }
 }

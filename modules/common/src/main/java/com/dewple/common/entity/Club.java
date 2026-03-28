@@ -91,6 +91,15 @@ public class Club extends BaseEntity {
         this.foundedDate = foundedDate;
     }
 
+    public void update(String name, String description, String coverImg,
+                       ActivityType activityType, LocalDate foundedDate) {
+        this.name = name;
+        this.description = description;
+        this.coverImg = coverImg;
+        this.activityType = activityType;
+        this.foundedDate = foundedDate;
+    }
+
     public void increaseLikeCount() {
         this.likeCount++;
     }

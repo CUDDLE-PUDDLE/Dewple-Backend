@@ -4,7 +4,9 @@ import com.dewple.club.entity.ClubMember;
 import com.dewple.club.entity.ClubRole;
 import com.dewple.club.exception.ClubErrorCode;
 import com.dewple.club.repository.*;
+import com.dewple.common.entity.Category;
 import com.dewple.common.entity.Club;
+import com.dewple.common.entity.Region;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.ActivityStatus;
 import com.dewple.common.enums.ActivityType;
@@ -260,6 +262,143 @@ class ClubServiceTest {
             Slice<ClubSummaryResult> result = clubService.getClubList(param);
 
             assertThat(result.getContent()).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("updateClub - 동아리 정보 수정")
+    class UpdateClub {
+
+        private UpdateClubParam createUpdateParam() {
+            return new UpdateClubParam(
+                    "수정된 동아리", "수정된 설명", "new-cover.jpg",
+                    ActivityType.ONLINE, LocalDate.of(2023, 6, 1),
+                    List.of(2L, 3L), List.of(2L)
+            );
+        }
+
+        private ClubRole createPresidentRole(Club club) {
+            ClubRole role = ClubRole.builder()
+                    .club(club).name("회장").permissions(Permission.all())
+                    .isStaff(true).isDefault(true).build();
+            ReflectionTestUtils.setField(role, "id", 1L);
+            return role;
+        }
+
+        private ClubMember createPresidentMember(Club club) {
+            ClubRole role = createPresidentRole(club);
+            ClubMember member = ClubMember.builder()
+                    .club(club).user(club.getCreator()).role(role)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(member, "id", 50L);
+            return member;
+        }
+
+        @Test
+        @DisplayName("성공: 3번 권한 보유자의 정보 수정")
+        void success() {
+            Club club = createClub();
+            ClubMember presidentMember = createPresidentMember(club);
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(presidentMember));
+            given(categoryRepository.findById(any())).willReturn(Optional.of(mock(Category.class)));
+            given(regionRepository.findById(any())).willReturn(Optional.of(mock(Region.class)));
+
+            clubService.updateClub(USER_ID, 100L, createUpdateParam());
+
+            assertThat(club.getName()).isEqualTo("수정된 동아리");
+            assertThat(club.getDescription()).isEqualTo("수정된 설명");
+            assertThat(club.getCoverImg()).isEqualTo("new-cover.jpg");
+            assertThat(club.getActivityType()).isEqualTo(ActivityType.ONLINE);
+            assertThat(club.getFoundedDate()).isEqualTo(LocalDate.of(2023, 6, 1));
+            then(clubCategoryRepository).should().deleteByClubId(100L);
+            then(clubRegionRepository).should().deleteByClubId(100L);
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 동아리")
+        void failNotFound() {
+            given(clubRepository.findById(999L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> clubService.updateClub(USER_ID, 999L, createUpdateParam()))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.CLUB_NOT_FOUND));
+        }
+
+        @Test
+        @DisplayName("실패: 멤버가 아닌 유저")
+        void failNotMember() {
+            Club club = createClub();
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, 999L))
+                    .willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> clubService.updateClub(999L, 100L, createUpdateParam()))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.NOT_CLUB_MEMBER));
+        }
+
+        @Test
+        @DisplayName("실패: 권한 없는 멤버")
+        void failPermissionDenied() {
+            Club club = createClub();
+            ClubRole memberRole = ClubRole.builder()
+                    .club(club).name("부원").permissions(0L)
+                    .isStaff(false).isDefault(true).build();
+            ReflectionTestUtils.setField(memberRole, "id", 5L);
+            ClubMember member = ClubMember.builder()
+                    .club(club).user(createUser()).role(memberRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(member, "id", 51L);
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(member));
+
+            assertThatThrownBy(() -> clubService.updateClub(USER_ID, 100L, createUpdateParam()))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.CLUB_PERMISSION_DENIED));
+        }
+
+        @Test
+        @DisplayName("실패: 카테고리 미선택")
+        void failNoCategoryIds() {
+            Club club = createClub();
+            ClubMember presidentMember = createPresidentMember(club);
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(presidentMember));
+
+            UpdateClubParam param = new UpdateClubParam(
+                    "이름", null, null, ActivityType.BOTH, null, List.of(), List.of(1L));
+
+            assertThatThrownBy(() -> clubService.updateClub(USER_ID, 100L, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.CLUB_CATEGORY_REQUIRED));
+        }
+
+        @Test
+        @DisplayName("실패: 카테고리 4개 초과")
+        void failTooManyCategories() {
+            Club club = createClub();
+            ClubMember presidentMember = createPresidentMember(club);
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(presidentMember));
+
+            UpdateClubParam param = new UpdateClubParam(
+                    "이름", null, null, ActivityType.BOTH, null,
+                    List.of(1L, 2L, 3L, 4L), List.of(1L));
+
+            assertThatThrownBy(() -> clubService.updateClub(USER_ID, 100L, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.CLUB_CATEGORY_LIMIT_EXCEEDED));
         }
     }
 }

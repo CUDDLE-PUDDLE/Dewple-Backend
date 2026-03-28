@@ -7,6 +7,7 @@ import com.dewple.club.service.ClubService;
 import com.dewple.club.service.ClubSummaryResult;
 import com.dewple.club.service.CreateClubResult;
 import com.dewple.club.service.GetClubListParam;
+import com.dewple.club.service.UpdateClubParam;
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.Gender;
 import com.dewple.common.exception.BusinessException;
@@ -31,8 +32,11 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -241,6 +245,89 @@ class ClubControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(json))
                     .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /clubs/{clubId} - 동아리 정보 수정")
+    class UpdateClub {
+
+        private String createUpdateRequestJson() throws Exception {
+            return objectMapper.writeValueAsString(java.util.Map.ofEntries(
+                    java.util.Map.entry("name", "수정된 동아리"),
+                    java.util.Map.entry("description", "수정된 설명"),
+                    java.util.Map.entry("coverImg", "new-cover.jpg"),
+                    java.util.Map.entry("activityType", "ONLINE"),
+                    java.util.Map.entry("foundedDate", "2023-06-01"),
+                    java.util.Map.entry("categoryIds", List.of(2, 3)),
+                    java.util.Map.entry("regionIds", List.of(2))
+            ));
+        }
+
+        @Test
+        @DisplayName("성공: 동아리 정보 수정")
+        void success() throws Exception {
+            willDoNothing().given(clubService)
+                    .updateClub(eq(1L), eq(100L), any(UpdateClubParam.class));
+
+            mockMvc.perform(patch("/clubs/100")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createUpdateRequestJson()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없이 수정 시도")
+        void failNoAuth() throws Exception {
+            mockMvc.perform(patch("/clubs/100")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createUpdateRequestJson()))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 권한 없는 유저")
+        void failPermissionDenied() throws Exception {
+            willThrow(new BusinessException(ClubErrorCode.CLUB_PERMISSION_DENIED))
+                    .given(clubService).updateClub(eq(999L), eq(100L), any(UpdateClubParam.class));
+
+            mockMvc.perform(patch("/clubs/100")
+                            .with(jwt().jwt(j -> j.subject("999")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createUpdateRequestJson()))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("실패: 이름 누락 (Validation)")
+        void failNameBlank() throws Exception {
+            String json = objectMapper.writeValueAsString(java.util.Map.of(
+                    "name", "",
+                    "activityType", "BOTH",
+                    "categoryIds", List.of(1),
+                    "regionIds", List.of(1)
+            ));
+
+            mockMvc.perform(patch("/clubs/100")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("실패: 멤버가 아닌 유저")
+        void failNotMember() throws Exception {
+            willThrow(new BusinessException(ClubErrorCode.NOT_CLUB_MEMBER))
+                    .given(clubService).updateClub(eq(999L), eq(100L), any(UpdateClubParam.class));
+
+            mockMvc.perform(patch("/clubs/100")
+                            .with(jwt().jwt(j -> j.subject("999")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createUpdateRequestJson()))
+                    .andExpect(status().isForbidden());
         }
     }
 }

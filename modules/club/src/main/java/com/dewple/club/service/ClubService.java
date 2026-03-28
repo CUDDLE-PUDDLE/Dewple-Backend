@@ -89,6 +89,45 @@ public class ClubService {
         return ClubDetailResult.from(club);
     }
 
+    @Transactional
+    public void updateClub(Long userId, Long clubId, UpdateClubParam param) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        validateClubPermission(clubId, userId, Permission.EDIT_INFO);
+
+        if (param.categoryIds() == null || param.categoryIds().isEmpty()) {
+            throw new BusinessException(ClubErrorCode.CLUB_CATEGORY_REQUIRED);
+        }
+        if (param.categoryIds().size() > 3) {
+            throw new BusinessException(ClubErrorCode.CLUB_CATEGORY_LIMIT_EXCEEDED);
+        }
+        if (param.regionIds() == null || param.regionIds().isEmpty()) {
+            throw new BusinessException(ClubErrorCode.CLUB_REGION_REQUIRED);
+        }
+
+        club.update(param.name(), param.description(), param.coverImg(),
+                param.activityType(), param.foundedDate());
+
+        clubCategoryRepository.deleteByClubId(clubId);
+        saveClubCategories(club, param.categoryIds());
+
+        clubRegionRepository.deleteByClubId(clubId);
+        saveClubRegions(club, param.regionIds());
+
+        log.info("동아리 정보 수정: clubId={}, userId={}", clubId, userId);
+    }
+
+    private void validateClubPermission(Long clubId, Long userId, Permission permission) {
+        ClubMember member = clubMemberRepository
+                .findByClubIdAndUserId(clubId, userId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.NOT_CLUB_MEMBER));
+
+        if (!member.getRole().hasPermission(permission)) {
+            throw new BusinessException(ClubErrorCode.CLUB_PERMISSION_DENIED);
+        }
+    }
+
     @Transactional(readOnly = true)
     public Slice<ClubSummaryResult> getClubList(GetClubListParam param) {
         return clubRepository.findClubList(param);
