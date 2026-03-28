@@ -1,4 +1,4 @@
-package com.dewple.activity.repository;
+package com.dewple.common.repository;
 
 import com.dewple.common.entity.Region;
 import org.springframework.data.jpa.repository.JpaRepository;

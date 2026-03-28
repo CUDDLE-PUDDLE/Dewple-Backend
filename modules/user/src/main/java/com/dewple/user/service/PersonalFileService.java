@@ -5,9 +5,9 @@ import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.PersonalFile;
 import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.port.FileStoragePort;
+import com.dewple.common.exception.CommonErrorCode;import com.dewple.user.port.FileStoragePort;
 import com.dewple.user.repository.PersonalFileRepository;
-import com.dewple.user.repository.UserRepository;
+import com.dewple.common.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,7 +32,7 @@ public class PersonalFileService {
     public PersonalFileResult uploadFile(Long userId, String originalName, long fileSize,
                                          String contentType, InputStream inputStream) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         long currentUsage = personalFileRepository.sumFileSizeByUserIdAndStatus(userId, BaseStatus.ACTIVE);
 

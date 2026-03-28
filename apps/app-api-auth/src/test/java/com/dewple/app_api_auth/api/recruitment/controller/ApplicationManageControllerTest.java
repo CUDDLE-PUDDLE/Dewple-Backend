@@ -119,7 +119,7 @@ class ApplicationManageControllerTest {
             mockMvc.perform(get("/clubs/{clubId}/recruitment-posts/{postingId}/applications", 1L, 100L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5007));
+                    .andExpect(jsonPath("$.code").value(5107));
         }
     }
 
@@ -171,7 +171,7 @@ class ApplicationManageControllerTest {
                             1L, 100L, 500L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5100));
+                    .andExpect(jsonPath("$.code").value(5201));
         }
     }
 
@@ -245,7 +245,7 @@ class ApplicationManageControllerTest {
                             .content(objectMapper.writeValueAsString(
                                     Map.of("applicationStatus", "ACCEPTED"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5100));
+                    .andExpect(jsonPath("$.code").value(5201));
         }
     }
 
@@ -304,7 +304,7 @@ class ApplicationManageControllerTest {
                                     Map.of("applicationIds", List.of(501, 999),
                                             "applicationStatus", "ACCEPTED"))))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5110));
+                    .andExpect(jsonPath("$.code").value(5211));
         }
     }
 }

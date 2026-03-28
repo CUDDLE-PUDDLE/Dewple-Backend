@@ -8,13 +8,13 @@ import com.dewple.common.enums.University;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.UserCategory;
 import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.port.PasswordEncoderPort;
+import com.dewple.common.exception.CommonErrorCode;import com.dewple.user.port.PasswordEncoderPort;
 import com.dewple.user.port.SmsVerificationPort;
 import com.dewple.user.port.WithdrawalActivityPort;
 import com.dewple.user.port.WithdrawalClubPort;
-import com.dewple.user.repository.CategoryRepository;
+import com.dewple.common.repository.CategoryRepository;
 import com.dewple.user.repository.UserCategoryRepository;
-import com.dewple.user.repository.UserRepository;
+import com.dewple.common.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -242,7 +242,7 @@ class UserServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                        assertThat(be.getErrorCode()).isEqualTo(CommonErrorCode.USER_NOT_FOUND);
                     });
         }
     }
@@ -279,7 +279,7 @@ class UserServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                        assertThat(be.getErrorCode()).isEqualTo(CommonErrorCode.USER_NOT_FOUND);
                     });
         }
 
@@ -412,7 +412,7 @@ class UserServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                        assertThat(be.getErrorCode()).isEqualTo(CommonErrorCode.USER_NOT_FOUND);
                     });
         }
     }
@@ -512,7 +512,7 @@ class UserServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                        assertThat(be.getErrorCode()).isEqualTo(CommonErrorCode.USER_NOT_FOUND);
                     });
         }
     }
@@ -625,7 +625,7 @@ class UserServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                        assertThat(be.getErrorCode()).isEqualTo(CommonErrorCode.USER_NOT_FOUND);
                     });
         }
     }
@@ -660,7 +660,7 @@ class UserServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                        assertThat(be.getErrorCode()).isEqualTo(CommonErrorCode.USER_NOT_FOUND);
                     });
         }
 
@@ -844,7 +844,7 @@ class UserServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                        assertThat(be.getErrorCode()).isEqualTo(CommonErrorCode.USER_NOT_FOUND);
                     });
         }
 
@@ -889,7 +889,7 @@ class UserServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.CATEGORY_NOT_FOUND);
+                        assertThat(be.getErrorCode()).isEqualTo(CommonErrorCode.CATEGORY_NOT_FOUND);
                     });
         }
     }

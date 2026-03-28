@@ -98,7 +98,7 @@ class ApplicationControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(createValidRequest())))
                     .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.code").value(5101));
+                    .andExpect(jsonPath("$.code").value(5202));
         }
 
         @Test
@@ -114,7 +114,7 @@ class ApplicationControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(createValidRequest())))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5103));
+                    .andExpect(jsonPath("$.code").value(5204));
         }
     }
 
@@ -182,7 +182,7 @@ class ApplicationControllerTest {
                             1L, 100L, 500L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isForbidden())
-                    .andExpect(jsonPath("$.code").value(5105));
+                    .andExpect(jsonPath("$.code").value(5206));
         }
 
         @Test
@@ -197,7 +197,7 @@ class ApplicationControllerTest {
                             1L, 100L, 500L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5102));
+                    .andExpect(jsonPath("$.code").value(5203));
         }
     }
 
@@ -287,7 +287,7 @@ class ApplicationControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(createValidRequest())))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5106));
+                    .andExpect(jsonPath("$.code").value(5207));
         }
 
         @Test
@@ -304,7 +304,7 @@ class ApplicationControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(createValidRequest())))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5107));
+                    .andExpect(jsonPath("$.code").value(5208));
         }
     }
 
@@ -360,7 +360,7 @@ class ApplicationControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(createGuestRequest())))
                     .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.code").value(5108));
+                    .andExpect(jsonPath("$.code").value(5209));
         }
 
         @Test
@@ -431,7 +431,7 @@ class ApplicationControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(createUpdateGuestRequest())))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5109));
+                    .andExpect(jsonPath("$.code").value(5210));
         }
     }
 

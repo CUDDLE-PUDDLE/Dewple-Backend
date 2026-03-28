@@ -12,8 +12,8 @@ import com.dewple.activity.repository.ActivityRepository;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.exception.BusinessException;
-import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.repository.UserRepository;
+import com.dewple.common.exception.CommonErrorCode;
+import com.dewple.common.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -38,7 +38,7 @@ public class ActivityNoticeService {
         permissionValidator.validateLeaderOrManager(activityId, userId);
 
         User author = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         ActivityNotice notice = ActivityNotice.builder()
                 .activity(activity)
@@ -91,7 +91,7 @@ public class ActivityNoticeService {
 
         ActivityNotice notice = findActiveNotice(noticeId, activityId);
         User author = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
         ActivityNoticeComment comment = ActivityNoticeComment.builder()
                 .notice(notice)

@@ -1,4 +1,4 @@
-package com.dewple.user.repository;
+package com.dewple.common.repository;
 
 import com.dewple.common.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;

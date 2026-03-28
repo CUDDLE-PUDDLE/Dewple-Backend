@@ -2,8 +2,6 @@ description = 'Organization Module - 연합회 도메인 (소속 동아리 공�
 
 dependencies {
     implementation project(":modules:common")
-    implementation project(":modules:club")
-    implementation project(":modules:user")
 
     // JPA
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'

@@ -2,7 +2,7 @@ package com.dewple.user.service;
 
 import com.dewple.common.entity.User;
 import com.dewple.user.port.WithdrawalClubPort;
-import com.dewple.user.repository.UserRepository;
+import com.dewple.common.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

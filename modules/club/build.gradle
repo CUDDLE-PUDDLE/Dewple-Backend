@@ -26,4 +26,8 @@ dependencies {
     annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
 
     compileOnly 'org.springframework:spring-web'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework:spring-web'
 }

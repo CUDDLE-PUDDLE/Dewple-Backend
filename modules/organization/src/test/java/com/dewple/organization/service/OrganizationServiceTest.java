@@ -10,8 +10,8 @@ import com.dewple.organization.exception.OrganizationErrorCode;
 import com.dewple.organization.repository.OrganizationMemberRepository;
 import com.dewple.organization.repository.OrganizationRepository;
 import com.dewple.organization.repository.OrganizationRoleRepository;
-import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.repository.UserRepository;
+import com.dewple.common.exception.CommonErrorCode;
+import com.dewple.common.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -164,7 +164,7 @@ class OrganizationServiceTest {
             assertThatThrownBy(() -> organizationService.apply(999L, createValidParam()))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
-                            .isEqualTo(UserErrorCode.USER_NOT_FOUND));
+                            .isEqualTo(CommonErrorCode.USER_NOT_FOUND));
         }
 
         @Test
