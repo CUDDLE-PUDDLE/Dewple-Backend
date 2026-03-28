@@ -4,10 +4,12 @@ import static com.dewple.app_api_auth.global.config.SwaggerConfig.BEARER_AUTH;
 
 import com.dewple.app_api_auth.api.club.dto.CreateClubRequest;
 import com.dewple.app_api_auth.api.club.dto.CreateClubResponse;
+import com.dewple.app_api_auth.api.club.dto.GetClubDetailResponse;
 import com.dewple.app_api_auth.api.club.dto.GetClubListResponse;
 import com.dewple.app_api_auth.global.response.ApiResponse;
 import com.dewple.app_api_auth.global.response.SliceResponse;
 import com.dewple.app_api_auth.global.security.CurrentUserId;
+import com.dewple.club.service.ClubDetailResult;
 import com.dewple.club.service.ClubService;
 import com.dewple.club.service.ClubSummaryResult;
 import com.dewple.club.service.CreateClubParam;
@@ -50,6 +52,13 @@ public class ClubController {
         Slice<ClubSummaryResult> results = clubService.getClubList(param);
         Slice<GetClubListResponse> responseSlice = results.map(GetClubListResponse::from);
         return ApiResponse.ok(SliceResponse.from(responseSlice));
+    }
+
+    @Operation(summary = "동아리 단건 조회", description = "동아리의 기본 정보와 소개페이지를 조회합니다.")
+    @GetMapping("/{clubId}")
+    public ApiResponse<GetClubDetailResponse> getClubDetail(@PathVariable Long clubId) {
+        ClubDetailResult result = clubService.getClubDetail(clubId);
+        return ApiResponse.ok(GetClubDetailResponse.from(result));
     }
 
     @Operation(summary = "동아리 생성", description = "동아리를 생성합니다. 생성자가 자동으로 회장이 됩니다. 회장 동시 운영 최대 5개.")

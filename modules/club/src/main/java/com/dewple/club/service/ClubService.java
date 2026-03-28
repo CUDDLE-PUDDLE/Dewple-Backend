@@ -83,6 +83,13 @@ public class ClubService {
     }
 
     @Transactional(readOnly = true)
+    public ClubDetailResult getClubDetail(Long clubId) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+        return ClubDetailResult.from(club);
+    }
+
+    @Transactional(readOnly = true)
     public Slice<ClubSummaryResult> getClubList(GetClubListParam param) {
         return clubRepository.findClubList(param);
     }

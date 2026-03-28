@@ -24,6 +24,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -57,6 +61,15 @@ class ClubServiceTest {
         User user = User.builder().userId("testuser").name("테스트").phone("010").build();
         ReflectionTestUtils.setField(user, "id", USER_ID);
         return user;
+    }
+
+    private Club createClub() {
+        Club club = Club.builder()
+                .creator(createUser()).name("코딩 동아리").activityType(ActivityType.BOTH)
+                .isVerificationRequired(false).foundedDate(LocalDate.of(2024, 1, 1))
+                .build();
+        ReflectionTestUtils.setField(club, "id", 100L);
+        return club;
     }
 
     private CreateClubParam createValidParam() {
@@ -181,6 +194,72 @@ class ClubServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
                             .isEqualTo(ClubErrorCode.CLUB_PRESIDENT_LIMIT_EXCEEDED));
+        }
+    }
+
+    @Nested
+    @DisplayName("getClubDetail - 동아리 단건 조회")
+    class GetClubDetail {
+
+        @Test
+        @DisplayName("성공: 동아리 상세 조회")
+        void success() {
+            Club club = createClub();
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+
+            ClubDetailResult result = clubService.getClubDetail(100L);
+
+            assertThat(result.id()).isEqualTo(100L);
+            assertThat(result.name()).isEqualTo("코딩 동아리");
+            assertThat(result.activityType()).isEqualTo(ActivityType.BOTH);
+            assertThat(result.creatorId()).isEqualTo(USER_ID);
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 동아리")
+        void failNotFound() {
+            given(clubRepository.findById(999L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> clubService.getClubDetail(999L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.CLUB_NOT_FOUND));
+        }
+    }
+
+    @Nested
+    @DisplayName("getClubList - 동아리 목록 조회")
+    class GetClubList {
+
+        @Test
+        @DisplayName("성공: 필터 없이 목록 조회")
+        void success() {
+            List<ClubSummaryResult> content = List.of(
+                    new ClubSummaryResult(1L, "코딩 동아리", null, ActivityType.BOTH, false, 10, 50L),
+                    new ClubSummaryResult(2L, "등산 동아리", "cover.jpg", ActivityType.OFFLINE, false, 5, 30L)
+            );
+            Slice<ClubSummaryResult> slice = new SliceImpl<>(content, PageRequest.of(0, 10), false);
+            given(clubRepository.findClubList(any(GetClubListParam.class))).willReturn(slice);
+
+            GetClubListParam param = new GetClubListParam(null, null, null, null, null, PageRequest.of(0, 10));
+            Slice<ClubSummaryResult> result = clubService.getClubList(param);
+
+            assertThat(result.getContent()).hasSize(2);
+            assertThat(result.getContent().get(0).name()).isEqualTo("코딩 동아리");
+            assertThat(result.getContent().get(0).memberCount()).isEqualTo(50L);
+            assertThat(result.hasNext()).isFalse();
+        }
+
+        @Test
+        @DisplayName("성공: 빈 결과")
+        void successEmpty() {
+            Slice<ClubSummaryResult> slice = new SliceImpl<>(List.of(), PageRequest.of(0, 10), false);
+            given(clubRepository.findClubList(any(GetClubListParam.class))).willReturn(slice);
+
+            GetClubListParam param = new GetClubListParam(null, null, 999L, null, null, PageRequest.of(0, 10));
+            Slice<ClubSummaryResult> result = clubService.getClubList(param);
+
+            assertThat(result.getContent()).isEmpty();
         }
     }
 }

@@ -2,11 +2,13 @@ package com.dewple.app_api_auth.api.club.controller;
 
 import com.dewple.app_api_auth.global.config.SecurityConfig;
 import com.dewple.club.exception.ClubErrorCode;
+import com.dewple.club.service.ClubDetailResult;
 import com.dewple.club.service.ClubService;
 import com.dewple.club.service.ClubSummaryResult;
 import com.dewple.club.service.CreateClubResult;
 import com.dewple.club.service.GetClubListParam;
 import com.dewple.common.enums.ActivityType;
+import com.dewple.common.enums.Gender;
 import com.dewple.common.exception.BusinessException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.PageRequest;
@@ -22,6 +24,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -93,6 +96,58 @@ class ClubControllerTest {
             given(clubService.getClubList(any(GetClubListParam.class))).willReturn(slice);
 
             mockMvc.perform(get("/clubs"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /clubs/{clubId} - 동아리 단건 조회")
+    class GetClubDetail {
+
+        @Test
+        @DisplayName("성공: 동아리 상세 조회")
+        void success() throws Exception {
+            ClubDetailResult result = new ClubDetailResult(
+                    1L, "코딩 동아리", "코딩하는 동아리", "cover.jpg",
+                    "{\"components\":[]}", ActivityType.BOTH, false,
+                    Gender.ANY, null, null, LocalDate.of(2024, 1, 1),
+                    10, BigDecimal.valueOf(4.5), 100L
+            );
+            given(clubService.getClubDetail(eq(1L))).willReturn(result);
+
+            mockMvc.perform(get("/clubs/1"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.id").value(1))
+                    .andExpect(jsonPath("$.result.name").value("코딩 동아리"))
+                    .andExpect(jsonPath("$.result.landingPage").value("{\"components\":[]}"))
+                    .andExpect(jsonPath("$.result.activityType").value("BOTH"))
+                    .andExpect(jsonPath("$.result.likeCount").value(10))
+                    .andExpect(jsonPath("$.result.creatorId").value(100));
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 동아리")
+        void failNotFound() throws Exception {
+            given(clubService.getClubDetail(eq(999L)))
+                    .willThrow(new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+            mockMvc.perform(get("/clubs/999"))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("성공: 인증 없이 조회 가능 (공개 API)")
+        void successWithoutAuth() throws Exception {
+            ClubDetailResult result = new ClubDetailResult(
+                    1L, "동아리", null, null, null, ActivityType.BOTH,
+                    false, Gender.ANY, null, null, null, 0,
+                    BigDecimal.valueOf(5.0), 100L
+            );
+            given(clubService.getClubDetail(eq(1L))).willReturn(result);
+
+            mockMvc.perform(get("/clubs/1"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(1000));
         }
