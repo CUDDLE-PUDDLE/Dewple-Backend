@@ -46,6 +46,8 @@ public class SecurityConfig {
                 // 비회원 지원서 API (인증 불필요)
                 .requestMatchers(HttpMethod.POST, "/clubs/*/recruitment-posts/*/applications/guest").permitAll()
                 .requestMatchers(HttpMethod.PATCH, "/clubs/*/recruitment-posts/*/applications/guest").permitAll()
+                // Club APIs (인증 불필요)
+                .requestMatchers(HttpMethod.GET, "/clubs").permitAll()
                 // Organization APIs (인증 불필요)
                 .requestMatchers(HttpMethod.GET, "/organizations").permitAll()
                 .requestMatchers(HttpMethod.GET, "/organizations/*").permitAll()

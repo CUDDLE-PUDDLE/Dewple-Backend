@@ -3,10 +3,14 @@ package com.dewple.app_api_auth.api.club.controller;
 import com.dewple.app_api_auth.global.config.SecurityConfig;
 import com.dewple.club.exception.ClubErrorCode;
 import com.dewple.club.service.ClubService;
+import com.dewple.club.service.ClubSummaryResult;
 import com.dewple.club.service.CreateClubResult;
+import com.dewple.club.service.GetClubListParam;
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.exception.BusinessException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.SliceImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -25,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -36,6 +41,62 @@ class ClubControllerTest {
     @Autowired private ObjectMapper objectMapper;
     @MockitoBean private ClubService clubService;
     @MockitoBean private JwtDecoder jwtDecoder;
+
+    @Nested
+    @DisplayName("GET /clubs - 동아리 목록 조회")
+    class GetClubList {
+
+        @Test
+        @DisplayName("성공: 필터 없이 목록 조회")
+        void success() throws Exception {
+            List<ClubSummaryResult> content = List.of(
+                    new ClubSummaryResult(1L, "코딩 동아리", null, ActivityType.BOTH, false, 10, 50L),
+                    new ClubSummaryResult(2L, "등산 동아리", "cover.jpg", ActivityType.OFFLINE, false, 5, 30L)
+            );
+            var slice = new SliceImpl<>(content, PageRequest.of(0, 10), false);
+            given(clubService.getClubList(any(GetClubListParam.class))).willReturn(slice);
+
+            mockMvc.perform(get("/clubs"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.content").isArray())
+                    .andExpect(jsonPath("$.result.content.length()").value(2))
+                    .andExpect(jsonPath("$.result.content[0].id").value(1))
+                    .andExpect(jsonPath("$.result.content[0].name").value("코딩 동아리"))
+                    .andExpect(jsonPath("$.result.content[0].memberCount").value(50))
+                    .andExpect(jsonPath("$.result.hasNext").value(false));
+        }
+
+        @Test
+        @DisplayName("성공: 필터 조합 조회")
+        void successWithFilters() throws Exception {
+            var slice = new SliceImpl<>(
+                    List.of(new ClubSummaryResult(1L, "동아리", null, ActivityType.OFFLINE, true, 3, 10L)),
+                    PageRequest.of(0, 10), false
+            );
+            given(clubService.getClubList(any(GetClubListParam.class))).willReturn(slice);
+
+            mockMvc.perform(get("/clubs")
+                            .param("isVerificationRequired", "true")
+                            .param("categoryId", "1")
+                            .param("regionId", "2")
+                            .param("activityType", "OFFLINE"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.result.content.length()").value(1))
+                    .andExpect(jsonPath("$.result.content[0].isVerificationRequired").value(true));
+        }
+
+        @Test
+        @DisplayName("성공: 인증 없이 조회 가능 (공개 API)")
+        void successWithoutAuth() throws Exception {
+            var slice = new SliceImpl<>(List.<ClubSummaryResult>of(), PageRequest.of(0, 10), false);
+            given(clubService.getClubList(any(GetClubListParam.class))).willReturn(slice);
+
+            mockMvc.perform(get("/clubs"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+    }
 
     @Nested
     @DisplayName("POST /clubs - 동아리 생성")

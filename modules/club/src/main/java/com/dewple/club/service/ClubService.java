@@ -18,6 +18,7 @@ import com.dewple.common.repository.RegionRepository;
 import com.dewple.common.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -79,6 +80,11 @@ public class ClubService {
                 club.getActivityType(), club.getFoundedDate(),
                 param.categoryIds(), param.regionIds(), userId
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Slice<ClubSummaryResult> getClubList(GetClubListParam param) {
+        return clubRepository.findClubList(param);
     }
 
     private void validateCreateClub(Long userId, CreateClubParam param) {
