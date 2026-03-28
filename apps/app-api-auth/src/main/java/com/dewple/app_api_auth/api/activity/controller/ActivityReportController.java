@@ -14,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "Activity Report", description = "모임 신고 API")
+@Tag(name = "Activity - 신고", description = "모임 신고 API")
 @RestController
 @RequestMapping("/activities/{activityId}/reports")
 @RequiredArgsConstructor
