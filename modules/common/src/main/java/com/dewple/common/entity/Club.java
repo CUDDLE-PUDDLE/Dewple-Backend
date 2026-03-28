@@ -9,10 +9,12 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import com.dewple.common.enums.ActivityType;
+import com.dewple.common.enums.ClubDeletionStatus;
 import com.dewple.common.enums.Gender;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "club")
@@ -70,6 +72,21 @@ public class Club extends BaseEntity {
     @Column(name = "like_count", nullable = false)
     private Integer likeCount = 0;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "deletion_status", nullable = false, length = 20)
+    private ClubDeletionStatus deletionStatus = ClubDeletionStatus.NONE;
+
+    @Column(name = "deletion_requested_at")
+    private LocalDateTime deletionRequestedAt;
+
+    @Column(name = "deletion_approved_at")
+    private LocalDateTime deletionApprovedAt;
+
+    @Column(name = "scheduled_delete_at")
+    private LocalDateTime scheduledDeleteAt;
+
+    @Column(name = "is_sanction_deletion", nullable = false)
+    private Boolean isSanctionDeletion = false;
 
     @Builder
     public Club(User creator, String name, String description,
@@ -106,6 +123,30 @@ public class Club extends BaseEntity {
         this.gender = gender;
         this.minAge = minAge;
         this.maxAge = maxAge;
+    }
+
+    public void startDeletionVoting() {
+        this.deletionStatus = ClubDeletionStatus.VOTING;
+        this.deletionRequestedAt = LocalDateTime.now();
+    }
+
+    public void approveDeletion() {
+        this.deletionStatus = ClubDeletionStatus.APPROVED;
+        this.deletionApprovedAt = LocalDateTime.now();
+        this.scheduledDeleteAt = this.deletionApprovedAt.plusDays(1);
+    }
+
+    public void cancelDeletion() {
+        this.deletionStatus = ClubDeletionStatus.NONE;
+        this.deletionRequestedAt = null;
+        this.deletionApprovedAt = null;
+        this.scheduledDeleteAt = null;
+        this.isSanctionDeletion = false;
+    }
+
+    public void cancelDeletionVoting() {
+        this.deletionStatus = ClubDeletionStatus.NONE;
+        this.deletionRequestedAt = null;
     }
 
     public void increaseLikeCount() {

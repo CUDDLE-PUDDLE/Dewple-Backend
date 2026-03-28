@@ -10,6 +10,7 @@ import com.dewple.common.entity.Region;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.ActivityStatus;
 import com.dewple.common.enums.BaseStatus;
+import com.dewple.common.enums.ClubDeletionStatus;
 import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -39,6 +41,7 @@ public class ClubService {
     private final CategoryRepository categoryRepository;
     private final RegionRepository regionRepository;
     private final ClubRecruitmentPort clubRecruitmentPort;
+    private final ClubDeletionVoteRepository clubDeletionVoteRepository;
 
     private static final String PRESIDENT_ROLE_NAME = "회장";
     private static final int MAX_PRESIDENT_CLUBS = 5;
@@ -155,6 +158,104 @@ public class ClubService {
         club.updateSettings(isVerificationRequired, gender, minAge, maxAge);
         log.info("동아리 설정 변경: clubId={}, userId={}, isVerificationRequired={}",
                 clubId, userId, isVerificationRequired);
+    }
+
+    @Transactional
+    public void requestDeletion(Long userId, Long clubId) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        validateClubPermission(clubId, userId, Permission.DELETE_CLUB);
+
+        if (club.getDeletionStatus() != ClubDeletionStatus.NONE) {
+            throw new BusinessException(ClubErrorCode.DELETION_ALREADY_IN_PROGRESS);
+        }
+
+        List<ClubMember> deletePermissionMembers = clubMemberRepository
+                .findByClubIdAndStatusAndActivityStatus(clubId, BaseStatus.ACTIVE, ActivityStatus.ACTIVE)
+                .stream()
+                .filter(m -> m.getRole().hasPermission(Permission.DELETE_CLUB))
+                .toList();
+
+        club.startDeletionVoting();
+
+        for (ClubMember member : deletePermissionMembers) {
+            boolean isRequester = member.getUser().getId().equals(userId);
+            clubDeletionVoteRepository.save(
+                    ClubDeletionVote.builder()
+                            .club(club)
+                            .user(member.getUser())
+                            .isApproved(isRequester ? true : null)
+                            .build()
+            );
+        }
+
+        if (deletePermissionMembers.size() == 1) {
+            club.approveDeletion();
+            log.info("동아리 삭제 즉시 승인 (권한자 1명): clubId={}", clubId);
+        } else {
+            log.info("동아리 삭제 투표 시작: clubId={}, 투표 대상={}명", clubId, deletePermissionMembers.size());
+        }
+    }
+
+    @Transactional
+    public void voteDeletion(Long userId, Long clubId, boolean approved) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        if (club.getDeletionStatus() != ClubDeletionStatus.VOTING) {
+            throw new BusinessException(ClubErrorCode.DELETION_NOT_VOTING);
+        }
+
+        ClubDeletionVote vote = clubDeletionVoteRepository.findByClubIdAndUserId(clubId, userId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.DELETION_VOTE_NOT_FOUND));
+
+        if (!approved) {
+            club.cancelDeletionVoting();
+            clubDeletionVoteRepository.deleteByClubId(clubId);
+            log.info("동아리 삭제 투표 거부 → 투표 종료: clubId={}, userId={}", clubId, userId);
+            return;
+        }
+
+        vote.approve();
+
+        List<ClubDeletionVote> allVotes = clubDeletionVoteRepository.findByClubId(clubId);
+        boolean allApproved = allVotes.stream().allMatch(v -> Boolean.TRUE.equals(v.getIsApproved()));
+
+        if (allApproved) {
+            club.approveDeletion();
+            log.info("동아리 삭제 전원 동의 → 유예 기간 시작: clubId={}", clubId);
+        }
+    }
+
+    @Transactional
+    public void cancelDeletion(Long userId, Long clubId) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        if (club.getDeletionStatus() != ClubDeletionStatus.APPROVED) {
+            throw new BusinessException(ClubErrorCode.DELETION_NOT_APPROVED);
+        }
+
+        if (club.getIsSanctionDeletion()) {
+            throw new BusinessException(ClubErrorCode.DELETION_SANCTION_NOT_CANCELABLE);
+        }
+
+        ClubMember member = clubMemberRepository.findByClubIdAndUserId(clubId, userId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.NOT_CLUB_MEMBER));
+
+        if (!PRESIDENT_ROLE_NAME.equals(member.getRole().getName()) || !member.getRole().getIsDefault()) {
+            throw new BusinessException(ClubErrorCode.DELETION_CANCEL_FORBIDDEN);
+        }
+
+        if (club.getScheduledDeleteAt() != null
+                && LocalDateTime.now().isAfter(club.getScheduledDeleteAt())) {
+            throw new BusinessException(ClubErrorCode.DELETION_GRACE_PERIOD_EXPIRED);
+        }
+
+        club.cancelDeletion();
+        clubDeletionVoteRepository.deleteByClubId(clubId);
+        log.info("동아리 삭제 취소: clubId={}, userId={}", clubId, userId);
     }
 
     private void validateClubPermission(Long clubId, Long userId, Permission permission) {

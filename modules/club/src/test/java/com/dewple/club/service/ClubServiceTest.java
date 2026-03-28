@@ -1,5 +1,6 @@
 package com.dewple.club.service;
 
+import com.dewple.club.entity.ClubDeletionVote;
 import com.dewple.club.entity.ClubMember;
 import com.dewple.club.entity.ClubRole;
 import com.dewple.club.exception.ClubErrorCode;
@@ -12,6 +13,7 @@ import com.dewple.common.entity.User;
 import com.dewple.common.enums.ActivityStatus;
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.BaseStatus;
+import com.dewple.common.enums.ClubDeletionStatus;
 import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
@@ -33,6 +35,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -56,6 +59,7 @@ class ClubServiceTest {
     @Mock private CategoryRepository categoryRepository;
     @Mock private RegionRepository regionRepository;
     @Mock private ClubRecruitmentPort clubRecruitmentPort;
+    @Mock private ClubDeletionVoteRepository clubDeletionVoteRepository;
 
     @InjectMocks
     private ClubService clubService;
@@ -525,6 +529,220 @@ class ClubServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
                             .isEqualTo(ClubErrorCode.CLUB_PERMISSION_DENIED));
+        }
+    }
+
+    @Nested
+    @DisplayName("requestDeletion - 동아리 삭제 신청")
+    class RequestDeletion {
+
+        private ClubRole createPresidentRole(Club club) {
+            ClubRole role = ClubRole.builder()
+                    .club(club).name("회장").permissions(Permission.all())
+                    .isStaff(true).isDefault(true).build();
+            ReflectionTestUtils.setField(role, "id", 1L);
+            return role;
+        }
+
+        private ClubMember createPresidentMember(Club club) {
+            ClubRole role = createPresidentRole(club);
+            ClubMember member = ClubMember.builder()
+                    .club(club).user(club.getCreator()).role(role)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(member, "id", 50L);
+            return member;
+        }
+
+        @Test
+        @DisplayName("성공: 권한자 1명 → 즉시 승인")
+        void successSingleVoter() {
+            Club club = createClub();
+            ClubMember president = createPresidentMember(club);
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(president));
+            given(clubMemberRepository.findByClubIdAndStatusAndActivityStatus(
+                    100L, BaseStatus.ACTIVE, ActivityStatus.ACTIVE))
+                    .willReturn(List.of(president));
+
+            clubService.requestDeletion(USER_ID, 100L);
+
+            assertThat(club.getDeletionStatus()).isEqualTo(ClubDeletionStatus.APPROVED);
+            assertThat(club.getScheduledDeleteAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("성공: 권한자 여러 명 → 투표 시작")
+        void successMultipleVoters() {
+            Club club = createClub();
+            ClubMember president = createPresidentMember(club);
+
+            User otherUser = User.builder().userId("other").name("기타").phone("010").build();
+            ReflectionTestUtils.setField(otherUser, "id", 2L);
+            ClubRole viceRole = ClubRole.builder()
+                    .club(club).name("부회장")
+                    .permissions(Permission.combine(Permission.DELETE_CLUB))
+                    .isStaff(true).isDefault(true).build();
+            ReflectionTestUtils.setField(viceRole, "id", 2L);
+            ClubMember vice = ClubMember.builder()
+                    .club(club).user(otherUser).role(viceRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(vice, "id", 51L);
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(president));
+            given(clubMemberRepository.findByClubIdAndStatusAndActivityStatus(
+                    100L, BaseStatus.ACTIVE, ActivityStatus.ACTIVE))
+                    .willReturn(List.of(president, vice));
+
+            clubService.requestDeletion(USER_ID, 100L);
+
+            assertThat(club.getDeletionStatus()).isEqualTo(ClubDeletionStatus.VOTING);
+        }
+
+        @Test
+        @DisplayName("실패: 이미 삭제 진행 중")
+        void failAlreadyInProgress() {
+            Club club = createClub();
+            club.startDeletionVoting();
+            ClubMember president = createPresidentMember(club);
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(president));
+
+            assertThatThrownBy(() -> clubService.requestDeletion(USER_ID, 100L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.DELETION_ALREADY_IN_PROGRESS));
+        }
+    }
+
+    @Nested
+    @DisplayName("voteDeletion - 동아리 삭제 투표")
+    class VoteDeletion {
+
+        @Test
+        @DisplayName("성공: 동의 → 전원 동의 → 승인")
+        void successAllApproved() {
+            Club club = createClub();
+            club.startDeletionVoting();
+            ClubDeletionVote vote = ClubDeletionVote.builder()
+                    .club(club).user(createUser()).isApproved(null).build();
+            ReflectionTestUtils.setField(vote, "id", 1L);
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubDeletionVoteRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(vote));
+            given(clubDeletionVoteRepository.findByClubId(100L)).willReturn(List.of(vote));
+
+            clubService.voteDeletion(USER_ID, 100L, true);
+
+            assertThat(vote.getIsApproved()).isTrue();
+            assertThat(club.getDeletionStatus()).isEqualTo(ClubDeletionStatus.APPROVED);
+        }
+
+        @Test
+        @DisplayName("성공: 거부 → 투표 종료")
+        void successRejected() {
+            Club club = createClub();
+            club.startDeletionVoting();
+            ClubDeletionVote vote = ClubDeletionVote.builder()
+                    .club(club).user(createUser()).isApproved(null).build();
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubDeletionVoteRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(vote));
+
+            clubService.voteDeletion(USER_ID, 100L, false);
+
+            assertThat(club.getDeletionStatus()).isEqualTo(ClubDeletionStatus.NONE);
+        }
+
+        @Test
+        @DisplayName("실패: 투표 진행 중이 아님")
+        void failNotVoting() {
+            Club club = createClub();
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+
+            assertThatThrownBy(() -> clubService.voteDeletion(USER_ID, 100L, true))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.DELETION_NOT_VOTING));
+        }
+    }
+
+    @Nested
+    @DisplayName("cancelDeletion - 동아리 삭제 취소")
+    class CancelDeletion {
+
+        private ClubRole createPresidentRole(Club club) {
+            ClubRole role = ClubRole.builder()
+                    .club(club).name("회장").permissions(Permission.all())
+                    .isStaff(true).isDefault(true).build();
+            ReflectionTestUtils.setField(role, "id", 1L);
+            return role;
+        }
+
+        @Test
+        @DisplayName("성공: 유예 기간 중 회장이 취소")
+        void success() {
+            Club club = createClub();
+            club.startDeletionVoting();
+            club.approveDeletion();
+            ClubRole presidentRole = createPresidentRole(club);
+            ClubMember president = ClubMember.builder()
+                    .club(club).user(createUser()).role(presidentRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(president, "id", 50L);
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(president));
+
+            clubService.cancelDeletion(USER_ID, 100L);
+
+            assertThat(club.getDeletionStatus()).isEqualTo(ClubDeletionStatus.NONE);
+            assertThat(club.getScheduledDeleteAt()).isNull();
+        }
+
+        @Test
+        @DisplayName("실패: 제재 삭제 취소 불가")
+        void failSanction() {
+            Club club = createClub();
+            club.startDeletionVoting();
+            club.approveDeletion();
+            ReflectionTestUtils.setField(club, "isSanctionDeletion", true);
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+
+            assertThatThrownBy(() -> clubService.cancelDeletion(USER_ID, 100L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.DELETION_SANCTION_NOT_CANCELABLE));
+        }
+
+        @Test
+        @DisplayName("실패: 유예 기간 만료")
+        void failExpired() {
+            Club club = createClub();
+            club.startDeletionVoting();
+            club.approveDeletion();
+            ReflectionTestUtils.setField(club, "scheduledDeleteAt", LocalDateTime.now().minusHours(1));
+            ClubRole presidentRole = createPresidentRole(club);
+            ClubMember president = ClubMember.builder()
+                    .club(club).user(createUser()).role(presidentRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(president, "id", 50L);
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(president));
+
+            assertThatThrownBy(() -> clubService.cancelDeletion(USER_ID, 100L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.DELETION_GRACE_PERIOD_EXPIRED));
         }
     }
 }

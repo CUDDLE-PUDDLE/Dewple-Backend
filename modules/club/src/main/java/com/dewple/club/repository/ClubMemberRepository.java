@@ -19,4 +19,7 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
 
     List<ClubMember> findByClubIdAndStatusAndActivityStatusAndUserIdNot(
             Long clubId, BaseStatus status, ActivityStatus activityStatus, Long userId);
+
+    List<ClubMember> findByClubIdAndStatusAndActivityStatus(
+            Long clubId, BaseStatus status, ActivityStatus activityStatus);
 }

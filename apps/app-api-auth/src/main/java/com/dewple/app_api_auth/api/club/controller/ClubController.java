@@ -117,4 +117,38 @@ public class ClubController {
         clubService.updateClubSettings(userId, clubId, param);
         return ApiResponse.ok();
     }
+
+    @Operation(summary = "동아리 삭제 신청", description = "동아리 삭제를 신청합니다. 동아리삭제(11번) 권한 보유자 전원 동의가 필요하며, 1명이면 즉시 승인됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{clubId}/deletion")
+    public ApiResponse<Void> requestDeletion(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId
+    ) {
+        clubService.requestDeletion(userId, clubId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "동아리 삭제 투표", description = "삭제 투표에 동의 또는 거부합니다. 거부 시 투표가 즉시 종료됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{clubId}/deletion/vote")
+    public ApiResponse<Void> voteDeletion(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @RequestParam boolean approved
+    ) {
+        clubService.voteDeletion(userId, clubId, approved);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "동아리 삭제 취소", description = "유예 기간(1일) 중 회장만 삭제를 취소할 수 있습니다. 제재 삭제는 취소 불가합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{clubId}/deletion")
+    public ApiResponse<Void> cancelDeletion(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId
+    ) {
+        clubService.cancelDeletion(userId, clubId);
+        return ApiResponse.ok();
+    }
 }
