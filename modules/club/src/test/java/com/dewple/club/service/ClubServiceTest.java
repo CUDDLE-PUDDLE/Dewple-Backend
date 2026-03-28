@@ -3,6 +3,7 @@ package com.dewple.club.service;
 import com.dewple.club.entity.ClubMember;
 import com.dewple.club.entity.ClubRole;
 import com.dewple.club.exception.ClubErrorCode;
+import com.dewple.club.port.ClubRecruitmentPort;
 import com.dewple.club.repository.*;
 import com.dewple.common.entity.Category;
 import com.dewple.common.entity.Club;
@@ -11,6 +12,7 @@ import com.dewple.common.entity.User;
 import com.dewple.common.enums.ActivityStatus;
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.BaseStatus;
+import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.common.exception.CommonErrorCode;
@@ -53,6 +55,7 @@ class ClubServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private CategoryRepository categoryRepository;
     @Mock private RegionRepository regionRepository;
+    @Mock private ClubRecruitmentPort clubRecruitmentPort;
 
     @InjectMocks
     private ClubService clubService;
@@ -399,6 +402,129 @@ class ClubServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
                             .isEqualTo(ClubErrorCode.CLUB_CATEGORY_LIMIT_EXCEEDED));
+        }
+    }
+
+    @Nested
+    @DisplayName("updateClubSettings - 동아리 설정 변경")
+    class UpdateClubSettings {
+
+        private ClubRole createPresidentRole(Club club) {
+            ClubRole role = ClubRole.builder()
+                    .club(club).name("회장").permissions(Permission.all())
+                    .isStaff(true).isDefault(true).build();
+            ReflectionTestUtils.setField(role, "id", 1L);
+            return role;
+        }
+
+        private ClubMember createPresidentMember(Club club) {
+            ClubRole role = createPresidentRole(club);
+            ClubMember member = ClubMember.builder()
+                    .club(club).user(club.getCreator()).role(role)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(member, "id", 50L);
+            return member;
+        }
+
+        @Test
+        @DisplayName("성공: 본인인증 필수 활성화 + 성별/연령대 설정")
+        void successEnableVerification() {
+            Club club = createClub();
+            ClubMember presidentMember = createPresidentMember(club);
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(presidentMember));
+            given(clubRecruitmentPort.hasActiveRecruitment(100L)).willReturn(false);
+
+            UpdateClubSettingsParam param = new UpdateClubSettingsParam(true, Gender.MALE, 20L, 30L);
+
+            clubService.updateClubSettings(USER_ID, 100L, param);
+
+            assertThat(club.getIsVerificationRequired()).isTrue();
+            assertThat(club.getGender()).isEqualTo(Gender.MALE);
+            assertThat(club.getMinAge()).isEqualTo(20L);
+            assertThat(club.getMaxAge()).isEqualTo(30L);
+        }
+
+        @Test
+        @DisplayName("성공: 본인인증 비활성화 → 연령대/성별 자동 해제")
+        void successDisableVerificationClearsGenderAge() {
+            Club club = createClub();
+            ClubMember presidentMember = createPresidentMember(club);
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(presidentMember));
+            given(clubRecruitmentPort.hasActiveRecruitment(100L)).willReturn(false);
+
+            UpdateClubSettingsParam param = new UpdateClubSettingsParam(false, null, null, null);
+
+            clubService.updateClubSettings(USER_ID, 100L, param);
+
+            assertThat(club.getIsVerificationRequired()).isFalse();
+            assertThat(club.getGender()).isEqualTo(Gender.ANY);
+            assertThat(club.getMinAge()).isNull();
+            assertThat(club.getMaxAge()).isNull();
+        }
+
+        @Test
+        @DisplayName("실패: 활성 모집 공고가 있을 때 변경 시도")
+        void failActiveRecruitmentExists() {
+            Club club = createClub();
+            ClubMember presidentMember = createPresidentMember(club);
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(presidentMember));
+            given(clubRecruitmentPort.hasActiveRecruitment(100L)).willReturn(true);
+
+            UpdateClubSettingsParam param = new UpdateClubSettingsParam(true, Gender.ANY, null, null);
+
+            assertThatThrownBy(() -> clubService.updateClubSettings(USER_ID, 100L, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.ACTIVE_RECRUITMENT_EXISTS));
+        }
+
+        @Test
+        @DisplayName("실패: 본인인증 없이 성별 설정 시도")
+        void failGenderWithoutVerification() {
+            Club club = createClub();
+            ClubMember presidentMember = createPresidentMember(club);
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(presidentMember));
+            given(clubRecruitmentPort.hasActiveRecruitment(100L)).willReturn(false);
+
+            UpdateClubSettingsParam param = new UpdateClubSettingsParam(false, Gender.MALE, null, null);
+
+            assertThatThrownBy(() -> clubService.updateClubSettings(USER_ID, 100L, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.VERIFICATION_REQUIRED_FOR_TAG));
+        }
+
+        @Test
+        @DisplayName("실패: 권한 없는 멤버")
+        void failPermissionDenied() {
+            Club club = createClub();
+            ClubRole memberRole = ClubRole.builder()
+                    .club(club).name("부원").permissions(0L)
+                    .isStaff(false).isDefault(true).build();
+            ReflectionTestUtils.setField(memberRole, "id", 5L);
+            ClubMember member = ClubMember.builder()
+                    .club(club).user(createUser()).role(memberRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(member, "id", 51L);
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(member));
+
+            UpdateClubSettingsParam param = new UpdateClubSettingsParam(true, Gender.ANY, null, null);
+
+            assertThatThrownBy(() -> clubService.updateClubSettings(USER_ID, 100L, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.CLUB_PERMISSION_DENIED));
         }
     }
 }

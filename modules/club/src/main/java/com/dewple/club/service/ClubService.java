@@ -2,6 +2,7 @@ package com.dewple.club.service;
 
 import com.dewple.club.entity.*;
 import com.dewple.club.exception.ClubErrorCode;
+import com.dewple.club.port.ClubRecruitmentPort;
 import com.dewple.club.repository.*;
 import com.dewple.common.entity.Category;
 import com.dewple.common.entity.Club;
@@ -37,6 +38,7 @@ public class ClubService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final RegionRepository regionRepository;
+    private final ClubRecruitmentPort clubRecruitmentPort;
 
     private static final String PRESIDENT_ROLE_NAME = "회장";
     private static final int MAX_PRESIDENT_CLUBS = 5;
@@ -116,6 +118,43 @@ public class ClubService {
         saveClubRegions(club, param.regionIds());
 
         log.info("동아리 정보 수정: clubId={}, userId={}", clubId, userId);
+    }
+
+    @Transactional
+    public void updateClubSettings(Long userId, Long clubId, UpdateClubSettingsParam param) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        validateClubPermission(clubId, userId, Permission.EDIT_INFO);
+
+        if (clubRecruitmentPort.hasActiveRecruitment(clubId)) {
+            throw new BusinessException(ClubErrorCode.ACTIVE_RECRUITMENT_EXISTS);
+        }
+
+        Boolean isVerificationRequired = param.isVerificationRequired();
+        Gender gender = param.gender();
+        Long minAge = param.minAge();
+        Long maxAge = param.maxAge();
+
+        if (!Boolean.TRUE.equals(isVerificationRequired)) {
+            gender = Gender.ANY;
+            minAge = null;
+            maxAge = null;
+        } else {
+            if (gender == null) {
+                gender = Gender.ANY;
+            }
+        }
+
+        if (!Boolean.TRUE.equals(isVerificationRequired)
+                && (param.gender() != null && param.gender() != Gender.ANY
+                    || param.minAge() != null || param.maxAge() != null)) {
+            throw new BusinessException(ClubErrorCode.VERIFICATION_REQUIRED_FOR_TAG);
+        }
+
+        club.updateSettings(isVerificationRequired, gender, minAge, maxAge);
+        log.info("동아리 설정 변경: clubId={}, userId={}, isVerificationRequired={}",
+                clubId, userId, isVerificationRequired);
     }
 
     private void validateClubPermission(Long clubId, Long userId, Permission permission) {

@@ -7,6 +7,7 @@ import com.dewple.app_api_auth.api.club.dto.CreateClubResponse;
 import com.dewple.app_api_auth.api.club.dto.GetClubDetailResponse;
 import com.dewple.app_api_auth.api.club.dto.GetClubListResponse;
 import com.dewple.app_api_auth.api.club.dto.UpdateClubRequest;
+import com.dewple.app_api_auth.api.club.dto.UpdateClubSettingsRequest;
 import com.dewple.app_api_auth.global.response.ApiResponse;
 import com.dewple.app_api_auth.global.response.SliceResponse;
 import com.dewple.app_api_auth.global.security.CurrentUserId;
@@ -17,6 +18,7 @@ import com.dewple.club.service.CreateClubParam;
 import com.dewple.club.service.CreateClubResult;
 import com.dewple.club.service.GetClubListParam;
 import com.dewple.club.service.UpdateClubParam;
+import com.dewple.club.service.UpdateClubSettingsParam;
 import com.dewple.common.enums.ActivityType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -96,6 +98,23 @@ public class ClubController {
         );
 
         clubService.updateClub(userId, clubId, param);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "동아리 설정 변경", description = "본인인증 필수/연령대/성별 태그를 변경합니다. 동아리관리(3번) 권한이 필요하며, 활성 모집 공고가 있을 때는 변경 불가합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/{clubId}/settings")
+    public ApiResponse<Void> updateClubSettings(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @Valid @RequestBody UpdateClubSettingsRequest request
+    ) {
+        UpdateClubSettingsParam param = new UpdateClubSettingsParam(
+                request.isVerificationRequired(), request.gender(),
+                request.minAge(), request.maxAge()
+        );
+
+        clubService.updateClubSettings(userId, clubId, param);
         return ApiResponse.ok();
     }
 }

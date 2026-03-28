@@ -8,6 +8,7 @@ import com.dewple.club.service.ClubSummaryResult;
 import com.dewple.club.service.CreateClubResult;
 import com.dewple.club.service.GetClubListParam;
 import com.dewple.club.service.UpdateClubParam;
+import com.dewple.club.service.UpdateClubSettingsParam;
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.Gender;
 import com.dewple.common.exception.BusinessException;
@@ -328,6 +329,62 @@ class ClubControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(createUpdateRequestJson()))
                     .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /clubs/{clubId}/settings - 동아리 설정 변경")
+    class UpdateClubSettings {
+
+        @Test
+        @DisplayName("성공: 본인인증 필수 설정 변경")
+        void success() throws Exception {
+            willDoNothing().given(clubService)
+                    .updateClubSettings(eq(1L), eq(100L), any(UpdateClubSettingsParam.class));
+
+            String json = objectMapper.writeValueAsString(java.util.Map.of(
+                    "isVerificationRequired", true,
+                    "gender", "MALE",
+                    "minAge", 20,
+                    "maxAge", 30
+            ));
+
+            mockMvc.perform(patch("/clubs/100/settings")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없음")
+        void failNoAuth() throws Exception {
+            String json = objectMapper.writeValueAsString(java.util.Map.of(
+                    "isVerificationRequired", false
+            ));
+
+            mockMvc.perform(patch("/clubs/100/settings")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("실패: 활성 모집 공고 존재")
+        void failActiveRecruitment() throws Exception {
+            willThrow(new BusinessException(ClubErrorCode.ACTIVE_RECRUITMENT_EXISTS))
+                    .given(clubService).updateClubSettings(eq(1L), eq(100L), any(UpdateClubSettingsParam.class));
+
+            String json = objectMapper.writeValueAsString(java.util.Map.of(
+                    "isVerificationRequired", true
+            ));
+
+            mockMvc.perform(patch("/clubs/100/settings")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json))
+                    .andExpect(status().isBadRequest());
         }
     }
 }

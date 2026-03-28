@@ -100,6 +100,14 @@ public class Club extends BaseEntity {
         this.foundedDate = foundedDate;
     }
 
+    public void updateSettings(Boolean isVerificationRequired, Gender gender,
+                               Long minAge, Long maxAge) {
+        this.isVerificationRequired = isVerificationRequired;
+        this.gender = gender;
+        this.minAge = minAge;
+        this.maxAge = maxAge;
+    }
+
     public void increaseLikeCount() {
         this.likeCount++;
     }
