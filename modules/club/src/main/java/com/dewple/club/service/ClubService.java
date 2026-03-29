@@ -317,7 +317,17 @@ public class ClubService {
                 .isStaff(true).isDefault(true).build();
 
         ClubRole vicePresident = ClubRole.builder()
-                .club(club).name("부회장").permissions(0L)
+                .club(club).name("부회장")
+                .permissions(Permission.combine(
+                        Permission.PROPOSE_ACTIVITY, Permission.MANAGE_ACTIVITY,
+                        Permission.EDIT_INFO, Permission.NETWORK_CHAT,
+                        Permission.ANSWER_INQUIRY, Permission.MANAGE_RECRUITMENT,
+                        Permission.DECIDE_ADMISSION, Permission.VIEW_APPLICATION,
+                        Permission.MANAGE_MEMBER, Permission.MANAGE_FEDERATION,
+                        Permission.MANAGE_NOTICE, Permission.MANAGE_FEED,
+                        Permission.MANAGE_ATTENDANCE, Permission.MANAGE_CALENDAR,
+                        Permission.MANAGE_STORAGE
+                ))
                 .isStaff(true).isDefault(true).build();
 
         ClubRole hr = ClubRole.builder()

@@ -53,6 +53,36 @@ public class ClubRoleService {
         return ClubRoleResult.from(role);
     }
 
+    @Transactional
+    public ClubRoleResult updateRole(Long userId, Long clubId, Long roleId, UpdateClubRoleParam param) {
+        clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        ClubRole role = clubRoleRepository.findById(roleId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.ROLE_NOT_FOUND));
+
+        if (PRESIDENT_ROLE_NAME.equals(role.getName()) && role.getIsDefault()) {
+            throw new BusinessException(ClubErrorCode.PRESIDENT_ROLE_NOT_MODIFIABLE);
+        }
+
+        if (role.getIsDefault()) {
+            validatePresident(clubId, userId);
+        } else {
+            validateRoleManagePermission(clubId, userId);
+        }
+
+        if (!role.getName().equals(param.name())
+                && clubRoleRepository.existsByClubIdAndName(clubId, param.name())) {
+            throw new BusinessException(ClubErrorCode.ROLE_NAME_DUPLICATED);
+        }
+
+        long permissionBits = convertPermissions(param.permissions());
+        role.update(param.name(), permissionBits, param.isStaff());
+
+        log.info("동아리 역할 수정: clubId={}, roleId={}", clubId, roleId);
+        return ClubRoleResult.from(role);
+    }
+
     @Transactional(readOnly = true)
     public List<ClubRoleResult> getRoles(Long clubId) {
         if (!clubRepository.existsById(clubId)) {
@@ -73,6 +103,16 @@ public class ClubRoleService {
 
         if (!isPresident && !role.hasPermission(Permission.MANAGE_MEMBER)) {
             throw new BusinessException(ClubErrorCode.ROLE_MANAGE_FORBIDDEN);
+        }
+    }
+
+    private void validatePresident(Long clubId, Long userId) {
+        ClubMember member = clubMemberRepository.findByClubIdAndUserId(clubId, userId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.NOT_CLUB_MEMBER));
+
+        ClubRole role = member.getRole();
+        if (!PRESIDENT_ROLE_NAME.equals(role.getName()) || !role.getIsDefault()) {
+            throw new BusinessException(ClubErrorCode.DEFAULT_ROLE_MODIFY_FORBIDDEN);
         }
     }
 

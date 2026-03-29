@@ -201,6 +201,130 @@ class ClubRoleServiceTest {
     }
 
     @Nested
+    @DisplayName("updateRole - 역할 수정")
+    class UpdateRole {
+
+        private ClubRole createCustomRole(Club club) {
+            ClubRole role = ClubRole.builder()
+                    .club(club).name("홍보담당")
+                    .permissions(Permission.combine(Permission.MANAGE_NOTICE, Permission.MANAGE_FEED))
+                    .isStaff(true).isDefault(false).build();
+            ReflectionTestUtils.setField(role, "id", 10L);
+            return role;
+        }
+
+        @Test
+        @DisplayName("성공: 커스텀 역할 수정")
+        void successCustomRole() {
+            Club club = createClub();
+            ClubRole role = createCustomRole(club);
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            mockPresidentPermission(club);
+            given(clubRoleRepository.findById(10L)).willReturn(Optional.of(role));
+            given(clubRoleRepository.existsByClubIdAndName(CLUB_ID, "수정된역할")).willReturn(false);
+
+            UpdateClubRoleParam param = new UpdateClubRoleParam(
+                    "수정된역할", List.of("MANAGE_CALENDAR"), false);
+
+            ClubRoleResult result = clubRoleService.updateRole(USER_ID, CLUB_ID, 10L, param);
+
+            assertThat(result.name()).isEqualTo("수정된역할");
+            assertThat(result.permissions()).containsExactly("MANAGE_CALENDAR");
+            assertThat(result.isStaff()).isFalse();
+        }
+
+        @Test
+        @DisplayName("성공: 회장이 기본 역할(부회장) 수정")
+        void successDefaultRoleByPresident() {
+            Club club = createClub();
+            ClubRole viceRole = ClubRole.builder()
+                    .club(club).name("부회장").permissions(0L)
+                    .isStaff(true).isDefault(true).build();
+            ReflectionTestUtils.setField(viceRole, "id", 2L);
+
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            given(clubRoleRepository.findById(2L)).willReturn(Optional.of(viceRole));
+            // validatePresident
+            ClubMember president = createPresidentMember(club);
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, USER_ID))
+                    .willReturn(Optional.of(president));
+
+            UpdateClubRoleParam param = new UpdateClubRoleParam(
+                    "부회장", List.of("MANAGE_NOTICE"), true);
+
+            ClubRoleResult result = clubRoleService.updateRole(USER_ID, CLUB_ID, 2L, param);
+
+            assertThat(result.permissions()).containsExactly("MANAGE_NOTICE");
+        }
+
+        @Test
+        @DisplayName("실패: 회장 역할 수정 시도 (불변)")
+        void failPresidentRole() {
+            Club club = createClub();
+            ClubRole presidentRole = createPresidentRole(club);
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            given(clubRoleRepository.findById(1L)).willReturn(Optional.of(presidentRole));
+
+            UpdateClubRoleParam param = new UpdateClubRoleParam("변경", List.of(), false);
+
+            assertThatThrownBy(() -> clubRoleService.updateRole(USER_ID, CLUB_ID, 1L, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.PRESIDENT_ROLE_NOT_MODIFIABLE));
+        }
+
+        @Test
+        @DisplayName("실패: 이름 변경 시 중복")
+        void failDuplicateName() {
+            Club club = createClub();
+            ClubRole role = createCustomRole(club);
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            mockPresidentPermission(club);
+            given(clubRoleRepository.findById(10L)).willReturn(Optional.of(role));
+            given(clubRoleRepository.existsByClubIdAndName(CLUB_ID, "부회장")).willReturn(true);
+
+            UpdateClubRoleParam param = new UpdateClubRoleParam("부회장", List.of(), false);
+
+            assertThatThrownBy(() -> clubRoleService.updateRole(USER_ID, CLUB_ID, 10L, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.ROLE_NAME_DUPLICATED));
+        }
+
+        @Test
+        @DisplayName("실패: 기본 역할을 회장이 아닌 유저가 수정")
+        void failDefaultRoleByNonPresident() {
+            Club club = createClub();
+            ClubRole viceRole = ClubRole.builder()
+                    .club(club).name("부회장").permissions(0L)
+                    .isStaff(true).isDefault(true).build();
+            ReflectionTestUtils.setField(viceRole, "id", 2L);
+
+            ClubRole managerRole = ClubRole.builder()
+                    .club(club).name("인사팀장")
+                    .permissions(Permission.combine(Permission.MANAGE_MEMBER))
+                    .isStaff(true).isDefault(false).build();
+            ReflectionTestUtils.setField(managerRole, "id", 5L);
+            ClubMember manager = ClubMember.builder()
+                    .club(club).user(createUser(2L)).role(managerRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(manager, "id", 51L);
+
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            given(clubRoleRepository.findById(2L)).willReturn(Optional.of(viceRole));
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, 2L))
+                    .willReturn(Optional.of(manager));
+
+            UpdateClubRoleParam param = new UpdateClubRoleParam("부회장", List.of(), true);
+
+            assertThatThrownBy(() -> clubRoleService.updateRole(2L, CLUB_ID, 2L, param))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.DEFAULT_ROLE_MODIFY_FORBIDDEN));
+        }
+    }
+
+    @Nested
     @DisplayName("getRoles - 역할 목록 조회")
     class GetRoles {
 

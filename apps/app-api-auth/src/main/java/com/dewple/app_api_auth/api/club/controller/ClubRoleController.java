@@ -8,7 +8,9 @@ import com.dewple.app_api_auth.global.response.ApiResponse;
 import com.dewple.app_api_auth.global.security.CurrentUserId;
 import com.dewple.club.service.ClubRoleResult;
 import com.dewple.club.service.ClubRoleService;
+import com.dewple.app_api_auth.api.club.dto.UpdateClubRoleRequest;
 import com.dewple.club.service.CreateClubRoleParam;
+import com.dewple.club.service.UpdateClubRoleParam;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,6 +42,22 @@ public class ClubRoleController {
                 request.name(), request.permissions(), request.isStaff()
         );
         ClubRoleResult result = clubRoleService.createRole(userId, clubId, param);
+        return ApiResponse.ok(ClubRoleResponse.from(result));
+    }
+
+    @Operation(summary = "역할 수정", description = "역할의 이름, 권한, 운영진 여부를 수정합니다. 회장 역할은 수정할 수 없습니다. 기본 역할은 회장만 수정 가능합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/{roleId}")
+    public ApiResponse<ClubRoleResponse> updateRole(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @PathVariable Long roleId,
+            @Valid @RequestBody UpdateClubRoleRequest request
+    ) {
+        UpdateClubRoleParam param = new UpdateClubRoleParam(
+                request.name(), request.permissions(), request.isStaff()
+        );
+        ClubRoleResult result = clubRoleService.updateRole(userId, clubId, roleId, param);
         return ApiResponse.ok(ClubRoleResponse.from(result));
     }
 

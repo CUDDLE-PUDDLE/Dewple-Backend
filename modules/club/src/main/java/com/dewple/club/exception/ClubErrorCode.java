@@ -29,6 +29,8 @@ public enum ClubErrorCode implements ErrorCode {
     ROLE_NOT_FOUND(6020, HttpStatus.NOT_FOUND, "역할을 찾을 수 없습니다."),
     ROLE_NAME_DUPLICATED(6021, HttpStatus.BAD_REQUEST, "이미 존재하는 역할 이름입니다."),
     ROLE_MANAGE_FORBIDDEN(6022, HttpStatus.FORBIDDEN, "역할을 관리할 권한이 없습니다."),
+    PRESIDENT_ROLE_NOT_MODIFIABLE(6023, HttpStatus.BAD_REQUEST, "회장 역할의 권한은 불변입니다."),
+    DEFAULT_ROLE_MODIFY_FORBIDDEN(6024, HttpStatus.FORBIDDEN, "기본 역할은 회장만 수정할 수 있습니다."),
     ;
 
     private final int code;

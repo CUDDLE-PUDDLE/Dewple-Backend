@@ -5,6 +5,7 @@ import com.dewple.club.exception.ClubErrorCode;
 import com.dewple.club.service.ClubRoleResult;
 import com.dewple.club.service.ClubRoleService;
 import com.dewple.club.service.CreateClubRoleParam;
+import com.dewple.club.service.UpdateClubRoleParam;
 import com.dewple.common.exception.BusinessException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +26,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -115,6 +117,51 @@ class ClubRoleControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(json))
                     .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /clubs/{clubId}/roles/{roleId} - 역할 수정")
+    class UpdateRole {
+
+        @Test
+        @DisplayName("성공: 역할 수정")
+        void success() throws Exception {
+            ClubRoleResult result = new ClubRoleResult(
+                    10L, "수정된역할", List.of("MANAGE_CALENDAR"), false, false);
+            given(clubRoleService.updateRole(eq(1L), eq(100L), eq(10L), any(UpdateClubRoleParam.class)))
+                    .willReturn(result);
+
+            String json = objectMapper.writeValueAsString(java.util.Map.of(
+                    "name", "수정된역할",
+                    "permissions", List.of("MANAGE_CALENDAR"),
+                    "isStaff", false
+            ));
+
+            mockMvc.perform(patch("/clubs/100/roles/10")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.name").value("수정된역할"))
+                    .andExpect(jsonPath("$.result.permissions[0]").value("MANAGE_CALENDAR"));
+        }
+
+        @Test
+        @DisplayName("실패: 회장 역할 수정 시도")
+        void failPresidentRole() throws Exception {
+            given(clubRoleService.updateRole(eq(1L), eq(100L), eq(1L), any(UpdateClubRoleParam.class)))
+                    .willThrow(new BusinessException(ClubErrorCode.PRESIDENT_ROLE_NOT_MODIFIABLE));
+
+            String json = objectMapper.writeValueAsString(java.util.Map.of(
+                    "name", "변경", "permissions", List.of(), "isStaff", false));
+
+            mockMvc.perform(patch("/clubs/100/roles/1")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json))
+                    .andExpect(status().isBadRequest());
         }
     }
 
