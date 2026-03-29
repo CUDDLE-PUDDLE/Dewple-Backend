@@ -94,6 +94,26 @@ public class ClubService {
         return ClubDetailResult.from(club);
     }
 
+    @Transactional(readOnly = true)
+    public List<ClubMemberResult> getMembers(Long userId, Long clubId, ActivityStatus activityStatus) {
+        clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        clubMemberRepository.findByClubIdAndUserId(clubId, userId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.NOT_CLUB_MEMBER));
+
+        List<ClubMember> members;
+        if (activityStatus != null) {
+            members = clubMemberRepository.findByClubIdAndActivityStatus(clubId, activityStatus);
+        } else {
+            members = clubMemberRepository.findByClubId(clubId);
+        }
+
+        return members.stream()
+                .map(ClubMemberResult::from)
+                .toList();
+    }
+
     @Transactional
     public void updateClub(Long userId, Long clubId, UpdateClubParam param) {
         Club club = clubRepository.findById(clubId)

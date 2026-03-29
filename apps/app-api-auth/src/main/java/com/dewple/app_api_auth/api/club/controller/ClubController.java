@@ -6,6 +6,7 @@ import com.dewple.app_api_auth.api.club.dto.CreateClubRequest;
 import com.dewple.app_api_auth.api.club.dto.CreateClubResponse;
 import com.dewple.app_api_auth.api.club.dto.GetClubDetailResponse;
 import com.dewple.app_api_auth.api.club.dto.GetClubListResponse;
+import com.dewple.app_api_auth.api.club.dto.GetClubMemberResponse;
 import com.dewple.app_api_auth.api.club.dto.UpdateClubRequest;
 import com.dewple.app_api_auth.api.club.dto.UpdateClubSettingsRequest;
 import com.dewple.app_api_auth.global.response.ApiResponse;
@@ -17,8 +18,10 @@ import com.dewple.club.service.ClubSummaryResult;
 import com.dewple.club.service.CreateClubParam;
 import com.dewple.club.service.CreateClubResult;
 import com.dewple.club.service.GetClubListParam;
+import com.dewple.club.service.ClubMemberResult;
 import com.dewple.club.service.UpdateClubParam;
 import com.dewple.club.service.UpdateClubSettingsParam;
+import com.dewple.common.enums.ActivityStatus;
 import com.dewple.common.enums.ActivityType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -31,6 +34,8 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Tag(name = "Club", description = "동아리 API")
 @RestController
@@ -63,6 +68,20 @@ public class ClubController {
     public ApiResponse<GetClubDetailResponse> getClubDetail(@PathVariable Long clubId) {
         ClubDetailResult result = clubService.getClubDetail(clubId);
         return ApiResponse.ok(GetClubDetailResponse.from(result));
+    }
+
+    @Operation(summary = "동아리 회원 목록 조회", description = "동아리 회원 목록을 조회합니다. 동아리 멤버만 조회 가능하며, 상태별 필터링이 가능합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/{clubId}/members")
+    public ApiResponse<List<GetClubMemberResponse>> getMembers(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @Parameter(description = "활동 상태 필터") @RequestParam(required = false) ActivityStatus activityStatus
+    ) {
+        List<GetClubMemberResponse> responses = clubService.getMembers(userId, clubId, activityStatus).stream()
+                .map(GetClubMemberResponse::from)
+                .toList();
+        return ApiResponse.ok(responses);
     }
 
     @Operation(summary = "동아리 생성", description = "동아리를 생성합니다. 생성자가 자동으로 회장이 됩니다. 회장 동시 운영 최대 5개.")

@@ -99,7 +99,7 @@ class ClubServiceTest {
             given(userRepository.findById(USER_ID)).willReturn(Optional.of(createUser()));
             given(clubMemberRepository.findByUserIdAndStatusAndActivityStatus(
                     USER_ID, BaseStatus.ACTIVE, ActivityStatus.ACTIVE)).willReturn(List.of());
-            given(clubRepository.save(any(Club.class))).willAnswer(invocation -> {
+            given(clubRepository.<Club>save(any(Club.class))).willAnswer(invocation -> {
                 Club club = invocation.getArgument(0);
                 ReflectionTestUtils.setField(club, "id", 100L);
                 return club;
@@ -269,6 +269,75 @@ class ClubServiceTest {
             Slice<ClubSummaryResult> result = clubService.getClubList(param);
 
             assertThat(result.getContent()).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("getMembers - 동아리 회원 목록 조회")
+    class GetMembers {
+
+        private ClubRole createPresidentRole(Club club) {
+            ClubRole role = ClubRole.builder()
+                    .club(club).name("회장").permissions(Permission.all())
+                    .isStaff(true).isDefault(true).build();
+            ReflectionTestUtils.setField(role, "id", 1L);
+            return role;
+        }
+
+        @Test
+        @DisplayName("성공: 전체 멤버 조회")
+        void successAll() {
+            Club club = createClub();
+            ClubRole presidentRole = createPresidentRole(club);
+            ClubMember president = ClubMember.builder()
+                    .club(club).user(club.getCreator()).role(presidentRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(president, "id", 50L);
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(president));
+            given(clubMemberRepository.findByClubId(100L)).willReturn(List.of(president));
+
+            List<ClubMemberResult> results = clubService.getMembers(USER_ID, 100L, null);
+
+            assertThat(results).hasSize(1);
+            assertThat(results.get(0).roleName()).isEqualTo("회장");
+        }
+
+        @Test
+        @DisplayName("성공: 상태별 필터 조회")
+        void successFiltered() {
+            Club club = createClub();
+            ClubRole presidentRole = createPresidentRole(club);
+            ClubMember president = ClubMember.builder()
+                    .club(club).user(club.getCreator()).role(presidentRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(president, "id", 50L);
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(president));
+            given(clubMemberRepository.findByClubIdAndActivityStatus(100L, ActivityStatus.GUEST))
+                    .willReturn(List.of());
+
+            List<ClubMemberResult> results = clubService.getMembers(USER_ID, 100L, ActivityStatus.GUEST);
+
+            assertThat(results).isEmpty();
+        }
+
+        @Test
+        @DisplayName("실패: 멤버가 아닌 유저")
+        void failNotMember() {
+            Club club = createClub();
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, 999L))
+                    .willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> clubService.getMembers(999L, 100L, null))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.NOT_CLUB_MEMBER));
         }
     }
 
