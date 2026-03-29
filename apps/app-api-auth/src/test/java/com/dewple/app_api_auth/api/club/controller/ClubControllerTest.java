@@ -3,12 +3,14 @@ package com.dewple.app_api_auth.api.club.controller;
 import com.dewple.app_api_auth.global.config.SecurityConfig;
 import com.dewple.club.exception.ClubErrorCode;
 import com.dewple.club.service.ClubDetailResult;
+import com.dewple.club.service.ClubMemberResult;
 import com.dewple.club.service.ClubService;
 import com.dewple.club.service.ClubSummaryResult;
 import com.dewple.club.service.CreateClubResult;
 import com.dewple.club.service.GetClubListParam;
 import com.dewple.club.service.UpdateClubParam;
 import com.dewple.club.service.UpdateClubSettingsParam;
+import com.dewple.common.enums.ActivityStatus;
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.Gender;
 import com.dewple.common.exception.BusinessException;
@@ -155,6 +157,52 @@ class ClubControllerTest {
             mockMvc.perform(get("/clubs/1"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(1000));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /clubs/{clubId}/members - 회원 목록 조회")
+    class GetMembers {
+
+        @Test
+        @DisplayName("성공: 전체 멤버 조회")
+        void success() throws Exception {
+            List<ClubMemberResult> results = List.of(
+                    new ClubMemberResult(50L, 1L, "홍길동", "길동이", null, "회장",
+                            ActivityStatus.ACTIVE, BigDecimal.valueOf(4.5)),
+                    new ClubMemberResult(51L, 2L, "김철수", "철수", "profile.jpg", "부원",
+                            ActivityStatus.ACTIVE, BigDecimal.valueOf(3.8))
+            );
+            given(clubService.getMembers(eq(1L), eq(100L), any())).willReturn(results);
+
+            mockMvc.perform(get("/clubs/100/members")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000))
+                    .andExpect(jsonPath("$.result.length()").value(2))
+                    .andExpect(jsonPath("$.result[0].roleName").value("회장"))
+                    .andExpect(jsonPath("$.result[0].reputationScore").value(4.5))
+                    .andExpect(jsonPath("$.result[1].nickname").value("철수"));
+        }
+
+        @Test
+        @DisplayName("성공: 상태별 필터 조회")
+        void successWithFilter() throws Exception {
+            given(clubService.getMembers(eq(1L), eq(100L), eq(ActivityStatus.GUEST)))
+                    .willReturn(List.of());
+
+            mockMvc.perform(get("/clubs/100/members")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .param("activityStatus", "GUEST"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.result").isEmpty());
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없음")
+        void failNoAuth() throws Exception {
+            mockMvc.perform(get("/clubs/100/members"))
+                    .andExpect(status().isUnauthorized());
         }
     }
 

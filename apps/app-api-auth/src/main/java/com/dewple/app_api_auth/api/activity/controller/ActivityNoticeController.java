@@ -23,7 +23,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "Activity Notice", description = "모임 참여자 공지 API")
+@Tag(name = "Activity - 공지", description = "모임 참여자 공지 API")
 @RestController
 @RequestMapping("/activities/{activityId}/notices")
 @RequiredArgsConstructor
