@@ -86,6 +86,18 @@ public class ClubRoleController {
         return ApiResponse.ok();
     }
 
+    @Operation(summary = "회장 위임", description = "회장만 다른 멤버에게 회장을 위임할 수 있습니다. 기존 회장은 부원으로 전환됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/delegate/{targetMemberId}")
+    public ApiResponse<Void> delegatePresident(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @PathVariable Long targetMemberId
+    ) {
+        clubRoleService.delegatePresident(userId, clubId, targetMemberId);
+        return ApiResponse.ok();
+    }
+
     @Operation(summary = "역할 목록 조회", description = "동아리의 기본 역할 및 커스텀 역할 목록을 조회합니다.")
     @SecurityRequirement(name = BEARER_AUTH)
     @GetMapping

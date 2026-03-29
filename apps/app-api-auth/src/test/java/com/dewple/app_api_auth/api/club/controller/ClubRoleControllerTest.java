@@ -234,6 +234,45 @@ class ClubRoleControllerTest {
     }
 
     @Nested
+    @DisplayName("POST /clubs/{clubId}/roles/delegate/{targetMemberId} - 회장 위임")
+    class DelegatePresident {
+
+        @Test
+        @DisplayName("성공: 회장 위임")
+        void success() throws Exception {
+            willDoNothing().given(clubRoleService)
+                    .delegatePresident(eq(1L), eq(100L), eq(60L));
+
+            mockMvc.perform(post("/clubs/100/roles/delegate/60")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 회장이 아닌 유저")
+        void failNotPresident() throws Exception {
+            willThrow(new BusinessException(ClubErrorCode.DELEGATE_FORBIDDEN))
+                    .given(clubRoleService).delegatePresident(eq(999L), eq(100L), eq(60L));
+
+            mockMvc.perform(post("/clubs/100/roles/delegate/60")
+                            .with(jwt().jwt(j -> j.subject("999"))))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("실패: 자기 자신에게 위임")
+        void failSelf() throws Exception {
+            willThrow(new BusinessException(ClubErrorCode.DELEGATE_SELF))
+                    .given(clubRoleService).delegatePresident(eq(1L), eq(100L), eq(50L));
+
+            mockMvc.perform(post("/clubs/100/roles/delegate/50")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
     @DisplayName("GET /clubs/{clubId}/roles - 역할 목록 조회")
     class GetRoles {
 

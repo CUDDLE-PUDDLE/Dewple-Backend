@@ -478,6 +478,100 @@ class ClubRoleServiceTest {
     }
 
     @Nested
+    @DisplayName("delegatePresident - 회장 위임")
+    class DelegatePresident {
+
+        @Test
+        @DisplayName("성공: 회장 위임")
+        void success() {
+            Club club = createClub();
+            ClubRole presidentRole = createPresidentRole(club);
+            ClubRole memberRole = ClubRole.builder()
+                    .club(club).name("부원").permissions(0L)
+                    .isStaff(false).isDefault(true).build();
+            ReflectionTestUtils.setField(memberRole, "id", 5L);
+
+            ClubMember currentPresident = createPresidentMember(club);
+            ClubMember target = ClubMember.builder()
+                    .club(club).user(createUser(2L)).role(memberRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(target, "id", 60L);
+
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, USER_ID))
+                    .willReturn(Optional.of(currentPresident));
+            given(clubMemberRepository.findByClubIdAndId(CLUB_ID, 60L))
+                    .willReturn(Optional.of(target));
+            given(clubRoleRepository.findByClubIdAndName(CLUB_ID, "부원"))
+                    .willReturn(Optional.of(memberRole));
+
+            clubRoleService.delegatePresident(USER_ID, CLUB_ID, 60L);
+
+            assertThat(target.getRole().getName()).isEqualTo("회장");
+            assertThat(currentPresident.getRole().getName()).isEqualTo("부원");
+        }
+
+        @Test
+        @DisplayName("실패: 회장이 아닌 유저의 위임 시도")
+        void failNotPresident() {
+            Club club = createClub();
+            ClubRole memberRole = ClubRole.builder()
+                    .club(club).name("부원").permissions(0L)
+                    .isStaff(false).isDefault(true).build();
+            ReflectionTestUtils.setField(memberRole, "id", 5L);
+            ClubMember member = ClubMember.builder()
+                    .club(club).user(createUser(USER_ID)).role(memberRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(member, "id", 51L);
+
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, USER_ID))
+                    .willReturn(Optional.of(member));
+
+            assertThatThrownBy(() -> clubRoleService.delegatePresident(USER_ID, CLUB_ID, 60L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.DELEGATE_FORBIDDEN));
+        }
+
+        @Test
+        @DisplayName("실패: 자기 자신에게 위임")
+        void failDelegateSelf() {
+            Club club = createClub();
+            ClubMember currentPresident = createPresidentMember(club);
+
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, USER_ID))
+                    .willReturn(Optional.of(currentPresident));
+            given(clubMemberRepository.findByClubIdAndId(CLUB_ID, 50L))
+                    .willReturn(Optional.of(currentPresident));
+
+            assertThatThrownBy(() -> clubRoleService.delegatePresident(USER_ID, CLUB_ID, 50L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.DELEGATE_SELF));
+        }
+
+        @Test
+        @DisplayName("실패: 대상 멤버 없음")
+        void failTargetNotFound() {
+            Club club = createClub();
+            ClubMember currentPresident = createPresidentMember(club);
+
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(CLUB_ID, USER_ID))
+                    .willReturn(Optional.of(currentPresident));
+            given(clubMemberRepository.findByClubIdAndId(CLUB_ID, 999L))
+                    .willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> clubRoleService.delegatePresident(USER_ID, CLUB_ID, 999L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.MEMBER_NOT_FOUND));
+        }
+    }
+
+    @Nested
     @DisplayName("getRoles - 역할 목록 조회")
     class GetRoles {
 

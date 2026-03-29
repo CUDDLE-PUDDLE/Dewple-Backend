@@ -132,6 +132,37 @@ public class ClubRoleService {
         log.info("동아리 멤버 역할 변경: clubId={}, memberId={}, roleId={}", clubId, memberId, roleId);
     }
 
+    @Transactional
+    public void delegatePresident(Long userId, Long clubId, Long targetMemberId) {
+        clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        ClubMember currentPresident = clubMemberRepository.findByClubIdAndUserId(clubId, userId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.NOT_CLUB_MEMBER));
+
+        ClubRole currentRole = currentPresident.getRole();
+        if (!PRESIDENT_ROLE_NAME.equals(currentRole.getName()) || !currentRole.getIsDefault()) {
+            throw new BusinessException(ClubErrorCode.DELEGATE_FORBIDDEN);
+        }
+
+        ClubMember targetMember = clubMemberRepository.findByClubIdAndId(clubId, targetMemberId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.MEMBER_NOT_FOUND));
+
+        if (currentPresident.getId().equals(targetMember.getId())) {
+            throw new BusinessException(ClubErrorCode.DELEGATE_SELF);
+        }
+
+        ClubRole presidentRole = currentPresident.getRole();
+        ClubRole defaultMemberRole = clubRoleRepository.findByClubIdAndName(clubId, DEFAULT_MEMBER_ROLE_NAME)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.ROLE_NOT_FOUND));
+
+        targetMember.changeRole(presidentRole);
+        currentPresident.changeRole(defaultMemberRole);
+
+        log.info("동아리 회장 위임: clubId={}, from={}, to={}",
+                clubId, currentPresident.getId(), targetMemberId);
+    }
+
     @Transactional(readOnly = true)
     public List<ClubRoleResult> getRoles(Long clubId) {
         if (!clubRepository.existsById(clubId)) {
