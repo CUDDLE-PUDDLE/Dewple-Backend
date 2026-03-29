@@ -36,6 +36,11 @@ public enum ClubErrorCode implements ErrorCode {
     MEMBER_NOT_FOUND(6027, HttpStatus.NOT_FOUND, "동아리 멤버를 찾을 수 없습니다."),
     DELEGATE_FORBIDDEN(6028, HttpStatus.FORBIDDEN, "회장만 회장 위임을 할 수 있습니다."),
     DELEGATE_SELF(6029, HttpStatus.BAD_REQUEST, "자기 자신에게 위임할 수 없습니다."),
+    ALREADY_CLUB_MEMBER(6030, HttpStatus.BAD_REQUEST, "이미 동아리 멤버입니다."),
+    ACTIVITY_ID_REQUIRED(6031, HttpStatus.BAD_REQUEST, "GUEST 초대 시 모임 지정은 필수입니다."),
+    NOT_GUEST_STATUS(6032, HttpStatus.BAD_REQUEST, "GUEST 상태의 멤버만 승격할 수 있습니다."),
+    ACTIVITY_END_DATE_REQUIRED(6033, HttpStatus.BAD_REQUEST, "활동 기한은 필수입니다."),
+    GENERATION_NOT_FOUND(6034, HttpStatus.NOT_FOUND, "기수를 찾을 수 없습니다."),
     ;
 
     private final int code;

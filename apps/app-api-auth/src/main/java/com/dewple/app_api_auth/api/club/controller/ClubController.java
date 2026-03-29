@@ -7,6 +7,8 @@ import com.dewple.app_api_auth.api.club.dto.CreateClubResponse;
 import com.dewple.app_api_auth.api.club.dto.GetClubDetailResponse;
 import com.dewple.app_api_auth.api.club.dto.GetClubListResponse;
 import com.dewple.app_api_auth.api.club.dto.GetClubMemberResponse;
+import com.dewple.app_api_auth.api.club.dto.InviteGuestRequest;
+import com.dewple.app_api_auth.api.club.dto.PromoteToMemberRequest;
 import com.dewple.app_api_auth.api.club.dto.UpdateClubRequest;
 import com.dewple.app_api_auth.api.club.dto.UpdateClubSettingsRequest;
 import com.dewple.app_api_auth.global.response.ApiResponse;
@@ -19,6 +21,8 @@ import com.dewple.club.service.CreateClubParam;
 import com.dewple.club.service.CreateClubResult;
 import com.dewple.club.service.GetClubListParam;
 import com.dewple.club.service.ClubMemberResult;
+import com.dewple.club.service.InviteGuestParam;
+import com.dewple.club.service.PromoteToMemberParam;
 import com.dewple.club.service.UpdateClubParam;
 import com.dewple.club.service.UpdateClubSettingsParam;
 import com.dewple.common.enums.ActivityStatus;
@@ -82,6 +86,35 @@ public class ClubController {
                 .map(GetClubMemberResponse::from)
                 .toList();
         return ApiResponse.ok(responses);
+    }
+
+    @Operation(summary = "GUEST 초대", description = "외부인을 GUEST로 초대합니다. 모임 지정이 필수이며, 회원관리(9번) 권한이 필요합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{clubId}/members/guest")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<GetClubMemberResponse> inviteGuest(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @Valid @RequestBody InviteGuestRequest request
+    ) {
+        InviteGuestParam param = new InviteGuestParam(request.userId(), request.activityIds());
+        ClubMemberResult result = clubService.inviteGuest(userId, clubId, param);
+        return ApiResponse.ok(GetClubMemberResponse.from(result));
+    }
+
+    @Operation(summary = "GUEST→MEMBER 승격", description = "GUEST를 정식 멤버로 승격합니다. 기수 지정 및 활동 기한 설정이 필수이며, 회원관리(9번) 권한이 필요합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/{clubId}/members/{memberId}/promote")
+    public ApiResponse<Void> promoteToMember(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @PathVariable Long memberId,
+            @Valid @RequestBody PromoteToMemberRequest request
+    ) {
+        PromoteToMemberParam param = new PromoteToMemberParam(
+                request.generationId(), request.activityEndDate());
+        clubService.promoteToMember(userId, clubId, memberId, param);
+        return ApiResponse.ok();
     }
 
     @Operation(summary = "동아리 생성", description = "동아리를 생성합니다. 생성자가 자동으로 회장이 됩니다. 회장 동시 운영 최대 5개.")

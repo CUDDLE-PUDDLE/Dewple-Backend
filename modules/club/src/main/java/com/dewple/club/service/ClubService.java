@@ -42,6 +42,7 @@ public class ClubService {
     private final RegionRepository regionRepository;
     private final ClubRecruitmentPort clubRecruitmentPort;
     private final ClubDeletionVoteRepository clubDeletionVoteRepository;
+    private final ClubGenerationRepository clubGenerationRepository;
 
     private static final String PRESIDENT_ROLE_NAME = "회장";
     private static final int MAX_PRESIDENT_CLUBS = 5;
@@ -92,6 +93,71 @@ public class ClubService {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
         return ClubDetailResult.from(club);
+    }
+
+    @Transactional
+    public ClubMemberResult inviteGuest(Long userId, Long clubId, InviteGuestParam param) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        validateClubPermission(clubId, userId, Permission.MANAGE_MEMBER);
+
+        if (param.activityIds() == null || param.activityIds().isEmpty()) {
+            throw new BusinessException(ClubErrorCode.ACTIVITY_ID_REQUIRED);
+        }
+
+        if (clubMemberRepository.findByClubIdAndUserId(clubId, param.userId()).isPresent()) {
+            throw new BusinessException(ClubErrorCode.ALREADY_CLUB_MEMBER);
+        }
+
+        User guestUser = userRepository.findById(param.userId())
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
+
+        ClubRole defaultMemberRole = clubRoleRepository.findByClubIdAndName(clubId, "부원")
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.ROLE_NOT_FOUND));
+
+        ClubMember guest = ClubMember.builder()
+                .club(club)
+                .user(guestUser)
+                .role(defaultMemberRole)
+                .activityStatus(ActivityStatus.GUEST)
+                .build();
+        clubMemberRepository.save(guest);
+
+        // TODO: activityIds로 모임 연결 (Activity 도메인 통합 시 구현)
+        log.info("동아리 GUEST 초대: clubId={}, guestUserId={}, activityIds={}",
+                clubId, param.userId(), param.activityIds());
+
+        return ClubMemberResult.from(guest);
+    }
+
+    @Transactional
+    public void promoteToMember(Long userId, Long clubId, Long memberId, PromoteToMemberParam param) {
+        clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        validateClubPermission(clubId, userId, Permission.MANAGE_MEMBER);
+
+        ClubMember member = clubMemberRepository.findByClubIdAndId(clubId, memberId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.MEMBER_NOT_FOUND));
+
+        if (member.getActivityStatus() != ActivityStatus.GUEST) {
+            throw new BusinessException(ClubErrorCode.NOT_GUEST_STATUS);
+        }
+
+        if (param.activityEndDate() == null) {
+            throw new BusinessException(ClubErrorCode.ACTIVITY_END_DATE_REQUIRED);
+        }
+
+        ClubGeneration generation = clubGenerationRepository.findById(param.generationId())
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.GENERATION_NOT_FOUND));
+
+        member.updateActivityStatus(ActivityStatus.ACTIVE);
+        member.setJoinGeneration(generation);
+        member.setActivityEndDate(param.activityEndDate());
+
+        log.info("동아리 GUEST→MEMBER 승격: clubId={}, memberId={}, generationId={}",
+                clubId, memberId, param.generationId());
     }
 
     @Transactional(readOnly = true)
