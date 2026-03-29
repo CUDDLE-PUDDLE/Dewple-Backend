@@ -73,6 +73,19 @@ public class ClubRoleController {
         return ApiResponse.ok();
     }
 
+    @Operation(summary = "멤버에 역할 부여", description = "멤버에게 역할을 할당합니다. 회장 역할은 직접 할당할 수 없으며, 회장 위임 API를 사용해야 합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/members/{memberId}")
+    public ApiResponse<Void> assignRole(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @PathVariable Long memberId,
+            @RequestParam Long roleId
+    ) {
+        clubRoleService.assignRole(userId, clubId, memberId, roleId);
+        return ApiResponse.ok();
+    }
+
     @Operation(summary = "역할 목록 조회", description = "동아리의 기본 역할 및 커스텀 역할 목록을 조회합니다.")
     @SecurityRequirement(name = BEARER_AUTH)
     @GetMapping

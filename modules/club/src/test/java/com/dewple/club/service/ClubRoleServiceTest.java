@@ -402,6 +402,82 @@ class ClubRoleServiceTest {
     }
 
     @Nested
+    @DisplayName("assignRole - 멤버에 역할 부여")
+    class AssignRole {
+
+        @Test
+        @DisplayName("성공: 멤버에 커스텀 역할 부여")
+        void success() {
+            Club club = createClub();
+            ClubRole customRole = ClubRole.builder()
+                    .club(club).name("홍보담당")
+                    .permissions(Permission.combine(Permission.MANAGE_NOTICE))
+                    .isStaff(true).isDefault(false).build();
+            ReflectionTestUtils.setField(customRole, "id", 10L);
+
+            ClubRole memberRole = ClubRole.builder()
+                    .club(club).name("부원").permissions(0L)
+                    .isStaff(false).isDefault(true).build();
+            ReflectionTestUtils.setField(memberRole, "id", 5L);
+            ClubMember target = ClubMember.builder()
+                    .club(club).user(createUser(2L)).role(memberRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(target, "id", 60L);
+
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            mockPresidentPermission(club);
+            given(clubMemberRepository.findByClubIdAndId(CLUB_ID, 60L))
+                    .willReturn(Optional.of(target));
+            given(clubRoleRepository.findById(10L)).willReturn(Optional.of(customRole));
+
+            clubRoleService.assignRole(USER_ID, CLUB_ID, 60L, 10L);
+
+            assertThat(target.getRole().getName()).isEqualTo("홍보담당");
+        }
+
+        @Test
+        @DisplayName("실패: 회장 역할 직접 할당 시도")
+        void failAssignPresident() {
+            Club club = createClub();
+            ClubRole presidentRole = createPresidentRole(club);
+            ClubRole memberRole = ClubRole.builder()
+                    .club(club).name("부원").permissions(0L)
+                    .isStaff(false).isDefault(true).build();
+            ReflectionTestUtils.setField(memberRole, "id", 5L);
+            ClubMember target = ClubMember.builder()
+                    .club(club).user(createUser(2L)).role(memberRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(target, "id", 60L);
+
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            mockPresidentPermission(club);
+            given(clubMemberRepository.findByClubIdAndId(CLUB_ID, 60L))
+                    .willReturn(Optional.of(target));
+            given(clubRoleRepository.findById(1L)).willReturn(Optional.of(presidentRole));
+
+            assertThatThrownBy(() -> clubRoleService.assignRole(USER_ID, CLUB_ID, 60L, 1L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.PRESIDENT_ROLE_NOT_ASSIGNABLE));
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 멤버")
+        void failMemberNotFound() {
+            Club club = createClub();
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            mockPresidentPermission(club);
+            given(clubMemberRepository.findByClubIdAndId(CLUB_ID, 999L))
+                    .willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> clubRoleService.assignRole(USER_ID, CLUB_ID, 999L, 10L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.MEMBER_NOT_FOUND));
+        }
+    }
+
+    @Nested
     @DisplayName("getRoles - 역할 목록 조회")
     class GetRoles {
 

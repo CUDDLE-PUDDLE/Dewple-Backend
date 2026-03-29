@@ -32,6 +32,8 @@ public enum ClubErrorCode implements ErrorCode {
     PRESIDENT_ROLE_NOT_MODIFIABLE(6023, HttpStatus.BAD_REQUEST, "회장 역할의 권한은 불변입니다."),
     DEFAULT_ROLE_MODIFY_FORBIDDEN(6024, HttpStatus.FORBIDDEN, "기본 역할은 회장만 수정할 수 있습니다."),
     ROLE_DEFAULT_NOT_DELETABLE(6025, HttpStatus.BAD_REQUEST, "기본 역할은 삭제할 수 없습니다."),
+    PRESIDENT_ROLE_NOT_ASSIGNABLE(6026, HttpStatus.BAD_REQUEST, "회장 역할은 직접 할당할 수 없습니다. 회장 위임을 사용하세요."),
+    MEMBER_NOT_FOUND(6027, HttpStatus.NOT_FOUND, "동아리 멤버를 찾을 수 없습니다."),
     ;
 
     private final int code;

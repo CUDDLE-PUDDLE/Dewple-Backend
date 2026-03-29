@@ -111,6 +111,27 @@ public class ClubRoleService {
                 clubId, roleId, membersWithRole.size());
     }
 
+    @Transactional
+    public void assignRole(Long userId, Long clubId, Long memberId, Long roleId) {
+        clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        validateRoleManagePermission(clubId, userId);
+
+        ClubMember member = clubMemberRepository.findByClubIdAndId(clubId, memberId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.MEMBER_NOT_FOUND));
+
+        ClubRole role = clubRoleRepository.findById(roleId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.ROLE_NOT_FOUND));
+
+        if (PRESIDENT_ROLE_NAME.equals(role.getName()) && role.getIsDefault()) {
+            throw new BusinessException(ClubErrorCode.PRESIDENT_ROLE_NOT_ASSIGNABLE);
+        }
+
+        member.changeRole(role);
+        log.info("동아리 멤버 역할 변경: clubId={}, memberId={}, roleId={}", clubId, memberId, roleId);
+    }
+
     @Transactional(readOnly = true)
     public List<ClubRoleResult> getRoles(Long clubId) {
         if (!clubRepository.existsById(clubId)) {

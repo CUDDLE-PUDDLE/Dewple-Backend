@@ -196,6 +196,44 @@ class ClubRoleControllerTest {
     }
 
     @Nested
+    @DisplayName("PATCH /clubs/{clubId}/roles/members/{memberId} - 멤버에 역할 부여")
+    class AssignRole {
+
+        @Test
+        @DisplayName("성공: 멤버에 역할 부여")
+        void success() throws Exception {
+            willDoNothing().given(clubRoleService)
+                    .assignRole(eq(1L), eq(100L), eq(60L), eq(10L));
+
+            mockMvc.perform(patch("/clubs/100/roles/members/60")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .param("roleId", "10"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 회장 역할 직접 할당")
+        void failPresidentRole() throws Exception {
+            willThrow(new BusinessException(ClubErrorCode.PRESIDENT_ROLE_NOT_ASSIGNABLE))
+                    .given(clubRoleService).assignRole(eq(1L), eq(100L), eq(60L), eq(1L));
+
+            mockMvc.perform(patch("/clubs/100/roles/members/60")
+                            .with(jwt().jwt(j -> j.subject("1")))
+                            .param("roleId", "1"))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("실패: 인증 없음")
+        void failNoAuth() throws Exception {
+            mockMvc.perform(patch("/clubs/100/roles/members/60")
+                            .param("roleId", "10"))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
     @DisplayName("GET /clubs/{clubId}/roles - 역할 목록 조회")
     class GetRoles {
 
