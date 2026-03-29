@@ -41,6 +41,9 @@ public enum ClubErrorCode implements ErrorCode {
     NOT_GUEST_STATUS(6032, HttpStatus.BAD_REQUEST, "GUEST 상태의 멤버만 승격할 수 있습니다."),
     ACTIVITY_END_DATE_REQUIRED(6033, HttpStatus.BAD_REQUEST, "활동 기한은 필수입니다."),
     GENERATION_NOT_FOUND(6034, HttpStatus.NOT_FOUND, "기수를 찾을 수 없습니다."),
+    KICK_ALREADY_IN_PROGRESS(6040, HttpStatus.BAD_REQUEST, "이미 내보내기 투표가 진행 중입니다."),
+    KICK_VOTE_NOT_FOUND(6041, HttpStatus.NOT_FOUND, "투표 대상이 아닙니다."),
+    KICK_NOT_IN_PROGRESS(6042, HttpStatus.BAD_REQUEST, "내보내기 투표가 진행 중이 아닙니다."),
     ;
 
     private final int code;

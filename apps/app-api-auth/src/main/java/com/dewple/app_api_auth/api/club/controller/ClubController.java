@@ -117,6 +117,31 @@ public class ClubController {
         return ApiResponse.ok();
     }
 
+    @Operation(summary = "회원 내보내기 신청", description = "회원 내보내기를 신청합니다. 회원관리(9번) 권한 보유자 전원 동의가 필요하며, 1명이면 즉시 내보내기됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{clubId}/members/{memberId}/kick")
+    public ApiResponse<Void> requestKick(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @PathVariable Long memberId
+    ) {
+        clubService.requestKick(userId, clubId, memberId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "회원 내보내기 투표", description = "내보내기 투표에 동의 또는 거부합니다. 거부 시 투표가 즉시 종료됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{clubId}/members/{memberId}/kick/vote")
+    public ApiResponse<Void> voteKick(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @PathVariable Long memberId,
+            @RequestParam boolean approved
+    ) {
+        clubService.voteKick(userId, clubId, memberId, approved);
+        return ApiResponse.ok();
+    }
+
     @Operation(summary = "동아리 생성", description = "동아리를 생성합니다. 생성자가 자동으로 회장이 됩니다. 회장 동시 운영 최대 5개.")
     @SecurityRequirement(name = BEARER_AUTH)
     @PostMapping

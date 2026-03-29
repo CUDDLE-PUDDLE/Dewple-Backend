@@ -2,6 +2,7 @@ package com.dewple.club.service;
 
 import com.dewple.club.entity.ClubDeletionVote;
 import com.dewple.club.entity.ClubGeneration;
+import com.dewple.club.entity.ClubKickVote;
 import com.dewple.club.entity.ClubMember;
 import com.dewple.club.entity.ClubRole;
 import com.dewple.club.exception.ClubErrorCode;
@@ -62,6 +63,7 @@ class ClubServiceTest {
     @Mock private ClubRecruitmentPort clubRecruitmentPort;
     @Mock private ClubDeletionVoteRepository clubDeletionVoteRepository;
     @Mock private ClubGenerationRepository clubGenerationRepository;
+    @Mock private ClubKickVoteRepository clubKickVoteRepository;
 
     @InjectMocks
     private ClubService clubService;
@@ -453,6 +455,135 @@ class ClubServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
                             .isEqualTo(ClubErrorCode.NOT_GUEST_STATUS));
+        }
+    }
+
+    @Nested
+    @DisplayName("requestKick - 회원 내보내기 신청")
+    class RequestKick {
+
+        private ClubRole createPresidentRole(Club club) {
+            ClubRole role = ClubRole.builder()
+                    .club(club).name("회장").permissions(Permission.all())
+                    .isStaff(true).isDefault(true).build();
+            ReflectionTestUtils.setField(role, "id", 1L);
+            return role;
+        }
+
+        private ClubMember createPresidentMember(Club club) {
+            ClubRole role = createPresidentRole(club);
+            ClubMember member = ClubMember.builder()
+                    .club(club).user(club.getCreator()).role(role)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(member, "id", 50L);
+            return member;
+        }
+
+        @Test
+        @DisplayName("성공: 권한자 1명 → 즉시 내보내기")
+        void successSingleVoter() {
+            Club club = createClub();
+            ClubMember president = createPresidentMember(club);
+            ClubRole memberRole = ClubRole.builder()
+                    .club(club).name("부원").permissions(0L)
+                    .isStaff(false).isDefault(true).build();
+            ReflectionTestUtils.setField(memberRole, "id", 5L);
+            User targetUser = User.builder().userId("target").name("대상").phone("010").build();
+            ReflectionTestUtils.setField(targetUser, "id", 2L);
+            ClubMember target = ClubMember.builder()
+                    .club(club).user(targetUser).role(memberRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(target, "id", 60L);
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(president));
+            given(clubMemberRepository.findByClubIdAndId(100L, 60L))
+                    .willReturn(Optional.of(target));
+            given(clubKickVoteRepository.existsByTargetMember(target)).willReturn(false);
+            given(clubMemberRepository.findByClubIdAndStatusAndActivityStatus(
+                    100L, BaseStatus.ACTIVE, ActivityStatus.ACTIVE))
+                    .willReturn(List.of(president));
+
+            clubService.requestKick(USER_ID, 100L, 60L);
+
+            assertThat(target.getActivityStatus()).isEqualTo(ActivityStatus.KICKEDOUT);
+        }
+
+        @Test
+        @DisplayName("실패: 이미 내보내기 투표 진행 중")
+        void failAlreadyInProgress() {
+            Club club = createClub();
+            ClubMember president = createPresidentMember(club);
+            ClubMember target = mock(ClubMember.class);
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndUserId(100L, USER_ID))
+                    .willReturn(Optional.of(president));
+            given(clubMemberRepository.findByClubIdAndId(100L, 60L))
+                    .willReturn(Optional.of(target));
+            given(clubKickVoteRepository.existsByTargetMember(target)).willReturn(true);
+
+            assertThatThrownBy(() -> clubService.requestKick(USER_ID, 100L, 60L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.KICK_ALREADY_IN_PROGRESS));
+        }
+    }
+
+    @Nested
+    @DisplayName("voteKick - 회원 내보내기 투표")
+    class VoteKick {
+
+        @Test
+        @DisplayName("성공: 동의 → 전원 동의 → 내보내기 완료")
+        void successAllApproved() {
+            Club club = createClub();
+            ClubRole memberRole = ClubRole.builder()
+                    .club(club).name("부원").permissions(0L)
+                    .isStaff(false).isDefault(true).build();
+            ReflectionTestUtils.setField(memberRole, "id", 5L);
+            User targetUser = User.builder().userId("target").name("대상").phone("010").build();
+            ReflectionTestUtils.setField(targetUser, "id", 2L);
+            ClubMember target = ClubMember.builder()
+                    .club(club).user(targetUser).role(memberRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(target, "id", 60L);
+
+            ClubKickVote vote = ClubKickVote.builder()
+                    .club(club).targetMember(target).voter(createUser()).isApproved(null).build();
+            ReflectionTestUtils.setField(vote, "id", 1L);
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndId(100L, 60L)).willReturn(Optional.of(target));
+            given(clubKickVoteRepository.existsByTargetMember(target)).willReturn(true);
+            given(clubKickVoteRepository.findByTargetMemberAndVoterId(target, USER_ID))
+                    .willReturn(Optional.of(vote));
+            given(clubKickVoteRepository.findByTargetMember(target)).willReturn(List.of(vote));
+
+            clubService.voteKick(USER_ID, 100L, 60L, true);
+
+            assertThat(vote.getIsApproved()).isTrue();
+            assertThat(target.getActivityStatus()).isEqualTo(ActivityStatus.KICKEDOUT);
+        }
+
+        @Test
+        @DisplayName("성공: 거부 → 투표 종료")
+        void successRejected() {
+            Club club = createClub();
+            ClubMember target = mock(ClubMember.class);
+            ClubKickVote vote = ClubKickVote.builder()
+                    .club(club).targetMember(target).voter(createUser()).isApproved(null).build();
+
+            given(clubRepository.findById(100L)).willReturn(Optional.of(club));
+            given(clubMemberRepository.findByClubIdAndId(100L, 60L)).willReturn(Optional.of(target));
+            given(clubKickVoteRepository.existsByTargetMember(target)).willReturn(true);
+            given(clubKickVoteRepository.findByTargetMemberAndVoterId(target, USER_ID))
+                    .willReturn(Optional.of(vote));
+
+            clubService.voteKick(USER_ID, 100L, 60L, false);
+
+            then(clubKickVoteRepository).should().deleteByTargetMember(target);
         }
     }
 

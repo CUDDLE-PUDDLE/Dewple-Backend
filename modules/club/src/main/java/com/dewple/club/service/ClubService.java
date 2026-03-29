@@ -43,6 +43,7 @@ public class ClubService {
     private final ClubRecruitmentPort clubRecruitmentPort;
     private final ClubDeletionVoteRepository clubDeletionVoteRepository;
     private final ClubGenerationRepository clubGenerationRepository;
+    private final ClubKickVoteRepository clubKickVoteRepository;
 
     private static final String PRESIDENT_ROLE_NAME = "회장";
     private static final int MAX_PRESIDENT_CLUBS = 5;
@@ -158,6 +159,82 @@ public class ClubService {
 
         log.info("동아리 GUEST→MEMBER 승격: clubId={}, memberId={}, generationId={}",
                 clubId, memberId, param.generationId());
+    }
+
+    @Transactional
+    public void requestKick(Long userId, Long clubId, Long targetMemberId) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        validateClubPermission(clubId, userId, Permission.MANAGE_MEMBER);
+
+        ClubMember targetMember = clubMemberRepository.findByClubIdAndId(clubId, targetMemberId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.MEMBER_NOT_FOUND));
+
+        if (clubKickVoteRepository.existsByTargetMember(targetMember)) {
+            throw new BusinessException(ClubErrorCode.KICK_ALREADY_IN_PROGRESS);
+        }
+
+        List<ClubMember> permissionMembers = clubMemberRepository
+                .findByClubIdAndStatusAndActivityStatus(clubId, BaseStatus.ACTIVE, ActivityStatus.ACTIVE)
+                .stream()
+                .filter(m -> m.getRole().hasPermission(Permission.MANAGE_MEMBER))
+                .toList();
+
+        for (ClubMember voter : permissionMembers) {
+            boolean isRequester = voter.getUser().getId().equals(userId);
+            clubKickVoteRepository.save(
+                    ClubKickVote.builder()
+                            .club(club)
+                            .targetMember(targetMember)
+                            .voter(voter.getUser())
+                            .isApproved(isRequester ? true : null)
+                            .build()
+            );
+        }
+
+        if (permissionMembers.size() == 1) {
+            targetMember.updateActivityStatus(ActivityStatus.KICKEDOUT);
+            clubKickVoteRepository.deleteByTargetMember(targetMember);
+            log.info("동아리 회원 내보내기 즉시 승인 (권한자 1명): clubId={}, targetMemberId={}",
+                    clubId, targetMemberId);
+        } else {
+            log.info("동아리 회원 내보내기 투표 시작: clubId={}, targetMemberId={}, 투표 대상={}명",
+                    clubId, targetMemberId, permissionMembers.size());
+        }
+    }
+
+    @Transactional
+    public void voteKick(Long userId, Long clubId, Long targetMemberId, boolean approved) {
+        clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        ClubMember targetMember = clubMemberRepository.findByClubIdAndId(clubId, targetMemberId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.MEMBER_NOT_FOUND));
+
+        if (!clubKickVoteRepository.existsByTargetMember(targetMember)) {
+            throw new BusinessException(ClubErrorCode.KICK_NOT_IN_PROGRESS);
+        }
+
+        ClubKickVote vote = clubKickVoteRepository.findByTargetMemberAndVoterId(targetMember, userId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.KICK_VOTE_NOT_FOUND));
+
+        if (!approved) {
+            clubKickVoteRepository.deleteByTargetMember(targetMember);
+            log.info("동아리 내보내기 투표 거부 → 종료: clubId={}, targetMemberId={}", clubId, targetMemberId);
+            return;
+        }
+
+        vote.approve();
+
+        List<ClubKickVote> allVotes = clubKickVoteRepository.findByTargetMember(targetMember);
+        boolean allApproved = allVotes.stream().allMatch(v -> Boolean.TRUE.equals(v.getIsApproved()));
+
+        if (allApproved) {
+            targetMember.updateActivityStatus(ActivityStatus.KICKEDOUT);
+            clubKickVoteRepository.deleteByTargetMember(targetMember);
+            log.info("동아리 내보내기 전원 동의 → 완료: clubId={}, targetMemberId={}", clubId, targetMemberId);
+        }
     }
 
     @Transactional(readOnly = true)
