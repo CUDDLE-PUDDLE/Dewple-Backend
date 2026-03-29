@@ -26,6 +26,9 @@ public enum ClubErrorCode implements ErrorCode {
     DELETION_CANCEL_FORBIDDEN(6014, HttpStatus.FORBIDDEN, "회장만 삭제를 취소할 수 있습니다."),
     DELETION_SANCTION_NOT_CANCELABLE(6015, HttpStatus.BAD_REQUEST, "서비스 관리자의 제재에 의한 삭제는 취소할 수 없습니다."),
     DELETION_GRACE_PERIOD_EXPIRED(6016, HttpStatus.BAD_REQUEST, "유예 기간이 만료되어 취소할 수 없습니다."),
+    ROLE_NOT_FOUND(6020, HttpStatus.NOT_FOUND, "역할을 찾을 수 없습니다."),
+    ROLE_NAME_DUPLICATED(6021, HttpStatus.BAD_REQUEST, "이미 존재하는 역할 이름입니다."),
+    ROLE_MANAGE_FORBIDDEN(6022, HttpStatus.FORBIDDEN, "역할을 관리할 권한이 없습니다."),
     ;
 
     private final int code;
