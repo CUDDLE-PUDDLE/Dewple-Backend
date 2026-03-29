@@ -1,6 +1,7 @@
 package com.dewple.club.repository;
 
 import com.dewple.club.entity.ClubMember;
+import com.dewple.club.entity.ClubRole;
 import com.dewple.common.enums.ActivityStatus;
 import com.dewple.common.enums.BaseStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -22,4 +23,6 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
 
     List<ClubMember> findByClubIdAndStatusAndActivityStatus(
             Long clubId, BaseStatus status, ActivityStatus activityStatus);
+
+    List<ClubMember> findByRole(ClubRole role);
 }

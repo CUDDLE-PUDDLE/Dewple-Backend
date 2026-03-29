@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 @ExtendWith(MockitoExtension.class)
 class ClubRoleServiceTest {
@@ -321,6 +322,82 @@ class ClubRoleServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
                             .isEqualTo(ClubErrorCode.DEFAULT_ROLE_MODIFY_FORBIDDEN));
+        }
+    }
+
+    @Nested
+    @DisplayName("deleteRole - 역할 삭제")
+    class DeleteRole {
+
+        private ClubRole createCustomRole(Club club) {
+            ClubRole role = ClubRole.builder()
+                    .club(club).name("홍보담당")
+                    .permissions(Permission.combine(Permission.MANAGE_NOTICE))
+                    .isStaff(true).isDefault(false).build();
+            ReflectionTestUtils.setField(role, "id", 10L);
+            return role;
+        }
+
+        private ClubRole createDefaultMemberRole(Club club) {
+            ClubRole role = ClubRole.builder()
+                    .club(club).name("부원").permissions(0L)
+                    .isStaff(false).isDefault(true).build();
+            ReflectionTestUtils.setField(role, "id", 5L);
+            return role;
+        }
+
+        @Test
+        @DisplayName("성공: 커스텀 역할 삭제 + 멤버 부원 전환")
+        void successWithMemberConversion() {
+            Club club = createClub();
+            ClubRole customRole = createCustomRole(club);
+            ClubRole memberRole = createDefaultMemberRole(club);
+            User otherUser = createUser(2L);
+            ClubMember member1 = ClubMember.builder()
+                    .club(club).user(otherUser).role(customRole)
+                    .activityStatus(ActivityStatus.ACTIVE).build();
+            ReflectionTestUtils.setField(member1, "id", 60L);
+
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            mockPresidentPermission(club);
+            given(clubRoleRepository.findById(10L)).willReturn(Optional.of(customRole));
+            given(clubRoleRepository.findByClubIdAndName(CLUB_ID, "부원"))
+                    .willReturn(Optional.of(memberRole));
+            given(clubMemberRepository.findByRole(customRole)).willReturn(List.of(member1));
+
+            clubRoleService.deleteRole(USER_ID, CLUB_ID, 10L);
+
+            assertThat(member1.getRole().getName()).isEqualTo("부원");
+            then(clubRoleRepository).should().delete(customRole);
+        }
+
+        @Test
+        @DisplayName("실패: 기본 역할 삭제 시도")
+        void failDefaultRole() {
+            Club club = createClub();
+            ClubRole presidentRole = createPresidentRole(club);
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            mockPresidentPermission(club);
+            given(clubRoleRepository.findById(1L)).willReturn(Optional.of(presidentRole));
+
+            assertThatThrownBy(() -> clubRoleService.deleteRole(USER_ID, CLUB_ID, 1L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.ROLE_DEFAULT_NOT_DELETABLE));
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 역할")
+        void failNotFound() {
+            Club club = createClub();
+            given(clubRepository.findById(CLUB_ID)).willReturn(Optional.of(club));
+            mockPresidentPermission(club);
+            given(clubRoleRepository.findById(999L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> clubRoleService.deleteRole(USER_ID, CLUB_ID, 999L))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                            .isEqualTo(ClubErrorCode.ROLE_NOT_FOUND));
         }
     }
 

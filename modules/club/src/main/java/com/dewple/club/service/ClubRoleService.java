@@ -26,6 +26,7 @@ public class ClubRoleService {
     private final ClubMemberRepository clubMemberRepository;
 
     private static final String PRESIDENT_ROLE_NAME = "회장";
+    private static final String DEFAULT_MEMBER_ROLE_NAME = "부원";
 
     @Transactional
     public ClubRoleResult createRole(Long userId, Long clubId, CreateClubRoleParam param) {
@@ -81,6 +82,33 @@ public class ClubRoleService {
 
         log.info("동아리 역할 수정: clubId={}, roleId={}", clubId, roleId);
         return ClubRoleResult.from(role);
+    }
+
+    @Transactional
+    public void deleteRole(Long userId, Long clubId, Long roleId) {
+        clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        validateRoleManagePermission(clubId, userId);
+
+        ClubRole role = clubRoleRepository.findById(roleId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.ROLE_NOT_FOUND));
+
+        if (role.getIsDefault()) {
+            throw new BusinessException(ClubErrorCode.ROLE_DEFAULT_NOT_DELETABLE);
+        }
+
+        ClubRole defaultMemberRole = clubRoleRepository.findByClubIdAndName(clubId, DEFAULT_MEMBER_ROLE_NAME)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.ROLE_NOT_FOUND));
+
+        List<ClubMember> membersWithRole = clubMemberRepository.findByRole(role);
+        for (ClubMember member : membersWithRole) {
+            member.changeRole(defaultMemberRole);
+        }
+
+        clubRoleRepository.delete(role);
+        log.info("동아리 역할 삭제: clubId={}, roleId={}, 전환된 멤버 수={}",
+                clubId, roleId, membersWithRole.size());
     }
 
     @Transactional(readOnly = true)

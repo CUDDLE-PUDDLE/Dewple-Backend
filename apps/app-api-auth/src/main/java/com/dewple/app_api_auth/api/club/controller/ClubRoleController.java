@@ -61,6 +61,18 @@ public class ClubRoleController {
         return ApiResponse.ok(ClubRoleResponse.from(result));
     }
 
+    @Operation(summary = "역할 삭제", description = "커스텀 역할을 삭제합니다. 기본 역할은 삭제할 수 없습니다. 부여된 회원은 부원으로 자동 전환됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{roleId}")
+    public ApiResponse<Void> deleteRole(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @PathVariable Long roleId
+    ) {
+        clubRoleService.deleteRole(userId, clubId, roleId);
+        return ApiResponse.ok();
+    }
+
     @Operation(summary = "역할 목록 조회", description = "동아리의 기본 역할 및 커스텀 역할 목록을 조회합니다.")
     @SecurityRequirement(name = BEARER_AUTH)
     @GetMapping

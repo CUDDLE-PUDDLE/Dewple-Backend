@@ -24,8 +24,11 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -161,6 +164,33 @@ class ClubRoleControllerTest {
                             .with(jwt().jwt(j -> j.subject("1")))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(json))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE /clubs/{clubId}/roles/{roleId} - 역할 삭제")
+    class DeleteRole {
+
+        @Test
+        @DisplayName("성공: 커스텀 역할 삭제")
+        void success() throws Exception {
+            willDoNothing().given(clubRoleService).deleteRole(eq(1L), eq(100L), eq(10L));
+
+            mockMvc.perform(delete("/clubs/100/roles/10")
+                            .with(jwt().jwt(j -> j.subject("1"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1000));
+        }
+
+        @Test
+        @DisplayName("실패: 기본 역할 삭제 시도")
+        void failDefaultRole() throws Exception {
+            willThrow(new BusinessException(ClubErrorCode.ROLE_DEFAULT_NOT_DELETABLE))
+                    .given(clubRoleService).deleteRole(eq(1L), eq(100L), eq(1L));
+
+            mockMvc.perform(delete("/clubs/100/roles/1")
+                            .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isBadRequest());
         }
     }
