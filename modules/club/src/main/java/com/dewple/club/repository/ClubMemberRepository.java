@@ -4,6 +4,8 @@ import com.dewple.club.entity.ClubMember;
 import com.dewple.club.entity.ClubRole;
 import com.dewple.common.enums.ActivityStatus;
 import com.dewple.common.enums.BaseStatus;
+
+import java.time.LocalDate;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -31,4 +33,7 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
     List<ClubMember> findByClubIdAndActivityStatus(Long clubId, ActivityStatus activityStatus);
 
     List<ClubMember> findByClubId(Long clubId);
+
+    List<ClubMember> findByActivityStatusAndActivityEndDateLessThanEqual(
+            ActivityStatus activityStatus, LocalDate date);
 }

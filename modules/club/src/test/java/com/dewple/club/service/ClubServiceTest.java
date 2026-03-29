@@ -588,6 +588,49 @@ class ClubServiceTest {
     }
 
     @Nested
+    @DisplayName("processGraduation - 자동 수료 처리")
+    class ProcessGraduation {
+
+        @Test
+        @DisplayName("성공: 활동 종료일 지난 ACTIVE 멤버 수료 처리")
+        void success() {
+            Club club = createClub();
+            ClubRole memberRole = ClubRole.builder()
+                    .club(club).name("부원").permissions(0L)
+                    .isStaff(false).isDefault(true).build();
+            ReflectionTestUtils.setField(memberRole, "id", 5L);
+
+            ClubMember expired = ClubMember.builder()
+                    .club(club).user(createUser()).role(memberRole)
+                    .activityStatus(ActivityStatus.ACTIVE)
+                    .activityEndDate(LocalDate.now().minusDays(1))
+                    .build();
+            ReflectionTestUtils.setField(expired, "id", 60L);
+
+            given(clubMemberRepository.findByActivityStatusAndActivityEndDateLessThanEqual(
+                    eq(ActivityStatus.ACTIVE), any(LocalDate.class)))
+                    .willReturn(List.of(expired));
+
+            int count = clubService.processGraduation();
+
+            assertThat(count).isEqualTo(1);
+            assertThat(expired.getActivityStatus()).isEqualTo(ActivityStatus.GRADUATED);
+        }
+
+        @Test
+        @DisplayName("성공: 수료 대상 없음")
+        void successNoTargets() {
+            given(clubMemberRepository.findByActivityStatusAndActivityEndDateLessThanEqual(
+                    eq(ActivityStatus.ACTIVE), any(LocalDate.class)))
+                    .willReturn(List.of());
+
+            int count = clubService.processGraduation();
+
+            assertThat(count).isEqualTo(0);
+        }
+    }
+
+    @Nested
     @DisplayName("getMembers - 동아리 회원 목록 조회")
     class GetMembers {
 

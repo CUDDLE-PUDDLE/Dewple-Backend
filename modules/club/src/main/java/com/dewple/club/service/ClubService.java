@@ -24,6 +24,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -419,6 +420,22 @@ public class ClubService {
         club.cancelDeletion();
         clubDeletionVoteRepository.deleteByClubId(clubId);
         log.info("동아리 삭제 취소: clubId={}, userId={}", clubId, userId);
+    }
+
+    @Transactional
+    public int processGraduation() {
+        LocalDate today = LocalDate.now();
+        List<ClubMember> targets = clubMemberRepository
+                .findByActivityStatusAndActivityEndDateLessThanEqual(ActivityStatus.ACTIVE, today);
+
+        for (ClubMember member : targets) {
+            member.updateActivityStatus(ActivityStatus.GRADUATED);
+        }
+
+        if (!targets.isEmpty()) {
+            log.info("동아리 자동 수료 처리 완료: {}명", targets.size());
+        }
+        return targets.size();
     }
 
     private void validateClubPermission(Long clubId, Long userId, Permission permission) {
