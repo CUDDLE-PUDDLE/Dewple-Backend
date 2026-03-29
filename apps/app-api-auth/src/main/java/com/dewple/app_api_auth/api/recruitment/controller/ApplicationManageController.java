@@ -23,7 +23,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "Application Management", description = "운영진 지원서 관리 API")
+@Tag(name = "Recruitment - 지원서 관리", description = "운영진 지원서 관리 API")
 @RestController
 @RequiredArgsConstructor
 public class ApplicationManageController {

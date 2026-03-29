@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "Recruitment", description = "공고 API")
+@Tag(name = "Recruitment - 공고", description = "공고 API")
 @RestController
 @RequiredArgsConstructor
 public class RecruitmentController {
