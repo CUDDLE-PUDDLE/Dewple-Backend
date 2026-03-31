@@ -67,3 +67,100 @@
 - [ ] DB 기반으로 먼저 구현하고 추후 Redis로 전환? 아니면 처음부터 Redis?
 - [ ] 세션 종료 시 즉시 해제 — WebSocket heartbeat 방식? 아니면 프론트에서 `beforeunload` 시 API 호출?
 - [ ] 적용 범위: 모집 공고만? 소개페이지, 지원서 등도 동시 편집 방지 필요?
+
+---
+
+## 4. 공고 수정 시 기존 지원자 알림 발송
+
+### 명세서 내용
+
+- 공고 수정 시 기존 지원자에게 알림 발송
+
+### 보류 사유
+
+- `Notification` 모듈이 미구현 상태
+- 알림 인프라 (FCM 푸시 / 알림톡 / SMS / 인앱) 연동 필요
+- 명세서 알림 정책 (3계층: 필수/서비스운영/마케팅) 구현 후 연동
+
+### 구현 시 참고
+
+- `RecruitmentService.updateRecruitment()` 완료 후 이벤트 발행
+- `@EventListener` 또는 SQS 메시지로 비동기 알림 처리
+
+---
+
+## 5. 임시저장 지원서 마감일 자동 삭제
+
+### 명세서 내용
+
+- 지원서 임시저장: 지원 마감일까지 보존 (마감 후 자동 삭제/정리)
+
+### 보류 사유
+
+- 스케줄러 인프라 필요 (`app-worker` 또는 `@Scheduled`)
+- 마감일 도래한 공고의 TEMPORARY 상태 지원서를 일괄 soft-delete
+
+### 구현 시 참고
+
+```java
+// 마감일 경과한 공고의 임시저장 지원서 정리
+applicationRepository.findTemporaryApplicationsWithExpiredPostings()
+    .forEach(Application::inactivate);
+```
+
+---
+
+## 6. 추가합격 기간 만료 자동 종료
+
+### 명세서 내용
+
+- 합격예비자 추가합격 기간 (1~14일) 만료 후 자동 최종 종료
+
+### 보류 사유
+
+- 스케줄러 인프라 필요
+- `extraAcceptanceEndDate`가 경과한 CLOSED 공고를 최종 ARCHIVED로 전환
+- 남은 WAITLISTED 지원자는 최종 REJECTED 처리 여부 — 기획 확인 필요
+
+---
+
+## 7. 지원서 응답 PDF 다운로드
+
+### 명세서 내용
+
+- 지원서 응답 PDF 다운로드 → 개인 자료실에 수동 업로드 보관 가능
+
+### 보류 사유
+
+- PDF 생성 라이브러리 선정 필요 (iText, OpenPDF, Flying Saucer 등)
+- 개인 자료실 (Archive 모듈) 미구현
+- S3 업로드 연동 필요
+
+---
+
+## 8. 탈퇴 유저 지원서 응답 삭제
+
+### 명세서 내용
+
+- 탈퇴 유저의 게시물/댓글은 유지 (유저명 → '(알 수 없음)'), **지원서 응답은 삭제**
+
+### 보류 사유
+
+- 회원 탈퇴 이벤트 시스템 미구현 (Spring `@EventListener` 또는 도메인 이벤트)
+- 탈퇴 시 해당 유저의 모든 `application.answers`를 null 처리
+- soft-delete 유예 기간 (1주일) 후 hard-delete 시점에 실행할지, soft-delete 시점에 실행할지 결정 필요
+
+---
+
+## 9. 데이터 보관 — CSV 자료실 저장
+
+### 명세서 내용
+
+- 자료실에 CSV 저장 (자동보관/미보관/매번선택)
+- `Club.applicationSaveSetting`: `AUTO`, `NEVER`, `ASK`
+
+### 보류 사유
+
+- `Archive` 모듈 (`ArchiveFolder`, `ArchiveFile` 테이블) 미구현
+- CSV 변환 유틸리티 필요
+- 모집 종료 프로세스에서 설정에 따라 분기 처리

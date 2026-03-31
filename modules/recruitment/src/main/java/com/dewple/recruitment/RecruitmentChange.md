@@ -224,6 +224,58 @@ TEMPORARY → SUBMITTED → ACCEPTED
 
 ---
 
+## 10단계: 공고 수정 시 지원자 영향 처리
+
+> 명세서 G120 (공고 수정 세부 규칙)에서 도출된 항목들
+
+| 규칙 | 현재 | 필요 작업 |
+|------|------|-----------|
+| 추가된 필수입력 컴포넌트 미작성 시 기존 지원자는 **임시저장 상태로 전환** | 미구현 | `updateRecruitment` 시 기존 SUBMITTED 지원자들의 답변을 새 폼과 비교, 필수 누락 시 `TEMPORARY`로 전환 |
+| 삭제된 컴포넌트의 답변은 **운영진 페이지에서도 삭제** | 미구현 | `updateRecruitment` 시 삭제된 컴포넌트 key를 파악하고, 기존 지원자 답변 JSON에서 해당 key 제거 |
+| 2차 면접 여부 변경 가능 **(참→거짓: when2meet 자동 삭제, 거짓→참: 자동 추가)** | `updateRecruitment`에서 `hasSecondInterview` 변경 미지원 | `UpdateRecruitmentCommand`에 `hasSecondInterview` 필드 추가 + 면접 프로세스/when2meet 컴포넌트 자동 생성/삭제 |
+| 컴포넌트 **수정 불가** (추가/삭제만) | 미검증 | 기존 컴포넌트의 question/config 변경을 감지하여 차단하는 검증 로직 추가 |
+
+### 수정 대상 파일
+
+- `RecruitmentService.updateRecruitment()` — 전체 로직 확장
+- `UpdateRecruitmentCommand` — `hasSecondInterview` 필드 추가
+- `UpdateRecruitmentRequest` — `hasSecondInterview` 필드 추가
+- `ApplicationRepository` — 공고별 SUBMITTED 지원자 일괄 조회 메서드 추가
+- `Application.updateApplicationStatus()` — 기존 지원자 상태 전환에 사용
+
+---
+
+## 11단계: 지원서 임시저장 규칙
+
+> 명세서: "지원서 임시저장: 회원만, 공고당 1개, 지원 마감일까지 보존"
+
+| 규칙 | 현재 | 필요 작업 |
+|------|------|-----------|
+| 공고당 임시저장 1개 | 기존 TEMPORARY 찾아서 갱신하므로 사실상 1개 유지 | ✅ 이미 구현됨 (검증만 확인) |
+| 지원 마감일까지 보존 (마감 후 자동 삭제) | 미구현 | 스케줄러 필요 → [RecruitmentUndone.md](RecruitmentUndone.md) |
+
+---
+
+## 12단계: 지원서 응답 PDF 다운로드
+
+> 명세서: "지원서 응답 PDF 다운로드 → 개인 자료실에 수동 업로드 보관 가능"
+
+| 규칙 | 현재 | 필요 작업 |
+|------|------|-----------|
+| 지원서 응답 PDF 다운로드 | 미구현 | PDF 생성 라이브러리 + 다운로드 API 추가 → [RecruitmentUndone.md](RecruitmentUndone.md) |
+
+---
+
+## 13단계: 탈퇴 유저 지원서 응답 삭제
+
+> 명세서: "탈퇴 유저의 게시물/댓글은 유지, 지원서 응답은 삭제"
+
+| 규칙 | 현재 | 필요 작업 |
+|------|------|-----------|
+| 탈퇴 시 지원서 응답 삭제 | 미구현 | 회원 탈퇴 이벤트에서 `application.answers`를 null 처리 → [RecruitmentUndone.md](RecruitmentUndone.md) |
+
+---
+
 ## 확인 필요 사항 (의사결정)
 
 | # | 질문 | 선택지 | 답 | 상태 |
@@ -248,5 +300,9 @@ TEMPORARY → SUBMITTED → ACCEPTED
 | **P1** | 6단계: 모집 종료 프로세스 | 서비스, 스케줄러 | 중 | ✅ 서비스 완료 (스케줄러 별도) |
 | **P2** | 8단계: 기수 자동 증가 | 서비스 | 하 | ✅ 완료 |
 | **P2** | 9단계: 권한 매핑 세분화 | 횡단 | 중 | ✅ 완료 |
+| **P1** | 10단계: 공고 수정 시 지원자 영향 처리 | 서비스 | 중 | |
+| **P2** | 11단계: 임시저장 규칙 검증 | 서비스 | 하 | 일부 구현 (스케줄러 보류) |
 | **P3** | 7단계: 데이터 보관 (CSV) | 자료실 모듈 의존 | 상 | 보류 (Archive 모듈 미구현) |
+| **P3** | 12단계: 지원서 응답 PDF | PDF 라이브러리 | 중 | 보류 |
+| **P3** | 13단계: 탈퇴 유저 응답 삭제 | 이벤트 리스너 | 하 | 보류 |
 | **P3** | 5단계: 동시 편집 방지 | 인프라 | 중 | 보류 ([RecruitmentUndone.md](RecruitmentUndone.md)) |
