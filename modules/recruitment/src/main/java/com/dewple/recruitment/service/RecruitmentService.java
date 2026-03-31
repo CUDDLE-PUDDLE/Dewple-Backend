@@ -16,6 +16,7 @@ import com.dewple.common.exception.BusinessException;
 import com.dewple.recruitment.entity.AutoComponentType;
 import com.dewple.common.enums.ApplicationStatus;
 import com.dewple.recruitment.entity.FormFieldType;
+import com.dewple.recruitment.entity.Application;
 import com.dewple.recruitment.repository.ApplicationRepository;
 import com.dewple.recruitment.entity.RecruitmentDepartment;
 import com.dewple.recruitment.entity.RecruitmentPosting;
@@ -39,7 +40,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -186,7 +191,7 @@ public class RecruitmentService {
         posting.updateTitle(command.title());
         posting.updateContent(command.contentJson());
 
-        // 최신 스키마를 찾아 직접 업데이트 (버전 관리 없이 최종 폼만 유지)
+        // 최신 스키마를 찾아 기존 폼과 비교
         RecruitmentProcess documentProcess = posting.getRecruitmentProcesses().stream()
                 .filter(p -> p.getProcessType() == ProcessType.DOCUMENT)
                 .findFirst()
@@ -196,9 +201,166 @@ public class RecruitmentService {
                 .reduce((a, b) -> a.getVersion() > b.getVersion() ? a : b)
                 .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.APPLICATION_SCHEMA_NOT_FOUND));
 
-        latestSchema.updateApplicationForm(command.applicationFormJson());
+        String oldFormJson = latestSchema.getApplicationForm();
+        String newFormJson = command.applicationFormJson();
+
+        try {
+            JsonNode oldForm = objectMapper.readTree(oldFormJson);
+            JsonNode newForm = objectMapper.readTree(newFormJson);
+
+            // 기존 컴포넌트 수정 불가 검증 (추가/삭제만 허용)
+            validateNoComponentModification(oldForm, newForm);
+
+            // 삭제된 컴포넌트 key 파악
+            Set<String> oldKeys = extractFormKeys(oldForm);
+            Set<String> newKeys = extractFormKeys(newForm);
+            Set<String> removedKeys = new HashSet<>(oldKeys);
+            removedKeys.removeAll(newKeys);
+
+            // 새로 추가된 필수 컴포넌트 key 파악
+            Set<String> addedRequiredKeys = extractRequiredKeys(newForm);
+            addedRequiredKeys.removeAll(oldKeys);
+
+            // 기존 SUBMITTED 지원자 처리
+            if (!removedKeys.isEmpty() || !addedRequiredKeys.isEmpty()) {
+                processExistingApplications(postingId, removedKeys, addedRequiredKeys);
+            }
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(RecruitmentErrorCode.APPLICATION_FORM_SERIALIZE_ERROR);
+        }
+
+        // 2차 면접 여부 변경 처리
+        if (command.hasSecondInterview() != null
+                && !command.hasSecondInterview().equals(posting.getHasSecondInterview())) {
+            handleInterviewChange(posting, documentProcess, newFormJson, command.hasSecondInterview());
+        }
+
+        latestSchema.updateApplicationForm(newFormJson);
 
         return posting;
+    }
+
+    /**
+     * 기존 컴포넌트의 question/config가 변경되지 않았는지 검증합니다.
+     * 동일 key를 가진 컴포넌트의 내용이 달라졌으면 예외를 발생시킵니다.
+     */
+    private void validateNoComponentModification(JsonNode oldForm, JsonNode newForm) {
+        Map<String, JsonNode> oldComponents = extractComponentsByKey(oldForm);
+        Map<String, JsonNode> newComponents = extractComponentsByKey(newForm);
+
+        for (Map.Entry<String, JsonNode> entry : oldComponents.entrySet()) {
+            String key = entry.getKey();
+            JsonNode newComponent = newComponents.get(key);
+            if (newComponent != null && !entry.getValue().equals(newComponent)) {
+                throw new BusinessException(RecruitmentErrorCode.COMPONENT_MODIFICATION_NOT_ALLOWED);
+            }
+        }
+    }
+
+    private Map<String, JsonNode> extractComponentsByKey(JsonNode formNode) {
+        Map<String, JsonNode> map = new HashMap<>();
+        for (String fieldType : FormFieldType.allFieldNames()) {
+            JsonNode arrayNode = formNode.get(fieldType);
+            if (arrayNode != null && arrayNode.isArray()) {
+                for (JsonNode element : arrayNode) {
+                    JsonNode keyNode = element.get("key");
+                    if (keyNode != null && keyNode.isTextual()) {
+                        map.put(keyNode.asText(), element);
+                    }
+                }
+            }
+        }
+        return map;
+    }
+
+    private Set<String> extractFormKeys(JsonNode formNode) {
+        Set<String> keys = new HashSet<>();
+        for (String fieldType : FormFieldType.allFieldNames()) {
+            JsonNode arrayNode = formNode.get(fieldType);
+            if (arrayNode != null && arrayNode.isArray()) {
+                for (JsonNode element : arrayNode) {
+                    JsonNode keyNode = element.get("key");
+                    if (keyNode != null && keyNode.isTextual()) {
+                        keys.add(keyNode.asText());
+                    }
+                }
+            }
+        }
+        return keys;
+    }
+
+    private Set<String> extractRequiredKeys(JsonNode formNode) {
+        Set<String> keys = new HashSet<>();
+        for (String fieldType : FormFieldType.allFieldNames()) {
+            JsonNode arrayNode = formNode.get(fieldType);
+            if (arrayNode != null && arrayNode.isArray()) {
+                for (JsonNode element : arrayNode) {
+                    JsonNode keyNode = element.get("key");
+                    JsonNode requiredNode = element.get("required");
+                    if (keyNode != null && keyNode.isTextual()
+                            && requiredNode != null && requiredNode.asBoolean()) {
+                        keys.add(keyNode.asText());
+                    }
+                }
+            }
+        }
+        return keys;
+    }
+
+    /**
+     * 기존 SUBMITTED 지원자의 답변에서 삭제된 컴포넌트 key를 제거하고,
+     * 새로 추가된 필수 컴포넌트가 있으면 TEMPORARY 상태로 전환합니다.
+     */
+    private void processExistingApplications(Long postingId, Set<String> removedKeys, Set<String> addedRequiredKeys) {
+        List<Application> submittedApps = applicationRepository
+                .findActiveByPostingIdAndStatus(postingId, ApplicationStatus.SUBMITTED);
+
+        for (Application app : submittedApps) {
+            // 삭제된 컴포넌트의 답변 제거
+            if (!removedKeys.isEmpty()) {
+                removeAnswerKeys(app, removedKeys);
+            }
+
+            // 추가된 필수 컴포넌트가 있으면 임시저장 상태로 전환
+            if (!addedRequiredKeys.isEmpty()) {
+                app.updateApplicationStatus(ApplicationStatus.TEMPORARY);
+            }
+        }
+    }
+
+    private void removeAnswerKeys(Application app, Set<String> keysToRemove) {
+        try {
+            JsonNode answersNode = objectMapper.readTree(app.getAnswers());
+            if (answersNode.isArray()) {
+                ArrayNode filtered = objectMapper.createArrayNode();
+                for (JsonNode answer : answersNode) {
+                    String key = answer.path("key").asText("");
+                    if (!keysToRemove.contains(key)) {
+                        filtered.add(answer);
+                    }
+                }
+                app.updateAnswers(objectMapper.writeValueAsString(filtered));
+            }
+        } catch (JsonProcessingException e) {
+            // 답변 파싱 실패 시 무시 (기존 답변 유지)
+        }
+    }
+
+    /**
+     * 2차 면접 여부 변경 시 when2meet 자동 컴포넌트를 추가/삭제합니다.
+     */
+    private void handleInterviewChange(RecruitmentPosting posting, RecruitmentProcess documentProcess,
+                                        String newFormJson, boolean hasSecondInterview) {
+        posting.updateHasSecondInterview(hasSecondInterview);
+
+        if (!hasSecondInterview) {
+            // 면접 프로세스 제거
+            posting.getRecruitmentProcesses().stream()
+                    .filter(p -> p.getProcessType() == ProcessType.INTERVIEW)
+                    .findFirst()
+                    .ifPresent(posting::removeRecruitmentProcess);
+        }
+        // 면접 활성화 시 when2meet 컴포넌트는 프론트에서 폼에 포함하여 전달
     }
 
     @RequireClubPermission(Permission.MANAGE_RECRUITMENT)
@@ -626,7 +788,8 @@ public class RecruitmentService {
     public record UpdateRecruitmentCommand(
             String title,
             String contentJson,
-            String applicationFormJson
+            String applicationFormJson,
+            Boolean hasSecondInterview
     ) {
     }
 }

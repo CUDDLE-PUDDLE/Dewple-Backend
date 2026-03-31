@@ -200,6 +200,10 @@ public class RecruitmentPosting extends BaseEntity {
 
     private static final int MAX_DEADLINE_CHANGES = 2;
 
+    public void updateHasSecondInterview(boolean hasSecondInterview) {
+        this.hasSecondInterview = hasSecondInterview;
+    }
+
     public void setExtraAcceptanceEndDate(OffsetDateTime extraAcceptanceEndDate) {
         this.extraAcceptanceEndDate = extraAcceptanceEndDate;
     }

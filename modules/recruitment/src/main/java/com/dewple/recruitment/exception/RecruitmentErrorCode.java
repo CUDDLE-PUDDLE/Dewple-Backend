@@ -23,6 +23,7 @@ public enum RecruitmentErrorCode implements ErrorCode {
     POSTING_NOT_EXPIRED(5112, HttpStatus.BAD_REQUEST, "마감 기한이 지난 공고는 조기 마감할 수 없습니다."),
     INVALID_STATUS_FILTER(5113, HttpStatus.BAD_REQUEST, "상태 필터는 OPEN 또는 CLOSED만 가능합니다."),
     DEADLINE_CHANGE_LIMIT_EXCEEDED(5114, HttpStatus.BAD_REQUEST, "마감일 변경은 최대 2회까지 가능합니다."),
+    COMPONENT_MODIFICATION_NOT_ALLOWED(5117, HttpStatus.BAD_REQUEST, "기존 지원서 컴포넌트는 수정할 수 없습니다. 추가 또는 삭제만 가능합니다."),
     WAITLISTED_APPLICANTS_EXIST(5115, HttpStatus.BAD_REQUEST, "합격예비 지원자가 존재합니다. 추가합격 기간을 설정해주세요."),
     INVALID_ADDITIONAL_ACCEPTANCE_PERIOD(5116, HttpStatus.BAD_REQUEST, "추가합격 기간은 1일 이상 14일 이하여야 합니다."),
 
