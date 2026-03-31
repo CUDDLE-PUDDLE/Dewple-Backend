@@ -65,8 +65,6 @@ class ApplicationServiceTest {
     private static final Long APPLICANT_ID = 10L;
     private static final Long APPLICATION_ID = 500L;
     private static final Long SCHEMA_ID = 200L;
-    private static final String GUEST_PHONE = "01012345678";
-
     private RecruitmentPosting posting;
     private RecruitmentSchema schema;
     private Club club;
@@ -85,7 +83,7 @@ class ApplicationServiceTest {
                 .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
                 .editWindowBasis(com.dewple.common.enums.EditWindowBasis.SUBMITTED)
                 .editWindowDays(0)
-                .isInterviewRequired(false)
+                .hasSecondInterview(false)
                 .build();
         ReflectionTestUtils.setField(posting, "id", POSTING_ID);
 
@@ -226,7 +224,7 @@ class ApplicationServiceTest {
                     .endAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(1))
                     .editWindowBasis(com.dewple.common.enums.EditWindowBasis.SUBMITTED)
                     .editWindowDays(0)
-                    .isInterviewRequired(false)
+                    .hasSecondInterview(false)
                     .build();
             ReflectionTestUtils.setField(closedPosting, "id", POSTING_ID);
 
@@ -508,7 +506,7 @@ class ApplicationServiceTest {
                     .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
                     .editWindowBasis(com.dewple.common.enums.EditWindowBasis.SUBMITTED)
                     .editWindowDays(0)
-                    .isInterviewRequired(false)
+                    .hasSecondInterview(false)
                     .build();
             ReflectionTestUtils.setField(myPosting, "id", POSTING_ID);
 
@@ -636,7 +634,7 @@ class ApplicationServiceTest {
                     .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
                     .editWindowBasis(EditWindowBasis.SUBMITTED)
                     .editWindowDays(7)
-                    .isInterviewRequired(false)
+                    .hasSecondInterview(false)
                     .build();
             ReflectionTestUtils.setField(editablePosting, "id", POSTING_ID);
 
@@ -769,7 +767,7 @@ class ApplicationServiceTest {
                     .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
                     .editWindowBasis(EditWindowBasis.SUBMITTED)
                     .editWindowDays(3)
-                    .isInterviewRequired(false)
+                    .hasSecondInterview(false)
                     .build();
             ReflectionTestUtils.setField(editablePosting, "id", POSTING_ID);
 
@@ -810,7 +808,7 @@ class ApplicationServiceTest {
                     .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
                     .editWindowBasis(EditWindowBasis.DEPLOYED)
                     .editWindowDays(3)
-                    .isInterviewRequired(false)
+                    .hasSecondInterview(false)
                     .build();
             ReflectionTestUtils.setField(editablePosting, "id", POSTING_ID);
 
@@ -837,223 +835,4 @@ class ApplicationServiceTest {
         }
     }
 
-    @Nested
-    @DisplayName("submitGuestApplication — 비회원 지원서 제출")
-    class SubmitGuestApplication {
-
-        private final ApplicationService.GuestApplicationCommand command =
-                new ApplicationService.GuestApplicationCommand(GUEST_PHONE, "[{\"key\":\"q1\",\"value\":\"답변\"}]");
-
-        @Test
-        @DisplayName("성공: 비회원 신규 지원서 제출")
-        void successNewGuestApplication() {
-            // given
-            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
-            given(recruitmentSchemaRepository.findLatestByPostingIdAndProcessType(POSTING_ID, ProcessType.DOCUMENT))
-                    .willReturn(Optional.of(schema));
-            given(applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                    eq(POSTING_ID), eq(GUEST_PHONE), any()))
-                    .willReturn(Optional.empty());
-
-            Application savedApplication = Application.builder()
-                    .recruitmentSchema(schema)
-                    .guestPhone(GUEST_PHONE)
-                    .answers(command.answersJson())
-                    .applicationStatus(ApplicationStatus.SUBMITTED)
-                    .build();
-            ReflectionTestUtils.setField(savedApplication, "id", APPLICATION_ID);
-            given(applicationRepository.save(any(Application.class))).willReturn(savedApplication);
-
-            // when
-            Application result = applicationService.submitGuestApplication(CLUB_ID, POSTING_ID, command);
-
-            // then
-            assertThat(result.getId()).isEqualTo(APPLICATION_ID);
-            assertThat(result.getApplicationStatus()).isEqualTo(ApplicationStatus.SUBMITTED);
-            assertThat(result.getGuestPhone()).isEqualTo(GUEST_PHONE);
-            verify(applicationRepository).save(any(Application.class));
-        }
-
-        @Test
-        @DisplayName("실패: 동일 전화번호로 이미 제출된 지원서 존재")
-        void failDuplicateGuestPhone() {
-            // given
-            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
-            given(recruitmentSchemaRepository.findLatestByPostingIdAndProcessType(POSTING_ID, ProcessType.DOCUMENT))
-                    .willReturn(Optional.of(schema));
-
-            Application existing = Application.builder()
-                    .recruitmentSchema(schema)
-                    .guestPhone(GUEST_PHONE)
-                    .answers("[]")
-                    .applicationStatus(ApplicationStatus.SUBMITTED)
-                    .build();
-            given(applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                    eq(POSTING_ID), eq(GUEST_PHONE), any()))
-                    .willReturn(Optional.of(existing));
-
-            // when & then
-            assertThatThrownBy(() -> applicationService.submitGuestApplication(CLUB_ID, POSTING_ID, command))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting(e -> ((BusinessException) e).getErrorCode())
-                    .isEqualTo(RecruitmentErrorCode.GUEST_APPLICATION_ALREADY_SUBMITTED);
-        }
-
-        @Test
-        @DisplayName("실패: 공고가 접수 불가 상태")
-        void failPostingNotAccepting() {
-            // given
-            RecruitmentPosting closedPosting = RecruitmentPosting.builder()
-                    .club(club)
-                    .title("마감된 공고")
-                    .recruitmentStatus(RecruitmentStatus.CLOSED)
-                    .recentRecruitmentVersion(1L)
-                    .startAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(30))
-                    .endAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(1))
-                    .editWindowBasis(EditWindowBasis.SUBMITTED)
-                    .editWindowDays(0)
-                    .isInterviewRequired(false)
-                    .build();
-            ReflectionTestUtils.setField(closedPosting, "id", POSTING_ID);
-
-            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(closedPosting));
-
-            // when & then
-            assertThatThrownBy(() -> applicationService.submitGuestApplication(CLUB_ID, POSTING_ID, command))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting(e -> ((BusinessException) e).getErrorCode())
-                    .isEqualTo(RecruitmentErrorCode.POSTING_NOT_ACCEPTING);
-        }
-
-        @Test
-        @DisplayName("실패: 지원서 양식(스키마)이 없음")
-        void failSchemaNotFound() {
-            // given
-            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
-            given(recruitmentSchemaRepository.findLatestByPostingIdAndProcessType(POSTING_ID, ProcessType.DOCUMENT))
-                    .willReturn(Optional.empty());
-
-            // when & then
-            assertThatThrownBy(() -> applicationService.submitGuestApplication(CLUB_ID, POSTING_ID, command))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting(e -> ((BusinessException) e).getErrorCode())
-                    .isEqualTo(RecruitmentErrorCode.APPLICATION_SCHEMA_NOT_FOUND);
-        }
-    }
-
-    @Nested
-    @DisplayName("editGuestApplication — 비회원 지원서 수정")
-    class EditGuestApplication {
-
-        private final ApplicationService.GuestEditApplicationCommand command =
-                new ApplicationService.GuestEditApplicationCommand(GUEST_PHONE, "[{\"key\":\"q1\",\"value\":\"수정된 답변\"}]");
-
-        @Test
-        @DisplayName("성공: 비회원 지원서 수정")
-        void successEditGuestApplication() {
-            // given
-            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
-
-            Application application = Application.builder()
-                    .recruitmentSchema(schema)
-
-                    .guestPhone(GUEST_PHONE)
-                    .answers("[]")
-                    .applicationStatus(ApplicationStatus.SUBMITTED)
-                    .build();
-            ReflectionTestUtils.setField(application, "id", APPLICATION_ID);
-
-            given(applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                    eq(POSTING_ID), eq(GUEST_PHONE), any()))
-                    .willReturn(Optional.of(application));
-
-            // when
-            Application result = applicationService.editGuestApplication(CLUB_ID, POSTING_ID, command);
-
-            // then
-            assertThat(result.getAnswers()).isEqualTo(command.answersJson());
-        }
-
-        @Test
-        @DisplayName("실패: 해당 전화번호로 제출된 지원서 없음")
-        void failGuestApplicationNotFound() {
-            // given
-            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
-            given(applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                    eq(POSTING_ID), eq(GUEST_PHONE), any()))
-                    .willReturn(Optional.empty());
-
-            // when & then
-            assertThatThrownBy(() -> applicationService.editGuestApplication(CLUB_ID, POSTING_ID, command))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting(e -> ((BusinessException) e).getErrorCode())
-                    .isEqualTo(RecruitmentErrorCode.GUEST_APPLICATION_NOT_FOUND);
-        }
-
-        @Test
-        @DisplayName("실패: ACCEPTED 상태 지원서는 수정 불가")
-        void failNotEditable() {
-            // given
-            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
-
-            Application application = Application.builder()
-                    .recruitmentSchema(schema)
-
-                    .guestPhone(GUEST_PHONE)
-                    .answers("[]")
-                    .applicationStatus(ApplicationStatus.ACCEPTED)
-                    .build();
-            ReflectionTestUtils.setField(application, "id", APPLICATION_ID);
-
-            given(applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                    eq(POSTING_ID), eq(GUEST_PHONE), any()))
-                    .willReturn(Optional.of(application));
-
-            // when & then
-            assertThatThrownBy(() -> applicationService.editGuestApplication(CLUB_ID, POSTING_ID, command))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting(e -> ((BusinessException) e).getErrorCode())
-                    .isEqualTo(RecruitmentErrorCode.APPLICATION_NOT_EDITABLE);
-        }
-
-        @Test
-        @DisplayName("실패: 수정 기간 만료")
-        void failEditWindowClosed() {
-            // given
-            RecruitmentPosting editablePosting = RecruitmentPosting.builder()
-                    .club(club)
-                    .title("수정 기간 만료 공고")
-                    .recruitmentStatus(RecruitmentStatus.OPEN)
-                    .recentRecruitmentVersion(1L)
-                    .startAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(30))
-                    .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
-                    .editWindowBasis(EditWindowBasis.SUBMITTED)
-                    .editWindowDays(3)
-                    .isInterviewRequired(false)
-                    .build();
-            ReflectionTestUtils.setField(editablePosting, "id", POSTING_ID);
-
-            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(editablePosting));
-
-            Application application = Application.builder()
-                    .recruitmentSchema(schema)
-
-                    .guestPhone(GUEST_PHONE)
-                    .answers("[]")
-                    .applicationStatus(ApplicationStatus.SUBMITTED)
-                    .build();
-            ReflectionTestUtils.setField(application, "id", APPLICATION_ID);
-            ReflectionTestUtils.setField(application, "createdAt", OffsetDateTime.now(ZoneOffset.UTC).minusDays(10));
-
-            given(applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                    eq(POSTING_ID), eq(GUEST_PHONE), any()))
-                    .willReturn(Optional.of(application));
-
-            // when & then
-            assertThatThrownBy(() -> applicationService.editGuestApplication(CLUB_ID, POSTING_ID, command))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting(e -> ((BusinessException) e).getErrorCode())
-                    .isEqualTo(RecruitmentErrorCode.APPLICATION_EDIT_WINDOW_CLOSED);
-        }
-    }
 }

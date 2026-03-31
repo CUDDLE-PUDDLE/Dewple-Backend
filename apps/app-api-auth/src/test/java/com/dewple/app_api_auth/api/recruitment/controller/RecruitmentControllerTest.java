@@ -256,21 +256,6 @@ class RecruitmentControllerTest {
                     .andExpect(jsonPath("$.code").value(5110));
         }
 
-        @Test
-        @DisplayName("실패: 서비스에서 FORM_COMPONENT_REMOVAL_NOT_ALLOWED → 400, code=5009")
-        void failWithFormComponentRemovalNotAllowed() throws Exception {
-            // given
-            willThrow(new BusinessException(RecruitmentErrorCode.FORM_COMPONENT_REMOVAL_NOT_ALLOWED))
-                    .given(recruitmentService).updateRecruitment(eq(1L), eq(1L), eq(10L), any());
-
-            // when & then
-            mockMvc.perform(patch("/clubs/{clubId}/recruitment-posts/{postingId}", 1L, 10L)
-                            .with(jwt().jwt(j -> j.subject("1")))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(createValidUpdateRequest())))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5109));
-        }
     }
 
     @Nested
@@ -327,7 +312,7 @@ class RecruitmentControllerTest {
         void success() throws Exception {
             // given
             RecruitmentPosting posting = createMockPosting(10L, 1L);
-            given(recruitmentService.closeRecruitment(1L, 1L, 10L)).willReturn(posting);
+            given(recruitmentService.closeRecruitment(eq(1L), eq(1L), eq(10L), any())).willReturn(posting);
 
             // when & then
             mockMvc.perform(post("/clubs/{clubId}/recruitment-posts/{postingId}/close", 1L, 10L)
@@ -337,7 +322,7 @@ class RecruitmentControllerTest {
                     .andExpect(jsonPath("$.result.postingId").value(10))
                     .andExpect(jsonPath("$.result.version").value(1));
 
-            verify(recruitmentService).closeRecruitment(1L, 1L, 10L);
+            verify(recruitmentService).closeRecruitment(eq(1L), eq(1L), eq(10L), any());
         }
 
         @Test
@@ -345,7 +330,7 @@ class RecruitmentControllerTest {
         void failWithPostingAlreadyClosed() throws Exception {
             // given
             willThrow(new BusinessException(RecruitmentErrorCode.POSTING_ALREADY_CLOSED))
-                    .given(recruitmentService).closeRecruitment(1L, 1L, 10L);
+                    .given(recruitmentService).closeRecruitment(eq(1L), eq(1L), eq(10L), any());
 
             // when & then
             mockMvc.perform(post("/clubs/{clubId}/recruitment-posts/{postingId}/close", 1L, 10L)
@@ -502,7 +487,7 @@ class RecruitmentControllerTest {
                 .editWindowBasis(com.dewple.common.enums.EditWindowBasis.SUBMITTED)
                 .editWindowDays(0)
                 .recruitmentStatus(com.dewple.common.enums.RecruitmentStatus.OPEN)
-                .isInterviewRequired(false)
+                .hasSecondInterview(false)
                 .build();
         ReflectionTestUtils.setField(posting, "id", id);
         return posting;
@@ -533,7 +518,7 @@ class RecruitmentControllerTest {
         request.put("endDate", "2026-03-15");
         request.put("resultDate", "2026-03-20");
         request.put("endOfGenerationDate", "2026-12-31");
-        request.put("isInterviewRequired", false);
+        request.put("hasSecondInterview", false);
         request.put("applicationForm", createValidApplicationForm());
         return request;
     }

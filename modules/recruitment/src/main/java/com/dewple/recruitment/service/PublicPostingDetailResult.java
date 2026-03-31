@@ -19,7 +19,7 @@ public record PublicPostingDetailResult(
         OffsetDateTime endAt,
         LocalDate resultDate,
         LocalDate endOfGenerationDate,
-        Boolean isInterviewRequired,
+        Boolean hasSecondInterview,
         List<DepartmentInfo> departments,
         List<ProcessInfo> processes,
         String applicationForm,

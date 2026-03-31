@@ -14,7 +14,9 @@ import com.dewple.common.enums.ProcessType;
 import com.dewple.common.enums.RecruitmentStatus;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.recruitment.entity.AutoComponentType;
+import com.dewple.common.enums.ApplicationStatus;
 import com.dewple.recruitment.entity.FormFieldType;
+import com.dewple.recruitment.repository.ApplicationRepository;
 import com.dewple.recruitment.entity.RecruitmentDepartment;
 import com.dewple.recruitment.entity.RecruitmentPosting;
 import com.dewple.recruitment.entity.RecruitmentProcess;
@@ -37,9 +39,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -50,6 +50,7 @@ public class RecruitmentService {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final RecruitmentPostingRepository recruitmentPostingRepository;
+    private final ApplicationRepository applicationRepository;
     private final ClubDepartmentRepository clubDepartmentRepository;
     private final ClubGenerationRepository clubGenerationRepository;
     private final EntityManager entityManager;
@@ -75,13 +76,11 @@ public class RecruitmentService {
             throw new BusinessException(RecruitmentErrorCode.POSTING_NOT_DRAFT);
         }
 
-        ClubGeneration generation = clubGenerationRepository
-                .findByClubIdAndGenerationNo(clubId, command.generation())
-                .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.GENERATION_NOT_FOUND));
+        ClubGeneration generation = resolveGeneration(clubId, command.generation());
 
         validateDates(command);
 
-        if (Boolean.TRUE.equals(command.isInterviewRequired())) {
+        if (Boolean.TRUE.equals(command.hasSecondInterview())) {
             validateInterviewSettings(command);
         }
 
@@ -95,7 +94,7 @@ public class RecruitmentService {
         posting.updateForDraft(
                 command.title(), command.contentJson(), generation,
                 totalCapacity, toStartOfDay(command.startDate()), toEndOfDay(command.endDate()),
-                command.resultDate(), command.endOfGenerationDate(), command.isInterviewRequired()
+                command.resultDate(), command.endOfGenerationDate(), command.hasSecondInterview()
         );
 
         List<String> departmentNames = new ArrayList<>();
@@ -124,7 +123,7 @@ public class RecruitmentService {
 
         posting.addRecruitmentProcess(documentProcess);
 
-        if (Boolean.TRUE.equals(command.isInterviewRequired())) {
+        if (Boolean.TRUE.equals(command.hasSecondInterview())) {
             RecruitmentProcess interviewProcess = RecruitmentProcess.builder()
                     .posting(posting)
                     .processOrder(2)
@@ -184,35 +183,41 @@ public class RecruitmentService {
             throw new BusinessException(RecruitmentErrorCode.POSTING_NOT_OPEN);
         }
 
+        posting.updateTitle(command.title());
+        posting.updateContent(command.contentJson());
+
+        // 최신 스키마를 찾아 직접 업데이트 (버전 관리 없이 최종 폼만 유지)
         RecruitmentProcess documentProcess = posting.getRecruitmentProcesses().stream()
                 .filter(p -> p.getProcessType() == ProcessType.DOCUMENT)
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.POSTING_NOT_FOUND));
 
-        String latestFormJson = documentProcess.getRecruitmentSchemas().stream()
+        RecruitmentSchema latestSchema = documentProcess.getRecruitmentSchemas().stream()
                 .reduce((a, b) -> a.getVersion() > b.getVersion() ? a : b)
-                .map(RecruitmentSchema::getApplicationForm)
-                .orElse(null);
+                .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.APPLICATION_SCHEMA_NOT_FOUND));
 
-        validateApplicationFormUpdate(latestFormJson, command.applicationFormJson());
-
-        posting.updateTitle(command.title());
-        posting.updateContent(command.contentJson());
-        posting.incrementVersion();
-
-        RecruitmentSchema newSchema = RecruitmentSchema.builder()
-                .recruitmentProcess(documentProcess)
-                .version(posting.getRecentRecruitmentVersion())
-                .applicationForm(command.applicationFormJson())
-                .build();
-
-        documentProcess.addRecruitmentSchema(newSchema);
+        latestSchema.updateApplicationForm(command.applicationFormJson());
 
         return posting;
     }
 
     @RequireClubPermission(Permission.MANAGE_RECRUITMENT)
-    public RecruitmentPosting closeRecruitment(Long clubId, Long userId, Long postingId) {
+    public RecruitmentPosting changeDeadline(Long clubId, Long userId, Long postingId, OffsetDateTime newEndAt) {
+        RecruitmentPosting posting = recruitmentPostingRepository.findById(postingId)
+                .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.POSTING_NOT_FOUND));
+
+        if (posting.getRecruitmentStatus() != RecruitmentStatus.OPEN) {
+            throw new BusinessException(RecruitmentErrorCode.POSTING_NOT_OPEN);
+        }
+
+        posting.changeDeadline(newEndAt);
+
+        return posting;
+    }
+
+    @RequireClubPermission(Permission.MANAGE_RECRUITMENT)
+    public RecruitmentPosting closeRecruitment(Long clubId, Long userId, Long postingId,
+                                                Integer additionalAcceptanceDays) {
         RecruitmentPosting posting = recruitmentPostingRepository.findById(postingId)
                 .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.POSTING_NOT_FOUND));
 
@@ -222,6 +227,20 @@ public class RecruitmentService {
 
         if (!posting.getEndAt().isAfter(OffsetDateTime.now(ZoneOffset.UTC))) {
             throw new BusinessException(RecruitmentErrorCode.POSTING_NOT_EXPIRED);
+        }
+
+        long waitlistedCount = applicationRepository.countByPostingIdAndStatus(
+                postingId, ApplicationStatus.WAITLISTED);
+
+        if (waitlistedCount > 0) {
+            if (additionalAcceptanceDays == null) {
+                throw new BusinessException(RecruitmentErrorCode.WAITLISTED_APPLICANTS_EXIST);
+            }
+            if (additionalAcceptanceDays < 1 || additionalAcceptanceDays > 14) {
+                throw new BusinessException(RecruitmentErrorCode.INVALID_ADDITIONAL_ACCEPTANCE_PERIOD);
+            }
+            posting.setExtraAcceptanceEndDate(
+                    OffsetDateTime.now(ZoneOffset.UTC).plusDays(additionalAcceptanceDays));
         }
 
         posting.changeRecruitmentStatus(RecruitmentStatus.CLOSED);
@@ -337,7 +356,7 @@ public class RecruitmentService {
                 posting.getEndAt(),
                 posting.getResultDate(),
                 posting.getEndOfGenerationDate(),
-                posting.getIsInterviewRequired(),
+                posting.getHasSecondInterview(),
                 departments,
                 processes,
                 applicationForm,
@@ -363,13 +382,11 @@ public class RecruitmentService {
         Club club = entityManager.getReference(Club.class, clubId);
         User creator = entityManager.getReference(User.class, creatorId);
 
-        ClubGeneration generation = clubGenerationRepository
-                .findByClubIdAndGenerationNo(clubId, command.generation())
-                .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.GENERATION_NOT_FOUND));
+        ClubGeneration generation = resolveGeneration(clubId, command.generation());
 
         validateDates(command);
 
-        if (Boolean.TRUE.equals(command.isInterviewRequired())) {
+        if (Boolean.TRUE.equals(command.hasSecondInterview())) {
             validateInterviewSettings(command);
         }
 
@@ -392,7 +409,7 @@ public class RecruitmentService {
                 .endAt(toEndOfDay(command.endDate()))
                 .resultDate(command.resultDate())
                 .endOfGenerationDate(command.endOfGenerationDate())
-                .isInterviewRequired(command.isInterviewRequired())
+                .hasSecondInterview(command.hasSecondInterview())
                 .build();
 
         List<String> departmentNames = new ArrayList<>();
@@ -421,7 +438,7 @@ public class RecruitmentService {
 
         posting.addRecruitmentProcess(documentProcess);
 
-        if (Boolean.TRUE.equals(command.isInterviewRequired())) {
+        if (Boolean.TRUE.equals(command.hasSecondInterview())) {
             RecruitmentProcess interviewProcess = RecruitmentProcess.builder()
                     .posting(posting)
                     .processOrder(2)
@@ -464,7 +481,7 @@ public class RecruitmentService {
                 injectDepartmentSelectComponent(formNode, departmentNames);
             }
 
-            if (Boolean.TRUE.equals(command.isInterviewRequired())) {
+            if (Boolean.TRUE.equals(command.hasSecondInterview())) {
                 injectInterviewScheduleComponent(formNode, command);
             }
 
@@ -525,37 +542,27 @@ public class RecruitmentService {
         return false;
     }
 
-    private void validateApplicationFormUpdate(String existingFormJson, String newFormJson) {
-        if (existingFormJson == null) {
-            return;
+
+    private ClubGeneration resolveGeneration(Long clubId, Integer generationNo) {
+        if (generationNo != null) {
+            return clubGenerationRepository
+                    .findByClubIdAndGenerationNo(clubId, generationNo)
+                    .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.GENERATION_NOT_FOUND));
         }
 
-        try {
-            Set<String> existingKeys = extractFormKeys(objectMapper.readTree(existingFormJson));
-            Set<String> newKeys = extractFormKeys(objectMapper.readTree(newFormJson));
+        // 기수 자동 증가: 마지막 기수 + 1
+        int nextGenerationNo = clubGenerationRepository
+                .findFirstByClubIdOrderByGenerationNoDesc(clubId)
+                .map(g -> g.getGenerationNo() + 1)
+                .orElse(1);
 
-            if (!newKeys.containsAll(existingKeys)) {
-                throw new BusinessException(RecruitmentErrorCode.FORM_COMPONENT_REMOVAL_NOT_ALLOWED);
-            }
-        } catch (JsonProcessingException e) {
-            throw new BusinessException(RecruitmentErrorCode.APPLICATION_FORM_SERIALIZE_ERROR);
-        }
-    }
+        ClubGeneration newGeneration = ClubGeneration.builder()
+                .club(entityManager.getReference(Club.class, clubId))
+                .generationNo(nextGenerationNo)
+                .startDate(LocalDate.now())
+                .build();
 
-    private Set<String> extractFormKeys(JsonNode formNode) {
-        Set<String> keys = new HashSet<>();
-        for (String fieldType : FormFieldType.allFieldNames()) {
-            JsonNode arrayNode = formNode.get(fieldType);
-            if (arrayNode != null && arrayNode.isArray()) {
-                for (JsonNode element : arrayNode) {
-                    JsonNode keyNode = element.get("key");
-                    if (keyNode != null && keyNode.isTextual()) {
-                        keys.add(keyNode.asText());
-                    }
-                }
-            }
-        }
-        return keys;
+        return clubGenerationRepository.save(newGeneration);
     }
 
     private void validateDates(CreateRecruitmentCommand command) {
@@ -601,7 +608,7 @@ public class RecruitmentService {
             LocalDate endDate,
             LocalDate resultDate,
             LocalDate endOfGenerationDate,
-            Boolean isInterviewRequired,
+            Boolean hasSecondInterview,
             LocalDate interviewStartDate,
             LocalDate interviewEndDate,
             LocalTime interviewStartTime,
