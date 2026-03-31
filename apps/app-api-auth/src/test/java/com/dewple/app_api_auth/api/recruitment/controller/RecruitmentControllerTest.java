@@ -499,7 +499,8 @@ class RecruitmentControllerTest {
                 "[{\"text\":\"본문\"}]", null, 5,
                 java.time.OffsetDateTime.now(), java.time.OffsetDateTime.now().plusDays(30),
                 java.time.LocalDate.of(2026, 4, 5), java.time.LocalDate.of(2026, 8, 31),
-                false, List.of(), List.of(), null, 0L,
+                false, "01012345678", java.time.LocalDate.of(2026, 4, 1),
+                List.of(), List.of(), null, 0L,
                 com.dewple.common.enums.RecruitmentStatus.OPEN
         );
     }
@@ -520,6 +521,7 @@ class RecruitmentControllerTest {
         request.put("endOfGenerationDate", "2026-12-31");
         request.put("hasSecondInterview", false);
         request.put("applicationForm", createValidApplicationForm());
+        request.put("emergencyContact", "01012345678");
         return request;
     }
 

@@ -519,6 +519,8 @@ public class RecruitmentService {
                 posting.getResultDate(),
                 posting.getEndOfGenerationDate(),
                 posting.getHasSecondInterview(),
+                posting.getEmergencyContact(),
+                posting.getFirstAnnouncementDate(),
                 departments,
                 processes,
                 applicationForm,
@@ -572,6 +574,8 @@ public class RecruitmentService {
                 .resultDate(command.resultDate())
                 .endOfGenerationDate(command.endOfGenerationDate())
                 .hasSecondInterview(command.hasSecondInterview())
+                .emergencyContact(command.emergencyContact())
+                .firstAnnouncementDate(command.firstAnnouncementDate())
                 .build();
 
         List<String> departmentNames = new ArrayList<>();
@@ -775,7 +779,9 @@ public class RecruitmentService {
             LocalDate interviewEndDate,
             LocalTime interviewStartTime,
             LocalTime interviewEndTime,
-            String applicationFormJson
+            String applicationFormJson,
+            String emergencyContact,
+            LocalDate firstAnnouncementDate
     ) {
 
         public record DepartmentInfo(
