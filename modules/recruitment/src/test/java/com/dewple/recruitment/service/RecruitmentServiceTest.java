@@ -124,7 +124,9 @@ class RecruitmentServiceTest {
                 null,
                 null,
                 null,
-                "{\"textarea\":[],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}"
+                "{\"textarea\":[],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}",
+                "01012345678",
+                null
         );
     }
 
@@ -146,7 +148,9 @@ class RecruitmentServiceTest {
                 LocalDate.of(2026, 4, 10),
                 LocalTime.of(9, 0),
                 LocalTime.of(18, 0),
-                "{\"textarea\":[],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}"
+                "{\"textarea\":[],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}",
+                "01012345678",
+                null
         );
     }
 
@@ -168,7 +172,9 @@ class RecruitmentServiceTest {
                 null,
                 null,
                 null,
-                "{\"textarea\":[],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}"
+                "{\"textarea\":[],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}",
+                "01012345678",
+                null
         );
     }
 
@@ -364,7 +370,8 @@ class RecruitmentServiceTest {
                     LocalDate.of(2026, 4, 5),
                     LocalDate.of(2026, 8, 31),
                     false, null, null, null, null,
-                    "{\"textarea\":[],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}"
+                    "{\"textarea\":[],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}",
+                    "01012345678", null
             );
 
             // when - 공고 생성 시도
@@ -393,7 +400,8 @@ class RecruitmentServiceTest {
                     true,
                     null, null, // 면접 일정 없음
                     null, null,
-                    "{\"textarea\":[],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}"
+                    "{\"textarea\":[],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}",
+                    "01012345678", null
             );
 
             // when - 공고 생성 시도

@@ -52,7 +52,12 @@ public record CreateRecruitmentRequest(
 
         @NotNull(message = "지원서 양식은 필수입니다.")
         @Valid
-        ApplicationFormRequest applicationForm
+        ApplicationFormRequest applicationForm,
+
+        @NotBlank(message = "비상연락처는 필수입니다.")
+        String emergencyContact,
+
+        LocalDate firstAnnouncementDate
 ) {
 
         public record DepartmentRequest(
@@ -87,7 +92,9 @@ public record CreateRecruitmentRequest(
                         interviewEndDate,
                         interviewStartTime,
                         interviewEndTime,
-                        applicationFormJson
+                        applicationFormJson,
+                        emergencyContact,
+                        firstAnnouncementDate
                 );
         }
 }

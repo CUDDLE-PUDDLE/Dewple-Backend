@@ -20,6 +20,8 @@ public record PublicPostingDetailResult(
         LocalDate resultDate,
         LocalDate endOfGenerationDate,
         Boolean hasSecondInterview,
+        String emergencyContact,
+        LocalDate firstAnnouncementDate,
         List<DepartmentInfo> departments,
         List<ProcessInfo> processes,
         String applicationForm,

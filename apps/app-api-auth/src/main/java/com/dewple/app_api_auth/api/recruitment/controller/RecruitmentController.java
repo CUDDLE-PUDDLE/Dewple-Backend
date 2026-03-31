@@ -234,6 +234,8 @@ public class RecruitmentController {
                 result.resultDate(),
                 result.endOfGenerationDate(),
                 result.hasSecondInterview(),
+                result.emergencyContact(),
+                result.firstAnnouncementDate(),
                 departments,
                 processes,
                 result.applicationForm(),
