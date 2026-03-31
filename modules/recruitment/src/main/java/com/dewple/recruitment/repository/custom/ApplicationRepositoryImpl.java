@@ -138,6 +138,20 @@ public class ApplicationRepositoryImpl implements ApplicationRepositoryCustom {
     }
 
     @Override
+    public List<Application> findActiveByPostingIdAndStatus(Long postingId, ApplicationStatus status) {
+        return queryFactory
+                .selectFrom(application)
+                .join(application.recruitmentSchema, schema)
+                .join(schema.recruitmentProcess, process)
+                .where(
+                        process.posting.id.eq(postingId),
+                        application.status.eq(BaseStatus.ACTIVE),
+                        application.applicationStatus.eq(status)
+                )
+                .fetch();
+    }
+
+    @Override
     public long countByPostingIdAndStatus(Long postingId, ApplicationStatus status) {
         Long count = queryFactory
                 .select(application.count())

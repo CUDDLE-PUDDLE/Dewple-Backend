@@ -22,4 +22,6 @@ public interface ApplicationRepositoryCustom {
     List<Application> findActiveAllByIdsAndPostingId(List<Long> applicationIds, Long postingId);
 
     long countByPostingIdAndStatus(Long postingId, ApplicationStatus status);
+
+    List<Application> findActiveByPostingIdAndStatus(Long postingId, ApplicationStatus status);
 }

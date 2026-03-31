@@ -568,15 +568,16 @@ class RecruitmentServiceTest {
         @Test
         @DisplayName("성공: 제목, 본문, 지원서 양식 수정 (최종 폼만 유지)")
         void success() {
-            // given - OPEN 상태의 공고 + 새 양식 준비
-            String newForm = "{\"textarea\":[{\"key\":\"key1\",\"question\":\"자기소개 수정\"},{\"key\":\"key2\",\"question\":\"지원동기\"}],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}";
+            // given - OPEN 상태의 공고 + 기존 컴포넌트 유지 + 새 컴포넌트 추가
+            String newForm = "{\"textarea\":[{\"key\":\"key1\",\"question\":\"자기소개\"},{\"key\":\"key2\",\"question\":\"지원동기\"}],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}";
             RecruitmentPosting posting = createOpenPostingWithSchema(EXISTING_FORM);
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
 
             RecruitmentService.UpdateRecruitmentCommand command = new RecruitmentService.UpdateRecruitmentCommand(
                     "수정된 제목",
                     "[{\"orderNumber\":1,\"text\":\"수정된 본문\"}]",
-                    newForm
+                    newForm,
+                    null
             );
 
             // when - 공고 수정
@@ -600,7 +601,7 @@ class RecruitmentServiceTest {
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.empty());
 
             RecruitmentService.UpdateRecruitmentCommand command = new RecruitmentService.UpdateRecruitmentCommand(
-                    "제목", "본문", "{}"
+                    "제목", "본문", "{}", null
             );
 
             // when - 존재하지 않는 공고 수정 시도
@@ -619,7 +620,7 @@ class RecruitmentServiceTest {
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(draftPosting));
 
             RecruitmentService.UpdateRecruitmentCommand command = new RecruitmentService.UpdateRecruitmentCommand(
-                    "제목", "본문", "{}"
+                    "제목", "본문", "{}", null
             );
 
             // when - DRAFT 상태 공고 수정 시도
