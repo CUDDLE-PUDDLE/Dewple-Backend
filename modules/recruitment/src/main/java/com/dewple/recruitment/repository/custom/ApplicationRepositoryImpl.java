@@ -45,7 +45,6 @@ public class ApplicationRepositoryImpl implements ApplicationRepositoryCustom {
             where.and(
                     user.name.containsIgnoreCase(trimmed)
                             .or(user.phone.contains(trimmed))
-                            .or(application.guestPhone.contains(trimmed))
             );
         }
 
@@ -83,25 +82,6 @@ public class ApplicationRepositoryImpl implements ApplicationRepositoryCustom {
                 .where(
                         process.posting.id.eq(postingId),
                         application.applicant.id.eq(applicantId),
-                        application.status.eq(BaseStatus.ACTIVE),
-                        application.applicationStatus.in(statuses)
-                )
-                .fetchFirst();
-
-        return Optional.ofNullable(result);
-    }
-
-    @Override
-    public Optional<Application> findByPostingIdAndGuestPhoneAndStatuses(
-            Long postingId, String guestPhone, List<ApplicationStatus> statuses) {
-
-        Application result = queryFactory
-                .selectFrom(application)
-                .join(application.recruitmentSchema, schema)
-                .join(schema.recruitmentProcess, process)
-                .where(
-                        process.posting.id.eq(postingId),
-                        application.guestPhone.eq(guestPhone),
                         application.status.eq(BaseStatus.ACTIVE),
                         application.applicationStatus.in(statuses)
                 )
@@ -155,5 +135,22 @@ public class ApplicationRepositoryImpl implements ApplicationRepositoryCustom {
                         application.status.eq(BaseStatus.ACTIVE)
                 )
                 .fetch();
+    }
+
+    @Override
+    public long countByPostingIdAndStatus(Long postingId, ApplicationStatus status) {
+        Long count = queryFactory
+                .select(application.count())
+                .from(application)
+                .join(application.recruitmentSchema, schema)
+                .join(schema.recruitmentProcess, process)
+                .where(
+                        process.posting.id.eq(postingId),
+                        application.status.eq(BaseStatus.ACTIVE),
+                        application.applicationStatus.eq(status)
+                )
+                .fetchOne();
+
+        return count != null ? count : 0L;
     }
 }

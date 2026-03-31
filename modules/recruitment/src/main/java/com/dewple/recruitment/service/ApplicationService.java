@@ -53,7 +53,7 @@ public class ApplicationService {
             }
             // TEMPORARY → SUBMITTED 전환
             existing.updateAnswers(command.answersJson());
-            existing.changeApplicationStatus(ApplicationStatus.SUBMITTED);
+            existing.updateApplicationStatus(ApplicationStatus.SUBMITTED);
             return existing;
         }).orElseGet(() -> {
             User applicant = entityManager.getReference(User.class, applicantId);
@@ -106,7 +106,8 @@ public class ApplicationService {
         }
 
         ApplicationStatus status = application.getApplicationStatus();
-        if (status == ApplicationStatus.ACCEPTED || status == ApplicationStatus.REJECTED) {
+        if (status == ApplicationStatus.ACCEPTED || status == ApplicationStatus.REJECTED
+                || status == ApplicationStatus.WAITLISTED) {
             throw new BusinessException(RecruitmentErrorCode.APPLICATION_NOT_WITHDRAWABLE);
         }
 
@@ -136,45 +137,6 @@ public class ApplicationService {
         if (application.getApplicant() == null || !application.getApplicant().getId().equals(applicantId)) {
             throw new BusinessException(RecruitmentErrorCode.APPLICATION_NOT_OWNER);
         }
-
-        validateApplicationEditable(application);
-        validateEditWindow(posting, application);
-
-        application.updateAnswers(command.answersJson());
-        return application;
-    }
-
-    public Application submitGuestApplication(Long clubId, Long postingId, GuestApplicationCommand command) {
-        RecruitmentPosting posting = findAndValidatePosting(postingId, clubId);
-        validatePostingIsAccepting(posting);
-
-        RecruitmentSchema schema = recruitmentSchemaRepository
-                .findLatestByPostingIdAndProcessType(postingId, ProcessType.DOCUMENT)
-                .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.APPLICATION_SCHEMA_NOT_FOUND));
-
-        applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                postingId, command.guestPhone(),
-                List.of(ApplicationStatus.SUBMITTED, ApplicationStatus.TEMPORARY)
-        ).ifPresent(existing -> {
-            throw new BusinessException(RecruitmentErrorCode.GUEST_APPLICATION_ALREADY_SUBMITTED);
-        });
-
-        Application application = Application.builder()
-                .recruitmentSchema(schema)
-                .guestPhone(command.guestPhone())
-                .answers(command.answersJson())
-                .applicationStatus(ApplicationStatus.SUBMITTED)
-                .build();
-        return applicationRepository.save(application);
-    }
-
-    public Application editGuestApplication(Long clubId, Long postingId, GuestEditApplicationCommand command) {
-        RecruitmentPosting posting = findAndValidatePosting(postingId, clubId);
-
-        Application application = applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                postingId, command.guestPhone(),
-                List.of(ApplicationStatus.SUBMITTED, ApplicationStatus.TEMPORARY)
-        ).orElseThrow(() -> new BusinessException(RecruitmentErrorCode.GUEST_APPLICATION_NOT_FOUND));
 
         validateApplicationEditable(application);
         validateEditWindow(posting, application);
@@ -248,18 +210,6 @@ public class ApplicationService {
     }
 
     public record SubmitApplicationCommand(
-            String answersJson
-    ) {
-    }
-
-    public record GuestApplicationCommand(
-            String guestPhone,
-            String answersJson
-    ) {
-    }
-
-    public record GuestEditApplicationCommand(
-            String guestPhone,
             String answersJson
     ) {
     }

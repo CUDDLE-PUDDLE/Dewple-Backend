@@ -4,6 +4,7 @@ import com.dewple.club.entity.ClubDepartment;
 import com.dewple.club.entity.ClubGeneration;
 import com.dewple.club.repository.ClubDepartmentRepository;
 import com.dewple.club.repository.ClubGenerationRepository;
+import com.dewple.recruitment.repository.ApplicationRepository;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.BaseStatus;
@@ -50,6 +51,9 @@ class RecruitmentServiceTest {
 
     @Mock
     private RecruitmentPostingRepository recruitmentPostingRepository;
+
+    @Mock
+    private ApplicationRepository applicationRepository;
 
     @Mock
     private ClubDepartmentRepository clubDepartmentRepository;
@@ -191,7 +195,7 @@ class RecruitmentServiceTest {
                 .endAt(toUtcEndOfDay(LocalDate.of(2026, 3, 31)))
                 .resultDate(LocalDate.of(2026, 4, 5))
                 .endOfGenerationDate(LocalDate.of(2026, 8, 31))
-                .isInterviewRequired(false)
+                .hasSecondInterview(false)
                 .build();
         ReflectionTestUtils.setField(posting, "id", POSTING_ID);
         return posting;
@@ -562,9 +566,9 @@ class RecruitmentServiceTest {
         private static final String EXISTING_FORM = "{\"textarea\":[{\"key\":\"key1\",\"question\":\"자기소개\"}],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}";
 
         @Test
-        @DisplayName("성공: 제목, 본문, 지원서 양식 수정 및 버전 증가")
+        @DisplayName("성공: 제목, 본문, 지원서 양식 수정 (최종 폼만 유지)")
         void success() {
-            // given - OPEN 상태(버전 1)의 공고 + 기존 key1을 유지하면서 key2를 추가한 새 양식 준비
+            // given - OPEN 상태의 공고 + 새 양식 준비
             String newForm = "{\"textarea\":[{\"key\":\"key1\",\"question\":\"자기소개 수정\"},{\"key\":\"key2\",\"question\":\"지원동기\"}],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}";
             RecruitmentPosting posting = createOpenPostingWithSchema(EXISTING_FORM);
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
@@ -578,17 +582,15 @@ class RecruitmentServiceTest {
             // when - 공고 수정
             recruitmentService.updateRecruitment(CLUB_ID, CREATOR_ID, POSTING_ID, command);
 
-            // then - 제목/본문 업데이트, 버전 1→2 증가, 새 스키마(버전 2) 추가됨
+            // then - 제목/본문 업데이트, 기존 스키마의 폼이 직접 업데이트됨 (버전 증가 없음)
             assertThat(posting.getTitle()).isEqualTo("수정된 제목");
             assertThat(posting.getContent()).isEqualTo("[{\"orderNumber\":1,\"text\":\"수정된 본문\"}]");
-            assertThat(posting.getRecentRecruitmentVersion()).isEqualTo(2L);
 
             RecruitmentProcess documentProcess = posting.getRecruitmentProcesses().get(0);
-            assertThat(documentProcess.getRecruitmentSchemas()).hasSize(2);
+            assertThat(documentProcess.getRecruitmentSchemas()).hasSize(1);
 
-            RecruitmentSchema newSchema = documentProcess.getRecruitmentSchemas().get(1);
-            assertThat(newSchema.getVersion()).isEqualTo(2L);
-            assertThat(newSchema.getApplicationForm()).isEqualTo(newForm);
+            RecruitmentSchema schema = documentProcess.getRecruitmentSchemas().get(0);
+            assertThat(schema.getApplicationForm()).isEqualTo(newForm);
         }
 
         @Test
@@ -628,26 +630,6 @@ class RecruitmentServiceTest {
                     .isEqualTo(RecruitmentErrorCode.POSTING_NOT_OPEN);
         }
 
-        @Test
-        @DisplayName("실패: 기존 컴포넌트를 삭제한 지원서 양식")
-        void fail_formComponentRemoved() {
-            // given - 기존 양식에 key1이 있는 공고 + key1이 빠진 새 양식 준비
-            RecruitmentPosting posting = createOpenPostingWithSchema(EXISTING_FORM);
-            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
-
-            String newFormWithRemovedKey = "{\"textarea\":[],\"choice\":[],\"file\":[],\"calendar\":[],\"when2meet\":[]}";
-
-            RecruitmentService.UpdateRecruitmentCommand command = new RecruitmentService.UpdateRecruitmentCommand(
-                    "제목", "본문", newFormWithRemovedKey
-            );
-
-            // when - 기존 컴포넌트(key1)가 삭제된 양식으로 수정 시도
-            // then - FORM_COMPONENT_REMOVAL_NOT_ALLOWED 예외 발생
-            assertThatThrownBy(() -> recruitmentService.updateRecruitment(CLUB_ID, CREATOR_ID, POSTING_ID, command))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting(e -> ((BusinessException) e).getErrorCode())
-                    .isEqualTo(RecruitmentErrorCode.FORM_COMPONENT_REMOVAL_NOT_ALLOWED);
-        }
     }
 
     // ========== closeRecruitment ==========
@@ -675,14 +657,14 @@ class RecruitmentServiceTest {
                     .endAt(toUtcEndOfDay(LocalDate.of(2027, 12, 31)))
                     .resultDate(LocalDate.of(2028, 1, 5))
                     .endOfGenerationDate(LocalDate.of(2028, 8, 31))
-                    .isInterviewRequired(false)
+                    .hasSecondInterview(false)
                     .build();
             ReflectionTestUtils.setField(posting, "id", POSTING_ID);
 
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
 
             // when - 공고 조기 마감
-            recruitmentService.closeRecruitment(CLUB_ID, CREATOR_ID, POSTING_ID);
+            recruitmentService.closeRecruitment(CLUB_ID, CREATOR_ID, POSTING_ID, null);
 
             // then - 상태가 CLOSED로 변경됨
             assertThat(posting.getRecruitmentStatus()).isEqualTo(RecruitmentStatus.CLOSED);
@@ -696,7 +678,7 @@ class RecruitmentServiceTest {
 
             // when - 존재하지 않는 공고 마감 시도
             // then - POSTING_NOT_FOUND 예외 발생
-            assertThatThrownBy(() -> recruitmentService.closeRecruitment(CLUB_ID, CREATOR_ID, POSTING_ID))
+            assertThatThrownBy(() -> recruitmentService.closeRecruitment(CLUB_ID, CREATOR_ID, POSTING_ID, null))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(RecruitmentErrorCode.POSTING_NOT_FOUND);
@@ -711,7 +693,7 @@ class RecruitmentServiceTest {
 
             // when - 이미 마감된 공고 마감 시도
             // then - POSTING_ALREADY_CLOSED 예외 발생
-            assertThatThrownBy(() -> recruitmentService.closeRecruitment(CLUB_ID, CREATOR_ID, POSTING_ID))
+            assertThatThrownBy(() -> recruitmentService.closeRecruitment(CLUB_ID, CREATOR_ID, POSTING_ID, null))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(RecruitmentErrorCode.POSTING_ALREADY_CLOSED);
@@ -736,7 +718,7 @@ class RecruitmentServiceTest {
                     .endAt(toUtcEndOfDay(LocalDate.of(2024, 3, 31)))
                     .resultDate(LocalDate.of(2024, 4, 5))
                     .endOfGenerationDate(LocalDate.of(2024, 8, 31))
-                    .isInterviewRequired(false)
+                    .hasSecondInterview(false)
                     .build();
             ReflectionTestUtils.setField(posting, "id", POSTING_ID);
 
@@ -744,7 +726,7 @@ class RecruitmentServiceTest {
 
             // when - 마감 기한이 지난 공고 조기 마감 시도
             // then - POSTING_NOT_EXPIRED 예외 발생
-            assertThatThrownBy(() -> recruitmentService.closeRecruitment(CLUB_ID, CREATOR_ID, POSTING_ID))
+            assertThatThrownBy(() -> recruitmentService.closeRecruitment(CLUB_ID, CREATOR_ID, POSTING_ID, null))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(RecruitmentErrorCode.POSTING_NOT_EXPIRED);
@@ -1037,7 +1019,7 @@ class RecruitmentServiceTest {
                 .endAt(endAt)
                 .resultDate(LocalDate.of(2026, 5, 1))
                 .endOfGenerationDate(LocalDate.of(2026, 8, 31))
-                .isInterviewRequired(false)
+                .hasSecondInterview(false)
                 .build();
         return posting;
     }

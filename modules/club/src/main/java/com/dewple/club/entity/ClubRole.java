@@ -53,8 +53,15 @@ public class ClubRole extends BaseEntity {
     }
 
     // 특정 권한을 가지고 있는지 확인
+    // 7번(DECIDE_ADMISSION) 보유 시 8번(VIEW_APPLICATION) 자동 포함
     public boolean hasPermission(Permission permission) {
-        return (this.permissions & permission.getValue()) != 0;
+        if ((this.permissions & permission.getValue()) != 0) {
+            return true;
+        }
+        if (permission == Permission.VIEW_APPLICATION) {
+            return (this.permissions & Permission.DECIDE_ADMISSION.getValue()) != 0;
+        }
+        return false;
     }
 
     // 권한 추가
