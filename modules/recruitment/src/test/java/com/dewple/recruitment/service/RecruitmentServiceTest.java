@@ -195,10 +195,10 @@ class RecruitmentServiceTest {
                 .capacity(5)
                 .recruitmentStatus(status)
                 .recentRecruitmentVersion(version)
-                .startAt(toUtcStartOfDay(LocalDate.of(2026, 3, 1)))
-                .endAt(toUtcEndOfDay(LocalDate.of(2026, 3, 31)))
-                .resultDate(LocalDate.of(2026, 4, 5))
-                .endOfGenerationDate(LocalDate.of(2026, 8, 31))
+                .startAt(toUtcStartOfDay(LocalDate.of(2026, 1, 1)))
+                .endAt(toUtcEndOfDay(LocalDate.of(2027, 12, 31)))
+                .resultDate(LocalDate.of(2028, 1, 5))
+                .endOfGenerationDate(LocalDate.of(2028, 8, 31))
                 .hasSecondInterview(false)
                 .build();
         ReflectionTestUtils.setField(posting, "id", POSTING_ID);
@@ -635,6 +635,40 @@ class RecruitmentServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(RecruitmentErrorCode.POSTING_NOT_OPEN);
+        }
+
+        @Test
+        @DisplayName("실패: 지원 마감 2일 전부터 공고 내용 수정 불가")
+        void fail_contentEditDeadlinePassed() {
+            // given — 마감일이 내일(1일 뒤)인 공고 → 2일 전 제한에 걸림
+            RecruitmentPosting posting = RecruitmentPosting.builder()
+                    .club(club)
+                    .generation(generation)
+                    .creator(creator)
+                    .title("마감 임박 공고")
+                    .content("[{\"text\":\"본문\"}]")
+                    .capacity(5)
+                    .recruitmentStatus(RecruitmentStatus.OPEN)
+                    .recentRecruitmentVersion(1L)
+                    .startAt(toUtcStartOfDay(LocalDate.of(2026, 1, 1)))
+                    .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(1))
+                    .resultDate(LocalDate.of(2028, 1, 5))
+                    .endOfGenerationDate(LocalDate.of(2028, 8, 31))
+                    .hasSecondInterview(false)
+                    .build();
+            ReflectionTestUtils.setField(posting, "id", POSTING_ID);
+
+            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
+
+            RecruitmentService.UpdateRecruitmentCommand command = new RecruitmentService.UpdateRecruitmentCommand(
+                    "수정 시도", "본문", EXISTING_FORM, null
+            );
+
+            // when & then — POSTING_EDIT_DEADLINE_PASSED 예외
+            assertThatThrownBy(() -> recruitmentService.updateRecruitment(CLUB_ID, CREATOR_ID, POSTING_ID, command))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorCode())
+                    .isEqualTo(RecruitmentErrorCode.POSTING_EDIT_DEADLINE_PASSED);
         }
 
     }
