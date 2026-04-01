@@ -17,7 +17,6 @@ import org.hibernate.type.SqlTypes;
 import com.dewple.common.entity.BaseEntity;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.User;
-import com.dewple.common.enums.EditWindowBasis;
 import com.dewple.common.enums.RecruitmentStatus;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.recruitment.exception.RecruitmentErrorCode;
@@ -59,13 +58,6 @@ public class RecruitmentPosting extends BaseEntity {
 
     @Column(name = "theme_color", length = 100)
     private String themeColor;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "edit_window_basis", nullable = false, length = 20)
-    private EditWindowBasis editWindowBasis;
-
-    @Column(name = "edit_window_days", nullable = false)
-    private Integer editWindowDays;
 
     @Column(name = "capacity")
     private Integer capacity;
@@ -121,8 +113,7 @@ public class RecruitmentPosting extends BaseEntity {
     @Builder
     public RecruitmentPosting(Club club, Activity activity, ClubGeneration generation,
                               User creator, String title, String content,
-                              String themeColor, EditWindowBasis editWindowBasis,
-                              Integer editWindowDays, Integer capacity,
+                              String themeColor, Integer capacity,
                               RecruitmentStatus recruitmentStatus, Long recentRecruitmentVersion,
                               OffsetDateTime startAt, OffsetDateTime endAt,
                               LocalDate resultDate, LocalDate endOfGenerationDate,
@@ -138,8 +129,6 @@ public class RecruitmentPosting extends BaseEntity {
         this.title = title;
         this.content = content;
         this.themeColor = themeColor;
-        this.editWindowBasis = editWindowBasis;
-        this.editWindowDays = editWindowDays;
         this.capacity = capacity;
         this.recruitmentStatus = recruitmentStatus;
         this.recentRecruitmentVersion = recentRecruitmentVersion;

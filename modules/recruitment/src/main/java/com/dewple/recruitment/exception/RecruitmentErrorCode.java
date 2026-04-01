@@ -35,7 +35,7 @@ public enum RecruitmentErrorCode implements ErrorCode {
     APPLICATION_SCHEMA_NOT_FOUND(5205, HttpStatus.NOT_FOUND, "해당 공고의 지원서 양식을 찾을 수 없습니다."),
     APPLICATION_NOT_OWNER(5206, HttpStatus.FORBIDDEN, "본인의 지원서만 관리할 수 있습니다."),
     APPLICATION_NOT_EDITABLE(5207, HttpStatus.BAD_REQUEST, "수정할 수 없는 상태의 지원서입니다."),
-    APPLICATION_EDIT_WINDOW_CLOSED(5208, HttpStatus.BAD_REQUEST, "지원서 수정 기간이 종료되었습니다."),
+    APPLICATION_EDIT_WINDOW_CLOSED(5208, HttpStatus.BAD_REQUEST, "지원 마감일이 지나 지원서를 수정할 수 없습니다."),
     INVALID_STATUS_TRANSITION(5209, HttpStatus.BAD_REQUEST, "허용되지 않는 상태 변경입니다."),
     APPLICATION_SOME_NOT_FOUND(5211, HttpStatus.BAD_REQUEST, "일부 지원서를 찾을 수 없습니다."),
     ;
