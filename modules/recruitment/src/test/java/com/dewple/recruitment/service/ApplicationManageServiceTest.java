@@ -3,7 +3,6 @@ package com.dewple.recruitment.service;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.ApplicationStatus;
-import com.dewple.common.enums.EditWindowBasis;
 import com.dewple.common.enums.ProcessType;
 import com.dewple.common.enums.RecruitmentStatus;
 import com.dewple.common.exception.BusinessException;
@@ -75,8 +74,6 @@ class ApplicationManageServiceTest {
                 .recentRecruitmentVersion(1L)
                 .startAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(1))
                 .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
-                .editWindowBasis(EditWindowBasis.SUBMITTED)
-                .editWindowDays(0)
                 .hasSecondInterview(false)
                 .build();
         ReflectionTestUtils.setField(posting, "id", POSTING_ID);

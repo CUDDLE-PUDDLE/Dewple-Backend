@@ -484,8 +484,6 @@ class RecruitmentControllerTest {
                 .recentRecruitmentVersion(version)
                 .startAt(java.time.OffsetDateTime.now())
                 .endAt(java.time.OffsetDateTime.now().plusDays(30))
-                .editWindowBasis(com.dewple.common.enums.EditWindowBasis.SUBMITTED)
-                .editWindowDays(0)
                 .recruitmentStatus(com.dewple.common.enums.RecruitmentStatus.OPEN)
                 .hasSecondInterview(false)
                 .build();

@@ -19,8 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.dewple.common.enums.EditWindowBasis;
-
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -139,7 +137,7 @@ public class ApplicationService {
         }
 
         validateApplicationEditable(application);
-        validateEditWindow(posting, application);
+        validateEditWindow(posting);
 
         application.updateAnswers(command.answersJson());
         return application;
@@ -152,21 +150,9 @@ public class ApplicationService {
         }
     }
 
-    private void validateEditWindow(RecruitmentPosting posting, Application application) {
-        if (posting.getEditWindowDays() == 0) {
-            return;
-        }
-
+    private void validateEditWindow(RecruitmentPosting posting) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        OffsetDateTime deadline;
-
-        if (posting.getEditWindowBasis() == EditWindowBasis.DEPLOYED) {
-            deadline = posting.getStartAt().plusDays(posting.getEditWindowDays());
-        } else {
-            deadline = application.getCreatedAt().plusDays(posting.getEditWindowDays());
-        }
-
-        if (now.isAfter(deadline)) {
+        if (now.isAfter(posting.getEndAt())) {
             throw new BusinessException(RecruitmentErrorCode.APPLICATION_EDIT_WINDOW_CLOSED);
         }
     }

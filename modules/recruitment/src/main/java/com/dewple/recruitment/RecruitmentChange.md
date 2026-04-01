@@ -282,7 +282,7 @@ TEMPORARY → SUBMITTED → ACCEPTED
 |---|------|--------|----|----|
 | 1 | 게스트(비회원) 지원 제거? | 명세서: "회원만 지원 가능" → `guestPhone`, 게스트 API 제거 / 유지 | 제거 | 결정됨 (후속 단계에서 처리) |
 | 2 | 버전 관리 시스템 유지? | 명세서: "버전관리 안함" → `RecruitmentSchema` 버전 제거 / 내부용 유지 | 제거 | 결정됨 (후속 단계에서 처리) |
-| 3 | `editWindowBasis`/`editWindowDays` 유지? | 명세서에 별도 언급 없음 → 마감일까지 수정 가능으로 단순화? | 불명확 | → [RecruitmentUndone.md](RecruitmentUndone.md) #1 |
+| 3 | `editWindowBasis`/`editWindowDays` 유지? | 마감일까지 수정 가능으로 단순화 | 제거 | ✅ 완료 — 마감일 기준으로 단순화, 컬럼 제거 |
 | 4 | `isInterviewRequired` → `hasSecondInterview` 이름 변경? | ERD 문서와 통일 여부 | `hasSecondInterview`로 통일 | ✅ 완료 |
 | 5 | 동시 편집 방지 구현 시점? | DB 기반 (즉시) vs Redis 기반 (인프라 추가 필요) | 불명확 | → [RecruitmentUndone.md](RecruitmentUndone.md) #3 |             
 

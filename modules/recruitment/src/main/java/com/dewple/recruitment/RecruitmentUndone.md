@@ -4,24 +4,11 @@
 
 ---
 
-## 1. 지원서 수정 가능 기간 (`editWindowBasis`/`editWindowDays`)
+## ~~1. 지원서 수정 가능 기간~~ ✅ 반영 완료
 
-### 현재 구현
-
-- `editWindowBasis` (SUBMITTED / DEPLOYED) + `editWindowDays`로 지원서 수정 마감 기한을 계산
-- SUBMITTED: 지원 제출일로부터 N일
-- DEPLOYED: 공고 배포일로부터 N일
-
-### 명세서 내용
-
-- 공고 수정 관련 명세에서 **지원서 수정 가능 기간에 대한 직접적 언급이 없음**
-- 공고 수정 시 "기존 답변은 유지", "추가된 필수입력 컴포넌트 미작성 시 기존 지원자는 임시저장 상태로 전환" 등의 규칙만 명시
-
-### 결정 필요 사항
-
-- [ ] 지원서 수정은 **지원 마감일까지** 가능한 것으로 단순화할지?
-- [ ] 아니면 기존 `editWindowBasis`/`editWindowDays` 방식을 유지할지?
-- [ ] 단순화 시 `editWindowBasis`, `editWindowDays` 컬럼 및 관련 로직 제거 필요
+> **결정:** 지원서 수정은 지원 마감 시점(`endAt`)까지 가능. 마감 이후 수정 버튼 비활성화.
+>
+> **반영 내용:** `editWindowBasis`/`editWindowDays` 컬럼 및 `EditWindowBasis` enum 제거. `ApplicationService.validateEditWindow()`를 `posting.endAt` 기준으로 단순화. Flyway V11 마이그레이션 추가.
 
 ---
 
@@ -45,6 +32,12 @@
 
 - OPEN 상태에서 수정 가능, CLOSED 이후 수정 불가가 자연스러움
 - 기획 확인 필요
+
+### 답변
+공고 게시 시점부터, 지원 마감 2일 전까지만 수정(공고 내용(제목/설명/컴포넌트)과 지원서 양식 수정) 가능
+모임 기간/인원 변경은 이 제한과 무관하게 기존 규칙 유지 (모임 시작 전까지 가능)
+지원 마감일 변경 자체는 기존 횟수 제한(2회)만 유지, 2일 전 제한 미적용.
+추가합격 기간 중 수정: 마감 이후이므로 당연히 불가.
 
 ---
 

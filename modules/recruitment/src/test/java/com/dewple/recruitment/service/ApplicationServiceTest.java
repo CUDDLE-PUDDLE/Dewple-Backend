@@ -4,7 +4,6 @@ import com.dewple.common.entity.Club;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.ApplicationStatus;
 import com.dewple.common.enums.BaseStatus;
-import com.dewple.common.enums.EditWindowBasis;
 import com.dewple.common.enums.ProcessType;
 import com.dewple.common.enums.RecruitmentStatus;
 import com.dewple.common.exception.BusinessException;
@@ -81,8 +80,6 @@ class ApplicationServiceTest {
                 .recentRecruitmentVersion(1L)
                 .startAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(1))
                 .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
-                .editWindowBasis(com.dewple.common.enums.EditWindowBasis.SUBMITTED)
-                .editWindowDays(0)
                 .hasSecondInterview(false)
                 .build();
         ReflectionTestUtils.setField(posting, "id", POSTING_ID);
@@ -222,8 +219,6 @@ class ApplicationServiceTest {
                     .recentRecruitmentVersion(1L)
                     .startAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(30))
                     .endAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(1))
-                    .editWindowBasis(com.dewple.common.enums.EditWindowBasis.SUBMITTED)
-                    .editWindowDays(0)
                     .hasSecondInterview(false)
                     .build();
             ReflectionTestUtils.setField(closedPosting, "id", POSTING_ID);
@@ -504,8 +499,6 @@ class ApplicationServiceTest {
                     .recentRecruitmentVersion(1L)
                     .startAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(1))
                     .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
-                    .editWindowBasis(com.dewple.common.enums.EditWindowBasis.SUBMITTED)
-                    .editWindowDays(0)
                     .hasSecondInterview(false)
                     .build();
             ReflectionTestUtils.setField(myPosting, "id", POSTING_ID);
@@ -570,7 +563,7 @@ class ApplicationServiceTest {
                 new ApplicationService.SubmitApplicationCommand("[{\"key\":\"q1\",\"value\":\"수정된 답변\"}]");
 
         @Test
-        @DisplayName("성공: SUBMITTED 상태 지원서 수정 (editWindowDays=0, 제한 없음)")
+        @DisplayName("성공: SUBMITTED 상태 지원서 수정")
         void successEditSubmitted() {
             // given
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
@@ -622,23 +615,10 @@ class ApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("성공: SUBMITTED basis 수정 기간 내 수정")
-        void successWithinEditWindowSubmittedBasis() {
-            // given
-            RecruitmentPosting editablePosting = RecruitmentPosting.builder()
-                    .club(club)
-                    .title("수정 가능 공고")
-                    .recruitmentStatus(RecruitmentStatus.OPEN)
-                    .recentRecruitmentVersion(1L)
-                    .startAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(10))
-                    .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
-                    .editWindowBasis(EditWindowBasis.SUBMITTED)
-                    .editWindowDays(7)
-                    .hasSecondInterview(false)
-                    .build();
-            ReflectionTestUtils.setField(editablePosting, "id", POSTING_ID);
-
-            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(editablePosting));
+        @DisplayName("성공: 지원 마감일 이전 수정")
+        void successWithinDeadline() {
+            // given — endAt이 미래이므로 수정 가능
+            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
 
             User applicant = mock(User.class);
             given(applicant.getId()).willReturn(APPLICANT_ID);
@@ -650,8 +630,6 @@ class ApplicationServiceTest {
                     .applicationStatus(ApplicationStatus.SUBMITTED)
                     .build();
             ReflectionTestUtils.setField(application, "id", APPLICATION_ID);
-            // createdAt을 2일 전으로 설정 → 7일 이내
-            ReflectionTestUtils.setField(application, "createdAt", OffsetDateTime.now(ZoneOffset.UTC).minusDays(2));
 
             given(applicationRepository.findById(APPLICATION_ID)).willReturn(Optional.of(application));
 
@@ -755,23 +733,21 @@ class ApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("실패: SUBMITTED basis 수정 기간 만료")
-        void failEditWindowClosedSubmittedBasis() {
-            // given
-            RecruitmentPosting editablePosting = RecruitmentPosting.builder()
+        @DisplayName("실패: 지원 마감일 이후 수정 불가")
+        void failEditAfterDeadline() {
+            // given — endAt이 과거이므로 수정 불가
+            RecruitmentPosting expiredPosting = RecruitmentPosting.builder()
                     .club(club)
-                    .title("수정 기간 만료 공고")
+                    .title("마감된 공고")
                     .recruitmentStatus(RecruitmentStatus.OPEN)
                     .recentRecruitmentVersion(1L)
                     .startAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(30))
-                    .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
-                    .editWindowBasis(EditWindowBasis.SUBMITTED)
-                    .editWindowDays(3)
+                    .endAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(1))
                     .hasSecondInterview(false)
                     .build();
-            ReflectionTestUtils.setField(editablePosting, "id", POSTING_ID);
+            ReflectionTestUtils.setField(expiredPosting, "id", POSTING_ID);
 
-            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(editablePosting));
+            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(expiredPosting));
 
             User applicant = mock(User.class);
             given(applicant.getId()).willReturn(APPLICANT_ID);
@@ -783,51 +759,10 @@ class ApplicationServiceTest {
                     .applicationStatus(ApplicationStatus.SUBMITTED)
                     .build();
             ReflectionTestUtils.setField(application, "id", APPLICATION_ID);
-            // createdAt을 10일 전으로 설정 → 3일 초과
-            ReflectionTestUtils.setField(application, "createdAt", OffsetDateTime.now(ZoneOffset.UTC).minusDays(10));
 
             given(applicationRepository.findById(APPLICATION_ID)).willReturn(Optional.of(application));
 
             // when & then
-            assertThatThrownBy(() -> applicationService.editApplication(CLUB_ID, POSTING_ID, APPLICATION_ID, APPLICANT_ID, command))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting(e -> ((BusinessException) e).getErrorCode())
-                    .isEqualTo(RecruitmentErrorCode.APPLICATION_EDIT_WINDOW_CLOSED);
-        }
-
-        @Test
-        @DisplayName("실패: DEPLOYED basis 수정 기간 만료")
-        void failEditWindowClosedDeployedBasis() {
-            // given
-            RecruitmentPosting editablePosting = RecruitmentPosting.builder()
-                    .club(club)
-                    .title("DEPLOYED 기간 만료 공고")
-                    .recruitmentStatus(RecruitmentStatus.OPEN)
-                    .recentRecruitmentVersion(1L)
-                    .startAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(10))
-                    .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
-                    .editWindowBasis(EditWindowBasis.DEPLOYED)
-                    .editWindowDays(3)
-                    .hasSecondInterview(false)
-                    .build();
-            ReflectionTestUtils.setField(editablePosting, "id", POSTING_ID);
-
-            given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(editablePosting));
-
-            User applicant = mock(User.class);
-            given(applicant.getId()).willReturn(APPLICANT_ID);
-
-            Application application = Application.builder()
-                    .recruitmentSchema(schema)
-                    .applicant(applicant)
-                    .answers("[]")
-                    .applicationStatus(ApplicationStatus.SUBMITTED)
-                    .build();
-            ReflectionTestUtils.setField(application, "id", APPLICATION_ID);
-
-            given(applicationRepository.findById(APPLICATION_ID)).willReturn(Optional.of(application));
-
-            // when & then — startAt(-10일) + 3일 = -7일 전 마감, 수정 불가
             assertThatThrownBy(() -> applicationService.editApplication(CLUB_ID, POSTING_ID, APPLICATION_ID, APPLICANT_ID, command))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
