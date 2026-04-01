@@ -187,6 +187,8 @@ public class RecruitmentService {
             throw new BusinessException(RecruitmentErrorCode.POSTING_NOT_OPEN);
         }
 
+        validateContentEditDeadline(posting);
+
         posting.updateTitle(command.title());
         posting.updateContent(command.contentJson());
 
@@ -726,6 +728,16 @@ public class RecruitmentService {
                 .build();
 
         return clubGenerationRepository.save(newGeneration);
+    }
+
+    private static final int CONTENT_EDIT_CUTOFF_DAYS = 2;
+
+    private void validateContentEditDeadline(RecruitmentPosting posting) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime cutoff = posting.getEndAt().minusDays(CONTENT_EDIT_CUTOFF_DAYS);
+        if (!now.isBefore(cutoff)) {
+            throw new BusinessException(RecruitmentErrorCode.POSTING_EDIT_DEADLINE_PASSED);
+        }
     }
 
     private void validateDates(CreateRecruitmentCommand command) {
