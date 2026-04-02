@@ -81,7 +81,7 @@ TEMPORARY → SUBMITTED → ACCEPTED
 | 규칙 | 현재 | 필요 작업 | 상태 |
 |------|------|-----------|------|
 | 합격/불합격/합격예비 결정 전까지만 철회 | `ACCEPTED`, `REJECTED`만 차단 | `WAITLISTED`도 철회 차단 목록에 추가 | ✅ (2단계에서 함께 처리) |
-| 철회 후 재지원 가능 | soft delete 처리 | 재지원 시 기존 INACTIVE 지원서를 무시하는지 쿼리 확인 |
+| 철회 후 재지원 가능 | soft delete 처리 | ✅ submitApplication에서 ACTIVE 지원서만 조회하므로 INACTIVE 무시됨 |
 
 ### 수정 대상 파일
 
@@ -95,6 +95,7 @@ TEMPORARY → SUBMITTED → ACCEPTED
 | 규칙 | 현재 | 필요 작업 |
 |------|------|-----------|
 | 지원 마감일 변경 최대 2회 | `deadlineChangeCount` 컬럼만 존재, 로직 미구현 | 마감일 변경 시 카운트 증가 + 2회 초과 예외 처리 |
+| 앞당기기 제한: 변경 시점의 익일까지만 | 미구현 | `changeDeadline()`에서 앞당기기 시 최소 다음 날 자정까지 검증 추가 |
 
 ### 구현 방안
 
@@ -151,12 +152,17 @@ TEMPORARY → SUBMITTED → ACCEPTED
 
 ### 필요 작업
 
-| 작업 | 설명 |
-|------|------|
-| 종료 시 `WAITLISTED` 지원자 존재 여부 체크 | 있으면 추가합격 기간 입력 요구 |
-| 추가합격 기간 설정 API | `extraAcceptanceEndDate` 저장 (1~14일 범위 검증) |
-| 추가합격 기간 중 상태 변경 허용 | `WAITLISTED → ACCEPTED/REJECTED`만 허용 |
-| 기간 만료 후 자동 종료 | 스케줄러 또는 이벤트 기반 처리 |
+| 작업 | 설명 | 상태 |
+|------|------|------|
+| 종료 시 `WAITLISTED` 지원자 존재 여부 체크 | 있으면 추가합격 기간 입력 요구 | ✅ |
+| 추가합격 기간 설정 API | `extraAcceptanceEndDate` 저장 (1~14일 범위 검증) | ✅ |
+| 추가합격 기간 중 상태 변경 허용 | `WAITLISTED → ACCEPTED/REJECTED`만 허용 | ✅ |
+| 미선택자 자동 불합격 | 합격자만 선택 후 종료 시 미선택자 자동 REJECTED + 알림 | ❌ |
+| 추가합격 기간 연장 | 연장 횟수 무제한, 최초 종료일+14일까지, 만료 전에만 연장 가능 | ❌ |
+| 추가합격 기간 내 즉시 종료 | 모집 담당자가 버튼으로 즉시 종료 | ❌ |
+| 기간 만료 시 합격예비자 자동 불합격 | 스케줄러 — 만료 시 WAITLISTED → REJECTED 자동 전환 + 알림 | ❌ |
+| 기간 만료 후 자동 종료 | 스케줄러 또는 이벤트 기반 처리 | ❌ |
+| 종료 후 공고 잔존 | 동아리 페이지에 남음(검색 미노출, 지원서 양식은 질문만 표시) | ❌ |
 
 ### 수정 대상 파일
 
@@ -280,8 +286,8 @@ TEMPORARY → SUBMITTED → ACCEPTED
 
 | # | 질문 | 선택지 | 답 | 상태 |
 |---|------|--------|----|----|
-| 1 | 게스트(비회원) 지원 제거? | 명세서: "회원만 지원 가능" → `guestPhone`, 게스트 API 제거 / 유지 | 제거 | 결정됨 (후속 단계에서 처리) |
-| 2 | 버전 관리 시스템 유지? | 명세서: "버전관리 안함" → `RecruitmentSchema` 버전 제거 / 내부용 유지 | 제거 | 결정됨 (후속 단계에서 처리) |
+| 1 | 게스트(비회원) 지원 제거? | 명세서: "회원만 지원 가능" → `guestPhone`, 게스트 API 제거 / 유지 | 제거 | ✅ 완료 (1단계에서 처리) |
+| 2 | 버전 관리 시스템 유지? | 명세서: "버전관리 안함" → 편집 이력 버전 관리 X, 내부 DRAFT/OPEN 발행용 버전은 유지 | 내부용 유지 | ✅ 완료 — 수정 시 이전 버전 보관 없이 최종본만 유지. `recentRecruitmentVersion`/`RecruitmentSchema.version`은 DRAFT(0)→OPEN(1) 발행 흐름용 |
 | 3 | `editWindowBasis`/`editWindowDays` 유지? | 마감일까지 수정 가능으로 단순화 | 제거 | ✅ 완료 — 마감일 기준으로 단순화, 컬럼 제거 |
 | 4 | `isInterviewRequired` → `hasSecondInterview` 이름 변경? | ERD 문서와 통일 여부 | `hasSecondInterview`로 통일 | ✅ 완료 |
 | 5 | 동시 편집 방지 구현 시점? | DB 기반 (즉시) vs Redis 기반 (인프라 추가 필요) | 불명확 | → [RecruitmentUndone.md](RecruitmentUndone.md) #3 |             
