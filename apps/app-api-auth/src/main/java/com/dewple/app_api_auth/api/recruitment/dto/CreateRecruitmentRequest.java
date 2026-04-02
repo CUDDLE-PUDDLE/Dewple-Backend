@@ -17,7 +17,6 @@ public record CreateRecruitmentRequest(
         @NotBlank(message = "제목은 필수입니다.")
         String title,
 
-        @NotNull(message = "기수는 필수입니다.")
         Integer generation,
 
         @NotEmpty(message = "공고 본문 컴포넌트는 최소 1개 이상이어야 합니다.")
@@ -40,8 +39,8 @@ public record CreateRecruitmentRequest(
         @NotNull(message = "기수 활동 종료일은 필수입니다.")
         LocalDate endOfGenerationDate,
 
-        @NotNull(message = "면접 필수 여부는 필수입니다.")
-        Boolean isInterviewRequired,
+        @NotNull(message = "2차 면접 여부는 필수입니다.")
+        Boolean hasSecondInterview,
 
         LocalDate interviewStartDate,
 
@@ -53,7 +52,12 @@ public record CreateRecruitmentRequest(
 
         @NotNull(message = "지원서 양식은 필수입니다.")
         @Valid
-        ApplicationFormRequest applicationForm
+        ApplicationFormRequest applicationForm,
+
+        @NotBlank(message = "비상연락처는 필수입니다.")
+        String emergencyContact,
+
+        LocalDate firstAnnouncementDate
 ) {
 
         public record DepartmentRequest(
@@ -83,12 +87,14 @@ public record CreateRecruitmentRequest(
                         endDate,
                         resultDate,
                         endOfGenerationDate,
-                        isInterviewRequired,
+                        hasSecondInterview,
                         interviewStartDate,
                         interviewEndDate,
                         interviewStartTime,
                         interviewEndTime,
-                        applicationFormJson
+                        applicationFormJson,
+                        emergencyContact,
+                        firstAnnouncementDate
                 );
         }
 }

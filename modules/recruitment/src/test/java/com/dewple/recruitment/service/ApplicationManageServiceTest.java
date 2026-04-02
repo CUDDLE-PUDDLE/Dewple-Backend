@@ -3,7 +3,6 @@ package com.dewple.recruitment.service;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.User;
 import com.dewple.common.enums.ApplicationStatus;
-import com.dewple.common.enums.EditWindowBasis;
 import com.dewple.common.enums.ProcessType;
 import com.dewple.common.enums.RecruitmentStatus;
 import com.dewple.common.exception.BusinessException;
@@ -75,9 +74,7 @@ class ApplicationManageServiceTest {
                 .recentRecruitmentVersion(1L)
                 .startAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(1))
                 .endAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30))
-                .editWindowBasis(EditWindowBasis.SUBMITTED)
-                .editWindowDays(0)
-                .isInterviewRequired(false)
+                .hasSecondInterview(false)
                 .build();
         ReflectionTestUtils.setField(posting, "id", POSTING_ID);
 
@@ -98,11 +95,10 @@ class ApplicationManageServiceTest {
         ReflectionTestUtils.setField(schema, "id", 200L);
     }
 
-    private Application createMockApplication(Long id, ApplicationStatus status, User applicant, String guestPhone) {
+    private Application createMockApplication(Long id, ApplicationStatus status, User applicant) {
         Application application = Application.builder()
                 .recruitmentSchema(schema)
                 .applicant(applicant)
-                .guestPhone(guestPhone)
                 .answers("[{\"key\":\"q1\",\"value\":\"답변\"}]")
                 .applicationStatus(status)
                 .build();
@@ -131,8 +127,9 @@ class ApplicationManageServiceTest {
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
 
             User applicantUser = createMockUser(10L, "홍길동", "01011112222");
-            Application app1 = createMockApplication(501L, ApplicationStatus.SUBMITTED, applicantUser, null);
-            Application app2 = createMockApplication(502L, ApplicationStatus.SUBMITTED, null, "01033334444");
+            User applicantUser2 = createMockUser(11L, "김철수", "01033334444");
+            Application app1 = createMockApplication(501L, ApplicationStatus.SUBMITTED, applicantUser);
+            Application app2 = createMockApplication(502L, ApplicationStatus.SUBMITTED, applicantUser2);
 
             Pageable pageable = PageRequest.of(0, 20);
             Page<Application> page = new PageImpl<>(List.of(app1, app2), pageable, 2);
@@ -147,7 +144,7 @@ class ApplicationManageServiceTest {
             assertThat(result.getTotalElements()).isEqualTo(2);
             assertThat(result.getContent().get(0).applicantName()).isEqualTo("홍길동");
             assertThat(result.getContent().get(0).applicantPhone()).isEqualTo("01011112222");
-            assertThat(result.getContent().get(1).applicantName()).isEqualTo("비회원");
+            assertThat(result.getContent().get(1).applicantName()).isEqualTo("김철수");
             assertThat(result.getContent().get(1).applicantPhone()).isEqualTo("01033334444");
         }
 
@@ -158,7 +155,7 @@ class ApplicationManageServiceTest {
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
 
             User applicantUser = createMockUser(10L, "홍길동", "01011112222");
-            Application app = createMockApplication(501L, ApplicationStatus.ACCEPTED, applicantUser, null);
+            Application app = createMockApplication(501L, ApplicationStatus.ACCEPTED, applicantUser);
 
             Pageable pageable = PageRequest.of(0, 20);
             Page<Application> page = new PageImpl<>(List.of(app), pageable, 1);
@@ -181,7 +178,7 @@ class ApplicationManageServiceTest {
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
 
             User applicantUser = createMockUser(10L, "홍길동", "01011112222");
-            Application app = createMockApplication(501L, ApplicationStatus.SUBMITTED, applicantUser, null);
+            Application app = createMockApplication(501L, ApplicationStatus.SUBMITTED, applicantUser);
 
             Pageable pageable = PageRequest.of(0, 20);
             Page<Application> page = new PageImpl<>(List.of(app), pageable, 1);
@@ -245,7 +242,7 @@ class ApplicationManageServiceTest {
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
 
             User applicantUser = createMockUser(10L, "홍길동", "01011112222");
-            Application application = createMockApplication(APPLICATION_ID, ApplicationStatus.SUBMITTED, applicantUser, null);
+            Application application = createMockApplication(APPLICATION_ID, ApplicationStatus.SUBMITTED, applicantUser);
             given(applicationRepository.findActiveByIdAndPostingId(APPLICATION_ID, POSTING_ID)).willReturn(Optional.of(application));
 
             // when
@@ -287,7 +284,7 @@ class ApplicationManageServiceTest {
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
 
             User applicantUser = createMockUser(10L, "홍길동", "01011112222");
-            Application application = createMockApplication(APPLICATION_ID, ApplicationStatus.SUBMITTED, applicantUser, null);
+            Application application = createMockApplication(APPLICATION_ID, ApplicationStatus.SUBMITTED, applicantUser);
             given(applicationRepository.findActiveByIdAndPostingId(APPLICATION_ID, POSTING_ID)).willReturn(Optional.of(application));
 
             // when
@@ -305,7 +302,7 @@ class ApplicationManageServiceTest {
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
 
             User applicantUser = createMockUser(10L, "홍길동", "01011112222");
-            Application application = createMockApplication(APPLICATION_ID, ApplicationStatus.SUBMITTED, applicantUser, null);
+            Application application = createMockApplication(APPLICATION_ID, ApplicationStatus.SUBMITTED, applicantUser);
             given(applicationRepository.findActiveByIdAndPostingId(APPLICATION_ID, POSTING_ID)).willReturn(Optional.of(application));
 
             // when
@@ -344,8 +341,8 @@ class ApplicationManageServiceTest {
 
             User user1 = createMockUser(10L, "홍길동", "01011112222");
             User user2 = createMockUser(11L, "김철수", "01033334444");
-            Application app1 = createMockApplication(501L, ApplicationStatus.SUBMITTED, user1, null);
-            Application app2 = createMockApplication(502L, ApplicationStatus.SUBMITTED, user2, null);
+            Application app1 = createMockApplication(501L, ApplicationStatus.SUBMITTED, user1);
+            Application app2 = createMockApplication(502L, ApplicationStatus.SUBMITTED, user2);
 
             given(applicationRepository.findActiveAllByIdsAndPostingId(List.of(501L, 502L), POSTING_ID))
                     .willReturn(List.of(app1, app2));
@@ -366,7 +363,7 @@ class ApplicationManageServiceTest {
             given(recruitmentPostingRepository.findById(POSTING_ID)).willReturn(Optional.of(posting));
 
             User user1 = createMockUser(10L, "홍길동", "01011112222");
-            Application app1 = createMockApplication(501L, ApplicationStatus.SUBMITTED, user1, null);
+            Application app1 = createMockApplication(501L, ApplicationStatus.SUBMITTED, user1);
 
             given(applicationRepository.findActiveAllByIdsAndPostingId(List.of(501L, 999L), POSTING_ID))
                     .willReturn(List.of(app1));
