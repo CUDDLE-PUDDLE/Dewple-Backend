@@ -11,6 +11,8 @@ import org.hibernate.type.SqlTypes;
 import com.dewple.common.entity.BaseEntity;
 import com.dewple.common.enums.ApplicationStatus;
 import com.dewple.common.entity.User;
+import com.dewple.common.exception.BusinessException;
+import com.dewple.recruitment.exception.RecruitmentErrorCode;
 
 import java.time.LocalDateTime;
 
@@ -31,11 +33,8 @@ public class Application extends BaseEntity {
     private RecruitmentSchema recruitmentSchema;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "applicant_id")
+    @JoinColumn(name = "applicant_id", nullable = false)
     private User applicant;
-
-    @Column(name = "guest_phone", length = 20)
-    private String guestPhone;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "answers", nullable = false, columnDefinition = "jsonb")
@@ -53,12 +52,11 @@ public class Application extends BaseEntity {
 
     @Builder
     public Application(RecruitmentSchema recruitmentSchema, User applicant,
-                       String guestPhone, String answers,
+                       String answers,
                        LocalDateTime interviewStartDate, String interviewLocation,
                        ApplicationStatus applicationStatus) {
         this.recruitmentSchema = recruitmentSchema;
         this.applicant = applicant;
-        this.guestPhone = guestPhone;
         this.answers = answers != null ? answers : "[]";
         this.interviewStartDate = interviewStartDate;
         this.interviewLocation = interviewLocation;
@@ -69,7 +67,21 @@ public class Application extends BaseEntity {
         this.answers = answers != null ? answers : "[]";
     }
 
-    public void changeApplicationStatus(ApplicationStatus applicationStatus) {
-        this.applicationStatus = applicationStatus;
+    /**
+     * 운영진이 합격/불합격/합격예비 상태를 변경할 때 사용합니다.
+     * 허용된 상태 전이만 가능합니다.
+     */
+    public void changeApplicationStatus(ApplicationStatus newStatus) {
+        if (!this.applicationStatus.canTransitionTo(newStatus)) {
+            throw new BusinessException(RecruitmentErrorCode.INVALID_STATUS_TRANSITION);
+        }
+        this.applicationStatus = newStatus;
+    }
+
+    /**
+     * 지원자의 제출/임시저장 등 내부 상태 전환에 사용합니다.
+     */
+    public void updateApplicationStatus(ApplicationStatus newStatus) {
+        this.applicationStatus = newStatus;
     }
 }
