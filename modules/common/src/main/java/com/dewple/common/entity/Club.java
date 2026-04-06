@@ -14,7 +14,8 @@ import com.dewple.common.enums.Gender;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "club")
@@ -77,13 +78,13 @@ public class Club extends BaseEntity {
     private ClubDeletionStatus deletionStatus = ClubDeletionStatus.NONE;
 
     @Column(name = "deletion_requested_at")
-    private LocalDateTime deletionRequestedAt;
+    private OffsetDateTime deletionRequestedAt;
 
     @Column(name = "deletion_approved_at")
-    private LocalDateTime deletionApprovedAt;
+    private OffsetDateTime deletionApprovedAt;
 
     @Column(name = "scheduled_delete_at")
-    private LocalDateTime scheduledDeleteAt;
+    private OffsetDateTime scheduledDeleteAt;
 
     @Column(name = "is_sanction_deletion", nullable = false)
     private Boolean isSanctionDeletion = false;
@@ -127,12 +128,12 @@ public class Club extends BaseEntity {
 
     public void startDeletionVoting() {
         this.deletionStatus = ClubDeletionStatus.VOTING;
-        this.deletionRequestedAt = LocalDateTime.now();
+        this.deletionRequestedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
     public void approveDeletion() {
         this.deletionStatus = ClubDeletionStatus.APPROVED;
-        this.deletionApprovedAt = LocalDateTime.now();
+        this.deletionApprovedAt = OffsetDateTime.now(ZoneOffset.UTC);
         this.scheduledDeleteAt = this.deletionApprovedAt.plusDays(1);
     }
 

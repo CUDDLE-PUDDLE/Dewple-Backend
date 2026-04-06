@@ -20,7 +20,8 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Slf4j
@@ -210,7 +211,7 @@ public class OrganizationService {
         validateRepresentative(organizationId, userId);
 
         if (organization.getScheduledDeleteAt() != null
-                && LocalDateTime.now().isAfter(organization.getScheduledDeleteAt())) {
+                && OffsetDateTime.now(ZoneOffset.UTC).isAfter(organization.getScheduledDeleteAt())) {
             throw new BusinessException(OrganizationErrorCode.DISSOLUTION_NOT_IN_GRACE_PERIOD);
         }
 
