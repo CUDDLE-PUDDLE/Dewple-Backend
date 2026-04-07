@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Slf4j
@@ -48,7 +49,7 @@ public class ActivityReportService {
                 .ifPresent(lastReport -> {
                     OffsetDateTime cooldownEnd = lastReport.getCreatedAt()
                             .plusHours(REPORT_COOLDOWN_HOURS);
-                    if (OffsetDateTime.now().isBefore(cooldownEnd)) {
+                    if (OffsetDateTime.now(ZoneOffset.UTC).isBefore(cooldownEnd)) {
                         throw new BusinessException(ActivityErrorCode.REPORT_COOLDOWN);
                     }
                 });
@@ -76,7 +77,7 @@ public class ActivityReportService {
      */
     @Transactional
     public int deleteExpiredSnapshots() {
-        OffsetDateTime sixMonthsAgo = OffsetDateTime.now().minusMonths(6);
+        OffsetDateTime sixMonthsAgo = OffsetDateTime.now(ZoneOffset.UTC).minusMonths(6);
 
         List<ActivityReport> resolved = reportRepository.findByReportStatusAndResolvedAtBefore(
                 ReportStatus.RESOLVED, sixMonthsAgo);

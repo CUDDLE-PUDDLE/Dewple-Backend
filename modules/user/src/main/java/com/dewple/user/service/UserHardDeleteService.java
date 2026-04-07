@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Slf4j
@@ -25,7 +26,7 @@ public class UserHardDeleteService {
      */
     @Transactional
     public int hardDeleteExpiredUsers() {
-        OffsetDateTime sevenDaysAgo = OffsetDateTime.now().minusDays(7);
+        OffsetDateTime sevenDaysAgo = OffsetDateTime.now(ZoneOffset.UTC).minusDays(7);
         List<User> expiredUsers = userRepository.findByDeletedAtNotNullAndDeletedAtBefore(sevenDaysAgo);
 
         int count = 0;

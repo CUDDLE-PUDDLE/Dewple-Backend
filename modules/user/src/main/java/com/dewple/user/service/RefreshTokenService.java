@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 @Slf4j
@@ -23,7 +24,7 @@ public class RefreshTokenService {
         RefreshToken refreshToken = RefreshToken.builder()
                 .user(user)
                 .token(token)
-                .expireAt(OffsetDateTime.now().plusSeconds(expirySeconds))
+                .expireAt(OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(expirySeconds))
                 .build();
 
         return refreshTokenRepository.save(refreshToken);
