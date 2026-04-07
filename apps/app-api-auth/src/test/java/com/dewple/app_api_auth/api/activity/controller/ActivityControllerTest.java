@@ -31,6 +31,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.SliceImpl;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -205,7 +206,7 @@ class ActivityControllerTest {
         @DisplayName("성공: 개인 모임 생성")
         void successWithPersonalActivity() throws Exception {
             // given
-            OffsetDateTime now = OffsetDateTime.now();
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
             CreateActivityResult result = new CreateActivityResult(
                     100L, null, null, OpenType.PUBLIC,
                     "봄맞이 독서 모임", "함께 책을 읽어요", 20,
@@ -265,7 +266,7 @@ class ActivityControllerTest {
         @DisplayName("성공: 동아리 모임 생성")
         void successWithClubActivity() throws Exception {
             // given
-            OffsetDateTime now = OffsetDateTime.now();
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
             CreateActivityResult result = new CreateActivityResult(
                     101L, 10L, "테스트 동아리", OpenType.PRIVATE,
                     "정기 모임", "이번 주 정기 모임", null,

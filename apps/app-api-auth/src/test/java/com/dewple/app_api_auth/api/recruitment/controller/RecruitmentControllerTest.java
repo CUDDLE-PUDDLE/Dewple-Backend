@@ -497,8 +497,8 @@ class RecruitmentControllerTest {
         RecruitmentPosting posting = RecruitmentPosting.builder()
                 .title("테스트 공고")
                 .recentRecruitmentVersion(version)
-                .startAt(java.time.OffsetDateTime.now())
-                .endAt(java.time.OffsetDateTime.now().plusDays(30))
+                .startAt(java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC))
+                .endAt(java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).plusDays(30))
                 .editWindowBasis(com.dewple.common.enums.EditWindowBasis.SUBMITTED)
                 .editWindowDays(0)
                 .recruitmentStatus(com.dewple.common.enums.RecruitmentStatus.OPEN)
@@ -512,7 +512,7 @@ class RecruitmentControllerTest {
         return new com.dewple.recruitment.service.PublicPostingDetailResult(
                 id, 1L, "테스트 동아리", 1, "테스트 공고",
                 "[{\"text\":\"본문\"}]", null, 5,
-                java.time.OffsetDateTime.now(), java.time.OffsetDateTime.now().plusDays(30),
+                java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC), java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).plusDays(30),
                 java.time.LocalDate.of(2026, 4, 5), java.time.LocalDate.of(2026, 8, 31),
                 false, List.of(), List.of(), null, 0L,
                 com.dewple.common.enums.RecruitmentStatus.OPEN

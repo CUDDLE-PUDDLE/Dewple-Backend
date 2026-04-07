@@ -41,6 +41,7 @@ import org.springframework.data.domain.SliceImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -85,8 +86,8 @@ class ActivityServiceTest {
 
     private static final Long USER_ID = 1L;
     private static final Long CLUB_ID = 10L;
-    private static final OffsetDateTime START_AT = OffsetDateTime.now().plusDays(7);
-    private static final OffsetDateTime END_AT = OffsetDateTime.now().plusDays(14);
+    private static final OffsetDateTime START_AT = OffsetDateTime.now(ZoneOffset.UTC).plusDays(7);
+    private static final OffsetDateTime END_AT = OffsetDateTime.now(ZoneOffset.UTC).plusDays(14);
 
     @Nested
     @DisplayName("createActivity - 모임 생성")
@@ -102,7 +103,7 @@ class ActivityServiceTest {
             given(activityRepository.save(any(Activity.class))).willAnswer(invocation -> {
                 Activity saved = invocation.getArgument(0);
                 ReflectionTestUtils.setField(saved, "id", 100L);
-                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now());
+                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now(ZoneOffset.UTC));
                 return saved;
             });
 
@@ -174,7 +175,7 @@ class ActivityServiceTest {
             given(activityRepository.save(any(Activity.class))).willAnswer(invocation -> {
                 Activity saved = invocation.getArgument(0);
                 ReflectionTestUtils.setField(saved, "id", 100L);
-                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now());
+                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now(ZoneOffset.UTC));
                 return saved;
             });
 
@@ -212,7 +213,7 @@ class ActivityServiceTest {
             given(activityRepository.save(any(Activity.class))).willAnswer(invocation -> {
                 Activity saved = invocation.getArgument(0);
                 ReflectionTestUtils.setField(saved, "id", 100L);
-                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now());
+                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now(ZoneOffset.UTC));
                 return saved;
             });
 
@@ -284,7 +285,7 @@ class ActivityServiceTest {
             User creator = createUser();
             given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
 
-            OffsetDateTime sameTime = OffsetDateTime.now().plusDays(7);
+            OffsetDateTime sameTime = OffsetDateTime.now(ZoneOffset.UTC).plusDays(7);
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, sameTime, sameTime,
@@ -307,8 +308,8 @@ class ActivityServiceTest {
             User creator = createUser();
             given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
 
-            OffsetDateTime pastStart = OffsetDateTime.now().minusDays(1);
-            OffsetDateTime futureEnd = OffsetDateTime.now().plusDays(1);
+            OffsetDateTime pastStart = OffsetDateTime.now(ZoneOffset.UTC).minusDays(1);
+            OffsetDateTime futureEnd = OffsetDateTime.now(ZoneOffset.UTC).plusDays(1);
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, pastStart, futureEnd,
@@ -1000,8 +1001,8 @@ class ActivityServiceTest {
             given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
 
             List<ParticipantResult> content = List.of(
-                    new ParticipantResult(1L, 2L, "img.jpg", "홍길동", ParticipantStatus.PENDING, OffsetDateTime.now()),
-                    new ParticipantResult(2L, 3L, null, "김철수", ParticipantStatus.APPROVED, OffsetDateTime.now())
+                    new ParticipantResult(1L, 2L, "img.jpg", "홍길동", ParticipantStatus.PENDING, OffsetDateTime.now(ZoneOffset.UTC)),
+                    new ParticipantResult(2L, 3L, null, "김철수", ParticipantStatus.APPROVED, OffsetDateTime.now(ZoneOffset.UTC))
             );
             Slice<ParticipantResult> slice = new SliceImpl<>(content, pageable, false);
             given(activityParticipantRepository.findParticipantListByActivityId(ACTIVITY_ID, pageable)).willReturn(slice);
