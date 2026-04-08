@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "Organization Role", description = "연합회 역할 관리 API")
+@Tag(name = "Organization - 역할", description = "연합회 역할 관리 API")
 @RestController
 @RequestMapping("/organizations/{organizationId}/roles")
 @RequiredArgsConstructor

@@ -19,8 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.dewple.common.enums.EditWindowBasis;
-
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -53,7 +51,7 @@ public class ApplicationService {
             }
             // TEMPORARY → SUBMITTED 전환
             existing.updateAnswers(command.answersJson());
-            existing.changeApplicationStatus(ApplicationStatus.SUBMITTED);
+            existing.updateApplicationStatus(ApplicationStatus.SUBMITTED);
             return existing;
         }).orElseGet(() -> {
             User applicant = entityManager.getReference(User.class, applicantId);
@@ -106,7 +104,8 @@ public class ApplicationService {
         }
 
         ApplicationStatus status = application.getApplicationStatus();
-        if (status == ApplicationStatus.ACCEPTED || status == ApplicationStatus.REJECTED) {
+        if (status == ApplicationStatus.ACCEPTED || status == ApplicationStatus.REJECTED
+                || status == ApplicationStatus.WAITLISTED) {
             throw new BusinessException(RecruitmentErrorCode.APPLICATION_NOT_WITHDRAWABLE);
         }
 
@@ -138,46 +137,7 @@ public class ApplicationService {
         }
 
         validateApplicationEditable(application);
-        validateEditWindow(posting, application);
-
-        application.updateAnswers(command.answersJson());
-        return application;
-    }
-
-    public Application submitGuestApplication(Long clubId, Long postingId, GuestApplicationCommand command) {
-        RecruitmentPosting posting = findAndValidatePosting(postingId, clubId);
-        validatePostingIsAccepting(posting);
-
-        RecruitmentSchema schema = recruitmentSchemaRepository
-                .findLatestByPostingIdAndProcessType(postingId, ProcessType.DOCUMENT)
-                .orElseThrow(() -> new BusinessException(RecruitmentErrorCode.APPLICATION_SCHEMA_NOT_FOUND));
-
-        applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                postingId, command.guestPhone(),
-                List.of(ApplicationStatus.SUBMITTED, ApplicationStatus.TEMPORARY)
-        ).ifPresent(existing -> {
-            throw new BusinessException(RecruitmentErrorCode.GUEST_APPLICATION_ALREADY_SUBMITTED);
-        });
-
-        Application application = Application.builder()
-                .recruitmentSchema(schema)
-                .guestPhone(command.guestPhone())
-                .answers(command.answersJson())
-                .applicationStatus(ApplicationStatus.SUBMITTED)
-                .build();
-        return applicationRepository.save(application);
-    }
-
-    public Application editGuestApplication(Long clubId, Long postingId, GuestEditApplicationCommand command) {
-        RecruitmentPosting posting = findAndValidatePosting(postingId, clubId);
-
-        Application application = applicationRepository.findByPostingIdAndGuestPhoneAndStatuses(
-                postingId, command.guestPhone(),
-                List.of(ApplicationStatus.SUBMITTED, ApplicationStatus.TEMPORARY)
-        ).orElseThrow(() -> new BusinessException(RecruitmentErrorCode.GUEST_APPLICATION_NOT_FOUND));
-
-        validateApplicationEditable(application);
-        validateEditWindow(posting, application);
+        validateEditWindow(posting);
 
         application.updateAnswers(command.answersJson());
         return application;
@@ -190,21 +150,9 @@ public class ApplicationService {
         }
     }
 
-    private void validateEditWindow(RecruitmentPosting posting, Application application) {
-        if (posting.getEditWindowDays() == 0) {
-            return;
-        }
-
+    private void validateEditWindow(RecruitmentPosting posting) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        OffsetDateTime deadline;
-
-        if (posting.getEditWindowBasis() == EditWindowBasis.DEPLOYED) {
-            deadline = posting.getStartAt().plusDays(posting.getEditWindowDays());
-        } else {
-            deadline = application.getCreatedAt().plusDays(posting.getEditWindowDays());
-        }
-
-        if (now.isAfter(deadline)) {
+        if (now.isAfter(posting.getEndAt())) {
             throw new BusinessException(RecruitmentErrorCode.APPLICATION_EDIT_WINDOW_CLOSED);
         }
     }
@@ -248,18 +196,6 @@ public class ApplicationService {
     }
 
     public record SubmitApplicationCommand(
-            String answersJson
-    ) {
-    }
-
-    public record GuestApplicationCommand(
-            String guestPhone,
-            String answersJson
-    ) {
-    }
-
-    public record GuestEditApplicationCommand(
-            String guestPhone,
             String answersJson
     ) {
     }

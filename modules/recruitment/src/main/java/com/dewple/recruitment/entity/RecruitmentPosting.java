@@ -17,8 +17,9 @@ import org.hibernate.type.SqlTypes;
 import com.dewple.common.entity.BaseEntity;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.User;
-import com.dewple.common.enums.EditWindowBasis;
 import com.dewple.common.enums.RecruitmentStatus;
+import com.dewple.common.exception.BusinessException;
+import com.dewple.recruitment.exception.RecruitmentErrorCode;
 import com.dewple.club.entity.ClubGeneration;
 import com.dewple.activity.entity.Activity;
 
@@ -58,13 +59,6 @@ public class RecruitmentPosting extends BaseEntity {
     @Column(name = "theme_color", length = 100)
     private String themeColor;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "edit_window_basis", nullable = false, length = 20)
-    private EditWindowBasis editWindowBasis;
-
-    @Column(name = "edit_window_days", nullable = false)
-    private Integer editWindowDays;
-
     @Column(name = "capacity")
     private Integer capacity;
 
@@ -87,11 +81,26 @@ public class RecruitmentPosting extends BaseEntity {
     @Column(name = "end_of_generation_date")
     private LocalDate endOfGenerationDate;
 
-    @Column(name = "is_interview_required", nullable = false)
-    private Boolean isInterviewRequired = false;
+    @Column(name = "has_second_interview", nullable = false)
+    private Boolean hasSecondInterview = false;
 
     @Column(name = "view_count", nullable = false)
     private Long viewCount = 0L;
+
+    @Column(name = "emergency_contact", length = 100)
+    private String emergencyContact;
+
+    @Column(name = "deadline_change_count", nullable = false)
+    private Integer deadlineChangeCount = 0;
+
+    @Column(name = "extra_acceptance_end_date", columnDefinition = "timestamptz")
+    private OffsetDateTime extraAcceptanceEndDate;
+
+    @Column(name = "first_announcement_date")
+    private LocalDate firstAnnouncementDate;
+
+    @Column(name = "generation_start", nullable = false, length = 5)
+    private String generationStart = "1";
 
 
     @OneToMany(mappedBy = "posting", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -104,12 +113,14 @@ public class RecruitmentPosting extends BaseEntity {
     @Builder
     public RecruitmentPosting(Club club, Activity activity, ClubGeneration generation,
                               User creator, String title, String content,
-                              String themeColor, EditWindowBasis editWindowBasis,
-                              Integer editWindowDays, Integer capacity,
+                              String themeColor, Integer capacity,
                               RecruitmentStatus recruitmentStatus, Long recentRecruitmentVersion,
                               OffsetDateTime startAt, OffsetDateTime endAt,
                               LocalDate resultDate, LocalDate endOfGenerationDate,
-                              Boolean isInterviewRequired, Long viewCount) {
+                              Boolean hasSecondInterview, Long viewCount,
+                              String emergencyContact, Integer deadlineChangeCount,
+                              OffsetDateTime extraAcceptanceEndDate,
+                              LocalDate firstAnnouncementDate, String generationStart) {
         validatePeriod(startAt, endAt);
         this.club = club;
         this.activity = activity;
@@ -118,8 +129,6 @@ public class RecruitmentPosting extends BaseEntity {
         this.title = title;
         this.content = content;
         this.themeColor = themeColor;
-        this.editWindowBasis = editWindowBasis;
-        this.editWindowDays = editWindowDays;
         this.capacity = capacity;
         this.recruitmentStatus = recruitmentStatus;
         this.recentRecruitmentVersion = recentRecruitmentVersion;
@@ -127,8 +136,13 @@ public class RecruitmentPosting extends BaseEntity {
         this.endAt = endAt;
         this.resultDate = resultDate;
         this.endOfGenerationDate = endOfGenerationDate;
-        this.isInterviewRequired = isInterviewRequired != null ? isInterviewRequired : false;
+        this.hasSecondInterview = hasSecondInterview != null ? hasSecondInterview : false;
         this.viewCount = viewCount != null ? viewCount : 0L;
+        this.emergencyContact = emergencyContact;
+        this.deadlineChangeCount = deadlineChangeCount != null ? deadlineChangeCount : 0;
+        this.extraAcceptanceEndDate = extraAcceptanceEndDate;
+        this.firstAnnouncementDate = firstAnnouncementDate;
+        this.generationStart = generationStart != null ? generationStart : "1";
     }
 
     private void validatePeriod(OffsetDateTime startAt, OffsetDateTime endAt) {
@@ -160,7 +174,7 @@ public class RecruitmentPosting extends BaseEntity {
     public void updateForDraft(String title, String content, ClubGeneration generation,
                                Integer capacity, OffsetDateTime startAt, OffsetDateTime endAt,
                                LocalDate resultDate, LocalDate endOfGenerationDate,
-                               Boolean isInterviewRequired) {
+                               Boolean hasSecondInterview) {
         validatePeriod(startAt, endAt);
         this.title = title;
         this.content = content;
@@ -170,7 +184,26 @@ public class RecruitmentPosting extends BaseEntity {
         this.endAt = endAt;
         this.resultDate = resultDate;
         this.endOfGenerationDate = endOfGenerationDate;
-        this.isInterviewRequired = isInterviewRequired;
+        this.hasSecondInterview = hasSecondInterview;
+    }
+
+    private static final int MAX_DEADLINE_CHANGES = 2;
+
+    public void updateHasSecondInterview(boolean hasSecondInterview) {
+        this.hasSecondInterview = hasSecondInterview;
+    }
+
+    public void setExtraAcceptanceEndDate(OffsetDateTime extraAcceptanceEndDate) {
+        this.extraAcceptanceEndDate = extraAcceptanceEndDate;
+    }
+
+    public void changeDeadline(OffsetDateTime newEndAt) {
+        if (this.deadlineChangeCount >= MAX_DEADLINE_CHANGES) {
+            throw new BusinessException(RecruitmentErrorCode.DEADLINE_CHANGE_LIMIT_EXCEEDED);
+        }
+        validatePeriod(this.startAt, newEndAt);
+        this.endAt = newEndAt;
+        this.deadlineChangeCount++;
     }
 
     // 연관관계 편의 메소드

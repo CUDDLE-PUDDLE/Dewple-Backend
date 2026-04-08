@@ -15,15 +15,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
-@Tag(name = "Recruitment", description = "공고 API")
+@Tag(name = "Recruitment - 공고", description = "공고 API")
 @RestController
 @RequiredArgsConstructor
 public class RecruitmentController {
@@ -102,19 +104,45 @@ public class RecruitmentController {
         return ResponseEntity.ok(ApiResponse.ok(applicationForm));
     }
 
-    @Operation(summary = "모집 공고 조기 마감", description = "마감 기한 전에 모집 공고를 조기 마감합니다.")
+    @Operation(summary = "모집 마감일 변경", description = "모집 공고의 마감일을 변경합니다. 최대 2회까지 변경 가능합니다.")
+    @PatchMapping("/clubs/{clubId}/recruitment-posts/{postingId}/deadline")
+    public ResponseEntity<ApiResponse<RecruitmentPostingResponse>> changeDeadline(
+            @PathVariable Long clubId,
+            @PathVariable Long postingId,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody @Valid ChangeDeadlineRequest request) {
+
+        Long userId = Long.parseLong(jwt.getSubject());
+
+        RecruitmentPosting posting = recruitmentService.changeDeadline(clubId, userId, postingId, request.endAt());
+
+        return ResponseEntity.ok(ApiResponse.ok(toResponse(posting)));
+    }
+
+    public record ChangeDeadlineRequest(
+            @NotNull(message = "변경할 마감일은 필수입니다.")
+            OffsetDateTime endAt
+    ) {}
+
+    @Operation(summary = "모집 공고 조기 마감", description = "마감 기한 전에 모집 공고를 조기 마감합니다. 합격예비자가 있으면 추가합격 기간(1~14일)을 함께 설정해야 합니다.")
     @PostMapping("/clubs/{clubId}/recruitment-posts/{postingId}/close")
     public ResponseEntity<ApiResponse<RecruitmentPostingResponse>> closeRecruitment(
             @PathVariable Long clubId,
             @PathVariable Long postingId,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody(required = false) CloseRecruitmentRequest request) {
 
         Long userId = Long.parseLong(jwt.getSubject());
+        Integer additionalDays = request != null ? request.additionalAcceptanceDays() : null;
 
-        RecruitmentPosting posting = recruitmentService.closeRecruitment(clubId, userId, postingId);
+        RecruitmentPosting posting = recruitmentService.closeRecruitment(clubId, userId, postingId, additionalDays);
 
         return ResponseEntity.ok(ApiResponse.ok(toResponse(posting)));
     }
+
+    public record CloseRecruitmentRequest(
+            Integer additionalAcceptanceDays
+    ) {}
 
     @Operation(summary = "모집 공고 조회수 증가", description = "모집 공고 조회수를 1 증가시킵니다. 클라이언트가 5초 이상 페이지에 머문 뒤 호출합니다. 인증 불필요.")
     @PostMapping("/recruitment-posts/{postingId}/view")
@@ -205,7 +233,9 @@ public class RecruitmentController {
                 result.endAt(),
                 result.resultDate(),
                 result.endOfGenerationDate(),
-                result.isInterviewRequired(),
+                result.hasSecondInterview(),
+                result.emergencyContact(),
+                result.firstAnnouncementDate(),
                 departments,
                 processes,
                 result.applicationForm(),

@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "Star Rating", description = "별점 평가 API")
+@Tag(name = "Activity - 별점", description = "별점 평가 API")
 @RestController
 @RequestMapping("/activities/{activityId}/ratings")
 @RequiredArgsConstructor

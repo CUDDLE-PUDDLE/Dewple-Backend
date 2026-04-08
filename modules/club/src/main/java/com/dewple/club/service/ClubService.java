@@ -24,6 +24,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -43,6 +44,8 @@ public class ClubService {
     private final RegionRepository regionRepository;
     private final ClubRecruitmentPort clubRecruitmentPort;
     private final ClubDeletionVoteRepository clubDeletionVoteRepository;
+    private final ClubGenerationRepository clubGenerationRepository;
+    private final ClubKickVoteRepository clubKickVoteRepository;
 
     private static final String PRESIDENT_ROLE_NAME = "회장";
     private static final int MAX_PRESIDENT_CLUBS = 5;
@@ -93,6 +96,167 @@ public class ClubService {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
         return ClubDetailResult.from(club);
+    }
+
+    @Transactional
+    public ClubMemberResult inviteGuest(Long userId, Long clubId, InviteGuestParam param) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        validateClubPermission(clubId, userId, Permission.MANAGE_MEMBER);
+
+        if (param.activityIds() == null || param.activityIds().isEmpty()) {
+            throw new BusinessException(ClubErrorCode.ACTIVITY_ID_REQUIRED);
+        }
+
+        if (clubMemberRepository.findByClubIdAndUserId(clubId, param.userId()).isPresent()) {
+            throw new BusinessException(ClubErrorCode.ALREADY_CLUB_MEMBER);
+        }
+
+        User guestUser = userRepository.findById(param.userId())
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.USER_NOT_FOUND));
+
+        ClubRole defaultMemberRole = clubRoleRepository.findByClubIdAndName(clubId, "부원")
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.ROLE_NOT_FOUND));
+
+        ClubMember guest = ClubMember.builder()
+                .club(club)
+                .user(guestUser)
+                .role(defaultMemberRole)
+                .activityStatus(ActivityStatus.GUEST)
+                .build();
+        clubMemberRepository.save(guest);
+
+        // TODO: activityIds로 모임 연결 (Activity 도메인 통합 시 구현)
+        log.info("동아리 GUEST 초대: clubId={}, guestUserId={}, activityIds={}",
+                clubId, param.userId(), param.activityIds());
+
+        return ClubMemberResult.from(guest);
+    }
+
+    @Transactional
+    public void promoteToMember(Long userId, Long clubId, Long memberId, PromoteToMemberParam param) {
+        clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        validateClubPermission(clubId, userId, Permission.MANAGE_MEMBER);
+
+        ClubMember member = clubMemberRepository.findByClubIdAndId(clubId, memberId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.MEMBER_NOT_FOUND));
+
+        if (member.getActivityStatus() != ActivityStatus.GUEST) {
+            throw new BusinessException(ClubErrorCode.NOT_GUEST_STATUS);
+        }
+
+        if (param.activityEndDate() == null) {
+            throw new BusinessException(ClubErrorCode.ACTIVITY_END_DATE_REQUIRED);
+        }
+
+        ClubGeneration generation = clubGenerationRepository.findById(param.generationId())
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.GENERATION_NOT_FOUND));
+
+        member.updateActivityStatus(ActivityStatus.ACTIVE);
+        member.setJoinGeneration(generation);
+        member.setActivityEndDate(param.activityEndDate());
+
+        log.info("동아리 GUEST→MEMBER 승격: clubId={}, memberId={}, generationId={}",
+                clubId, memberId, param.generationId());
+    }
+
+    @Transactional
+    public void requestKick(Long userId, Long clubId, Long targetMemberId) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        validateClubPermission(clubId, userId, Permission.MANAGE_MEMBER);
+
+        ClubMember targetMember = clubMemberRepository.findByClubIdAndId(clubId, targetMemberId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.MEMBER_NOT_FOUND));
+
+        if (clubKickVoteRepository.existsByTargetMember(targetMember)) {
+            throw new BusinessException(ClubErrorCode.KICK_ALREADY_IN_PROGRESS);
+        }
+
+        List<ClubMember> permissionMembers = clubMemberRepository
+                .findByClubIdAndStatusAndActivityStatus(clubId, BaseStatus.ACTIVE, ActivityStatus.ACTIVE)
+                .stream()
+                .filter(m -> m.getRole().hasPermission(Permission.MANAGE_MEMBER))
+                .toList();
+
+        for (ClubMember voter : permissionMembers) {
+            boolean isRequester = voter.getUser().getId().equals(userId);
+            clubKickVoteRepository.save(
+                    ClubKickVote.builder()
+                            .club(club)
+                            .targetMember(targetMember)
+                            .voter(voter.getUser())
+                            .isApproved(isRequester ? true : null)
+                            .build()
+            );
+        }
+
+        if (permissionMembers.size() == 1) {
+            targetMember.updateActivityStatus(ActivityStatus.KICKEDOUT);
+            clubKickVoteRepository.deleteByTargetMember(targetMember);
+            log.info("동아리 회원 내보내기 즉시 승인 (권한자 1명): clubId={}, targetMemberId={}",
+                    clubId, targetMemberId);
+        } else {
+            log.info("동아리 회원 내보내기 투표 시작: clubId={}, targetMemberId={}, 투표 대상={}명",
+                    clubId, targetMemberId, permissionMembers.size());
+        }
+    }
+
+    @Transactional
+    public void voteKick(Long userId, Long clubId, Long targetMemberId, boolean approved) {
+        clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        ClubMember targetMember = clubMemberRepository.findByClubIdAndId(clubId, targetMemberId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.MEMBER_NOT_FOUND));
+
+        if (!clubKickVoteRepository.existsByTargetMember(targetMember)) {
+            throw new BusinessException(ClubErrorCode.KICK_NOT_IN_PROGRESS);
+        }
+
+        ClubKickVote vote = clubKickVoteRepository.findByTargetMemberAndVoterId(targetMember, userId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.KICK_VOTE_NOT_FOUND));
+
+        if (!approved) {
+            clubKickVoteRepository.deleteByTargetMember(targetMember);
+            log.info("동아리 내보내기 투표 거부 → 종료: clubId={}, targetMemberId={}", clubId, targetMemberId);
+            return;
+        }
+
+        vote.approve();
+
+        List<ClubKickVote> allVotes = clubKickVoteRepository.findByTargetMember(targetMember);
+        boolean allApproved = allVotes.stream().allMatch(v -> Boolean.TRUE.equals(v.getIsApproved()));
+
+        if (allApproved) {
+            targetMember.updateActivityStatus(ActivityStatus.KICKEDOUT);
+            clubKickVoteRepository.deleteByTargetMember(targetMember);
+            log.info("동아리 내보내기 전원 동의 → 완료: clubId={}, targetMemberId={}", clubId, targetMemberId);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClubMemberResult> getMembers(Long userId, Long clubId, ActivityStatus activityStatus) {
+        clubRepository.findById(clubId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.CLUB_NOT_FOUND));
+
+        clubMemberRepository.findByClubIdAndUserId(clubId, userId)
+                .orElseThrow(() -> new BusinessException(ClubErrorCode.NOT_CLUB_MEMBER));
+
+        List<ClubMember> members;
+        if (activityStatus != null) {
+            members = clubMemberRepository.findByClubIdAndActivityStatus(clubId, activityStatus);
+        } else {
+            members = clubMemberRepository.findByClubId(clubId);
+        }
+
+        return members.stream()
+                .map(ClubMemberResult::from)
+                .toList();
     }
 
     @Transactional
@@ -259,6 +423,22 @@ public class ClubService {
         log.info("동아리 삭제 취소: clubId={}, userId={}", clubId, userId);
     }
 
+    @Transactional
+    public int processGraduation() {
+        LocalDate today = LocalDate.now();
+        List<ClubMember> targets = clubMemberRepository
+                .findByActivityStatusAndActivityEndDateLessThanEqual(ActivityStatus.ACTIVE, today);
+
+        for (ClubMember member : targets) {
+            member.updateActivityStatus(ActivityStatus.GRADUATED);
+        }
+
+        if (!targets.isEmpty()) {
+            log.info("동아리 자동 수료 처리 완료: {}명", targets.size());
+        }
+        return targets.size();
+    }
+
     private void validateClubPermission(Long clubId, Long userId, Permission permission) {
         ClubMember member = clubMemberRepository
                 .findByClubIdAndUserId(clubId, userId)
@@ -318,7 +498,17 @@ public class ClubService {
                 .isStaff(true).isDefault(true).build();
 
         ClubRole vicePresident = ClubRole.builder()
-                .club(club).name("부회장").permissions(0L)
+                .club(club).name("부회장")
+                .permissions(Permission.combine(
+                        Permission.PROPOSE_ACTIVITY, Permission.MANAGE_ACTIVITY,
+                        Permission.EDIT_INFO, Permission.NETWORK_CHAT,
+                        Permission.ANSWER_INQUIRY, Permission.MANAGE_RECRUITMENT,
+                        Permission.DECIDE_ADMISSION, Permission.VIEW_APPLICATION,
+                        Permission.MANAGE_MEMBER, Permission.MANAGE_FEDERATION,
+                        Permission.MANAGE_NOTICE, Permission.MANAGE_FEED,
+                        Permission.MANAGE_ATTENDANCE, Permission.MANAGE_CALENDAR,
+                        Permission.MANAGE_STORAGE
+                ))
                 .isStaff(true).isDefault(true).build();
 
         ClubRole hr = ClubRole.builder()

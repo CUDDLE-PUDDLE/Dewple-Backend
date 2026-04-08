@@ -22,7 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 
-@Tag(name = "Personal File", description = "개인 자료실 API")
+@Tag(name = "User - 개인 자료실", description = "개인 자료실 API")
 @RestController
 @RequestMapping("/users/me/files")
 @RequiredArgsConstructor
