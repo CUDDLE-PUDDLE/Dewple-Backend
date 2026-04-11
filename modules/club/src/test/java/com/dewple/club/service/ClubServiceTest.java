@@ -38,6 +38,8 @@ import org.springframework.data.domain.SliceImpl;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -1155,7 +1157,7 @@ class ClubServiceTest {
             Club club = createClub();
             club.startDeletionVoting();
             club.approveDeletion();
-            ReflectionTestUtils.setField(club, "scheduledDeleteAt", LocalDateTime.now().minusHours(1));
+            ReflectionTestUtils.setField(club, "scheduledDeleteAt", OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
             ClubRole presidentRole = createPresidentRole(club);
             ClubMember president = ClubMember.builder()
                     .club(club).user(createUser()).role(presidentRole)

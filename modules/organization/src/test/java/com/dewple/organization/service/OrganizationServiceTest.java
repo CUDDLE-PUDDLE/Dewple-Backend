@@ -25,6 +25,8 @@ import org.springframework.data.domain.SliceImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -548,7 +550,7 @@ class OrganizationServiceTest {
             Organization org = createApprovedOrganization();
             org.requestDissolution("사유");
             org.approveDissolution();
-            ReflectionTestUtils.setField(org, "scheduledDeleteAt", LocalDateTime.now().minusHours(1));
+            ReflectionTestUtils.setField(org, "scheduledDeleteAt", OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
             OrganizationMember repMember = createRepMember(org);
             given(organizationRepository.findById(ORG_ID)).willReturn(Optional.of(org));
             mockPermission(ORG_ID, USER_ID, repMember);
