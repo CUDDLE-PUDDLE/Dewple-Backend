@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Slf4j
@@ -158,7 +159,7 @@ public class StarRatingService {
         if (activity.getLifecycleStatus() != ActivityLifecycleStatus.ENDED) {
             throw new BusinessException(ActivityErrorCode.RATING_NOT_AVAILABLE);
         }
-        if (activity.getEndAt().plusDays(RATING_PERIOD_DAYS).isBefore(OffsetDateTime.now())) {
+        if (activity.getEndAt().plusDays(RATING_PERIOD_DAYS).isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
             throw new BusinessException(ActivityErrorCode.RATING_PERIOD_EXPIRED);
         }
     }

@@ -17,7 +17,8 @@ import com.dewple.common.enums.DissolutionStatus;
 import com.dewple.common.enums.OrganizationType;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "organization")
@@ -103,13 +104,13 @@ public class Organization extends BaseEntity {
     private String dissolutionReason;
 
     @Column(name = "dissolution_requested_at")
-    private LocalDateTime dissolutionRequestedAt;
+    private OffsetDateTime dissolutionRequestedAt;
 
     @Column(name = "dissolution_approved_at")
-    private LocalDateTime dissolutionApprovedAt;
+    private OffsetDateTime dissolutionApprovedAt;
 
     @Column(name = "scheduled_delete_at")
-    private LocalDateTime scheduledDeleteAt;
+    private OffsetDateTime scheduledDeleteAt;
 
     @Column(name = "is_sanction_deletion", nullable = false)
     private Boolean isSanctionDeletion = false;
@@ -171,12 +172,12 @@ public class Organization extends BaseEntity {
     public void requestDissolution(String reason) {
         this.dissolutionStatus = DissolutionStatus.REQUESTED;
         this.dissolutionReason = reason;
-        this.dissolutionRequestedAt = LocalDateTime.now();
+        this.dissolutionRequestedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
     public void approveDissolution() {
         this.dissolutionStatus = DissolutionStatus.APPROVED;
-        this.dissolutionApprovedAt = LocalDateTime.now();
+        this.dissolutionApprovedAt = OffsetDateTime.now(ZoneOffset.UTC);
         this.scheduledDeleteAt = this.dissolutionApprovedAt.plusDays(1);
     }
 
@@ -191,7 +192,7 @@ public class Organization extends BaseEntity {
 
     public void sanctionDeletion() {
         this.dissolutionStatus = DissolutionStatus.APPROVED;
-        this.dissolutionApprovedAt = LocalDateTime.now();
+        this.dissolutionApprovedAt = OffsetDateTime.now(ZoneOffset.UTC);
         this.scheduledDeleteAt = this.dissolutionApprovedAt.plusDays(1);
         this.isSanctionDeletion = true;
     }

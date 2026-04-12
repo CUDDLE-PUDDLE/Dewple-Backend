@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.Mbti;
@@ -139,7 +140,7 @@ public class User extends BaseEntity {
     }
 
     public void updateLastLoginAt() {
-        this.lastLoginAt = OffsetDateTime.now();
+        this.lastLoginAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
     public void updateReputationScore(BigDecimal score) {
@@ -147,7 +148,7 @@ public class User extends BaseEntity {
     }
 
     public void markAsDeleted() {
-        this.deletedAt = OffsetDateTime.now();
+        this.deletedAt = OffsetDateTime.now(ZoneOffset.UTC);
         this.inactivate();
     }
 
@@ -158,17 +159,17 @@ public class User extends BaseEntity {
 
     public boolean isInDeletionPeriod() {
         return this.deletedAt != null
-                && OffsetDateTime.now().isBefore(this.deletedAt.plusDays(7));
+                && OffsetDateTime.now(ZoneOffset.UTC).isBefore(this.deletedAt.plusDays(7));
     }
 
     public void changeUserId(String newUserId) {
         this.userId = newUserId;
-        this.userIdChangedAt = OffsetDateTime.now();
+        this.userIdChangedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
     public boolean canChangeUserId() {
         if (this.userIdChangedAt == null) return true;
-        return OffsetDateTime.now().isAfter(this.userIdChangedAt.plusDays(7));
+        return OffsetDateTime.now(ZoneOffset.UTC).isAfter(this.userIdChangedAt.plusDays(7));
     }
 
     public void markEmailVerified() {

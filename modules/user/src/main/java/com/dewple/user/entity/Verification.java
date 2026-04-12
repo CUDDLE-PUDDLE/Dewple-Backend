@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import com.dewple.common.entity.BaseEntity;
@@ -67,12 +68,12 @@ public class Verification extends BaseEntity {
         this.target = target;
         this.code = code;
         this.purpose = purpose;
-        this.tokenExpireAt = OffsetDateTime.now().plusMinutes(CODE_EXPIRATION_MINUTES);
+        this.tokenExpireAt = OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(CODE_EXPIRATION_MINUTES);
         this.isVerified = false;
     }
 
     public boolean isExpired() {
-        return OffsetDateTime.now().isAfter(tokenExpireAt);
+        return OffsetDateTime.now(ZoneOffset.UTC).isAfter(tokenExpireAt);
     }
 
     public boolean verifyCode(String inputCode) {
@@ -82,13 +83,13 @@ public class Verification extends BaseEntity {
     public void markAsVerified() {
         this.isVerified = true;
         this.token = "vp_" + UUID.randomUUID();
-        this.tokenExpireAt = OffsetDateTime.now().plusMinutes(TOKEN_VALID_MINUTES);
+        this.tokenExpireAt = OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(TOKEN_VALID_MINUTES);
     }
 
     public boolean isTokenValid() {
         return isVerified
                 && token != null
                 && tokenExpireAt != null
-                && OffsetDateTime.now().isBefore(tokenExpireAt);
+                && OffsetDateTime.now(ZoneOffset.UTC).isBefore(tokenExpireAt);
     }
 }

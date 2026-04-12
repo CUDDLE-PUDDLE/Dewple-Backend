@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "refresh_tokens")
@@ -38,6 +39,6 @@ public class RefreshToken extends BaseEntity {
     }
 
     public boolean isExpired() {
-        return OffsetDateTime.now().isAfter(expireAt);
+        return OffsetDateTime.now(ZoneOffset.UTC).isAfter(expireAt);
     }
 }

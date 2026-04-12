@@ -25,7 +25,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Slf4j
@@ -413,7 +414,7 @@ public class ClubService {
         }
 
         if (club.getScheduledDeleteAt() != null
-                && LocalDateTime.now().isAfter(club.getScheduledDeleteAt())) {
+                && OffsetDateTime.now(ZoneOffset.UTC).isAfter(club.getScheduledDeleteAt())) {
             throw new BusinessException(ClubErrorCode.DELETION_GRACE_PERIOD_EXPIRED);
         }
 

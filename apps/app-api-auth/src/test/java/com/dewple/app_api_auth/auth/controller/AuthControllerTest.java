@@ -33,6 +33,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -611,7 +612,7 @@ class AuthControllerTest {
             RefreshToken storedToken = RefreshToken.builder()
                     .user(user)
                     .token("valid-refresh-token")
-                    .expireAt(OffsetDateTime.now().plusDays(7))
+                    .expireAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(7))
                     .build();
 
             given(jwtDecoder.decode("valid-refresh-token")).willReturn(decodedJwt);
@@ -718,7 +719,7 @@ class AuthControllerTest {
                 .code("A1B2C3")
                 .purpose(VerificationPurpose.SIGN_UP)
                 .build();
-        ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now());
+        ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now(ZoneOffset.UTC));
         return verification;
     }
 
@@ -729,7 +730,7 @@ class AuthControllerTest {
                 .code("A1B2C3")
                 .purpose(VerificationPurpose.SIGN_UP)
                 .build();
-        ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now());
+        ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now(ZoneOffset.UTC));
         return verification;
     }
 

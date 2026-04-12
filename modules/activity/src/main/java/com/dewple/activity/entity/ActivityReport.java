@@ -13,6 +13,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "activity_report")
@@ -62,11 +63,11 @@ public class ActivityReport extends BaseEntity {
 
     public void resolve() {
         this.reportStatus = ReportStatus.RESOLVED;
-        this.resolvedAt = OffsetDateTime.now();
+        this.resolvedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
     public void dismiss() {
         this.reportStatus = ReportStatus.DISMISSED;
-        this.resolvedAt = OffsetDateTime.now();
+        this.resolvedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 }

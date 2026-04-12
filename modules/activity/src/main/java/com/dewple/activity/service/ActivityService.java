@@ -35,6 +35,7 @@ import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.enums.OpenType;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -69,7 +70,7 @@ public class ActivityService {
             throw new BusinessException(ActivityErrorCode.ACTIVITY_END_BEFORE_START);
         }
 
-        if (param.startAt().isBefore(OffsetDateTime.now())) {
+        if (param.startAt().isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
             throw new BusinessException(ActivityErrorCode.ACTIVITY_START_IN_PAST);
         }
 
@@ -325,14 +326,14 @@ public class ActivityService {
         Activity activity = findActiveActivity(activityId);
 
         // #18: 모임 시작 후 취소 불가
-        if (activity.getStartAt().isBefore(OffsetDateTime.now())) {
+        if (activity.getStartAt().isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
             throw new BusinessException(ActivityErrorCode.ACTIVITY_ALREADY_STARTED);
         }
 
         // #18: cancelDeadlineDays 기반 기한 체크
         OffsetDateTime cancelDeadline = activity.getStartAt()
                 .minusDays(activity.getCancelDeadlineDays());
-        if (OffsetDateTime.now().isAfter(cancelDeadline)) {
+        if (OffsetDateTime.now(ZoneOffset.UTC).isAfter(cancelDeadline)) {
             throw new BusinessException(ActivityErrorCode.CANCEL_DEADLINE_EXCEEDED);
         }
 
@@ -364,7 +365,7 @@ public class ActivityService {
         if (activity.getHasApplicationForm()) {
             throw new BusinessException(ActivityErrorCode.NOT_FIRST_COME_ACTIVITY);
         }
-        if (activity.getStartAt().isBefore(OffsetDateTime.now())) {
+        if (activity.getStartAt().isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
             throw new BusinessException(ActivityErrorCode.ACTIVITY_ALREADY_STARTED);
         }
         if (activity.getCreator().getId().equals(userId)) {
@@ -478,7 +479,7 @@ public class ActivityService {
     @Transactional
     public int cancelActivitiesAutomatically() {
         List<Activity> candidates = activityRepository.findByLifecycleStatusAndStartAtBefore(
-                ActivityLifecycleStatus.RECRUITING, OffsetDateTime.now());
+                ActivityLifecycleStatus.RECRUITING, OffsetDateTime.now(ZoneOffset.UTC));
 
         int cancelledCount = 0;
         for (Activity activity : candidates) {
@@ -532,7 +533,7 @@ public class ActivityService {
     public int endActivitiesAutomatically() {
         List<Activity> candidates = activityRepository.findByLifecycleStatusInAndEndAtBefore(
                 List.of(ActivityLifecycleStatus.RECRUITING, ActivityLifecycleStatus.IN_PROGRESS),
-                OffsetDateTime.now());
+                OffsetDateTime.now(ZoneOffset.UTC));
 
         for (Activity activity : candidates) {
             activity.markEnded();
@@ -563,7 +564,7 @@ public class ActivityService {
      */
     @Transactional
     public int deleteEndedActivitiesAutomatically() {
-        OffsetDateTime sevenDaysAgo = OffsetDateTime.now().minusDays(7);
+        OffsetDateTime sevenDaysAgo = OffsetDateTime.now(ZoneOffset.UTC).minusDays(7);
         List<Activity> candidates = activityRepository.findByLifecycleStatusAndEndAtBefore(
                 ActivityLifecycleStatus.ENDED, sevenDaysAgo);
 
