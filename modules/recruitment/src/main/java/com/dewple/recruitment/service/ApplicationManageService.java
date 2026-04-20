@@ -27,7 +27,7 @@ public class ApplicationManageService {
     private final ApplicationRepository applicationRepository;
     private final RecruitmentPostingRepository recruitmentPostingRepository;
 
-    @RequireClubPermission(Permission.MANAGE_RECRUITMENT)
+    @RequireClubPermission(Permission.VIEW_APPLICATION)
     @Transactional(readOnly = true)
     public Page<ApplicationListResult> getApplicationList(Long clubId, Long userId, Long postingId,
                                                           ApplicationStatus status, String keyword,
@@ -40,7 +40,7 @@ public class ApplicationManageService {
         return applications.map(this::toListResult);
     }
 
-    @RequireClubPermission(Permission.MANAGE_RECRUITMENT)
+    @RequireClubPermission(Permission.VIEW_APPLICATION)
     @Transactional(readOnly = true)
     public ApplicationDetailResult getApplicationDetail(Long clubId, Long userId, Long postingId, Long applicationId) {
         findAndValidatePosting(postingId, clubId);
@@ -90,42 +90,20 @@ public class ApplicationManageService {
     }
 
     private ApplicationListResult toListResult(Application application) {
-        String name;
-        String phone;
-
-        if (application.getApplicant() != null) {
-            name = application.getApplicant().getName();
-            phone = application.getApplicant().getPhone();
-        } else {
-            name = "비회원";
-            phone = application.getGuestPhone();
-        }
-
         return new ApplicationListResult(
                 application.getId(),
-                name,
-                phone,
+                application.getApplicant().getName(),
+                application.getApplicant().getPhone(),
                 application.getCreatedAt(),
                 application.getApplicationStatus()
         );
     }
 
     private ApplicationDetailResult toDetailResult(Application application) {
-        String name;
-        String phone;
-
-        if (application.getApplicant() != null) {
-            name = application.getApplicant().getName();
-            phone = application.getApplicant().getPhone();
-        } else {
-            name = "비회원";
-            phone = application.getGuestPhone();
-        }
-
         return new ApplicationDetailResult(
                 application.getId(),
-                name,
-                phone,
+                application.getApplicant().getName(),
+                application.getApplicant().getPhone(),
                 application.getAnswers(),
                 application.getCreatedAt(),
                 application.getApplicationStatus()

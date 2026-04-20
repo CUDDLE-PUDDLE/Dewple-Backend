@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 public class SmsSender {
 
     private static final String MESSAGE_TEMPLATE = "[듀플] 인증번호 [%s]를 입력해주세요.";
+    private static final String TEMP_PASSWORD_TEMPLATE = "[듀플] 임시 비밀번호: %s\n로그인 후 반드시 비밀번호를 변경해주세요.";
 
     private final String apiKey;
     private final String apiSecret;
@@ -57,6 +58,26 @@ public class SmsSender {
             log.info("SMS 발송 완료: phone={}", maskPhone(phone));
         } catch (Exception e) {
             log.error("SMS 발송 실패: phone={}", maskPhone(phone), e);
+            throw new RuntimeException("SMS 발송 실패", e);
+        }
+    }
+
+    public void sendTemporaryPassword(String phone, String temporaryPassword) {
+        if (messageService == null) {
+            log.warn("SOLAPI 설정이 없어 실제 발송을 건너뜁니다. phone={}, temporaryPassword={}", maskPhone(phone), temporaryPassword);
+            return;
+        }
+
+        Message message = new Message();
+        message.setFrom(senderPhone);
+        message.setTo(phone);
+        message.setText(String.format(TEMP_PASSWORD_TEMPLATE, temporaryPassword));
+
+        try {
+            messageService.sendOne(new SingleMessageSendingRequest(message));
+            log.info("임시 비밀번호 SMS 발송 완료: phone={}", maskPhone(phone));
+        } catch (Exception e) {
+            log.error("임시 비밀번호 SMS 발송 실패: phone={}", maskPhone(phone), e);
             throw new RuntimeException("SMS 발송 실패", e);
         }
     }

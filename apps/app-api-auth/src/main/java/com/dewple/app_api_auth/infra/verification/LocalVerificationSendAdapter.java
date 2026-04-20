@@ -19,4 +19,9 @@ public class LocalVerificationSendAdapter implements VerificationSendPort {
     public void sendVerificationCode(VerificationType type, String target, String code) {
         log.info("[LOCAL] 인증 코드 발송 (실제 발송 없음): type={}, target={}, code={}", type, target, code);
     }
+
+    @Override
+    public void sendTemporaryPassword(String phone, String temporaryPassword) {
+        log.info("[LOCAL] 임시 비밀번호 발송 (실제 발송 없음): phone={}, temporaryPassword={}", phone, temporaryPassword);
+    }
 }

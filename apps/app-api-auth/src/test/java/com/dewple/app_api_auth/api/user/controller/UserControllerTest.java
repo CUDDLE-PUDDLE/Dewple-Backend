@@ -7,7 +7,7 @@ import com.dewple.common.enums.Mbti;
 import com.dewple.common.enums.University;
 import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.service.EditMyProfileParam;
+import com.dewple.common.exception.CommonErrorCode;import com.dewple.user.service.EditMyProfileParam;
 import com.dewple.user.service.MyProfileResult;
 import com.dewple.user.service.UpdateProfileParam;
 import com.dewple.user.service.UserProfileResult;
@@ -174,13 +174,13 @@ class UserControllerTest {
         void failWithUserNotFound() throws Exception {
             // given
             given(userService.getMyProfile(999L))
-                    .willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                    .willThrow(new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
             // when & then
             mockMvc.perform(get("/users/me")
                             .with(jwt().jwt(j -> j.subject("999"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(4201));
+                    .andExpect(jsonPath("$.code").value(9001));
         }
     }
 
@@ -198,7 +198,8 @@ class UserControllerTest {
                             "https://example.com/img.jpg",
                             "안녕하세요",
                             "INTJ",
-                            List.of("개발", "디자인")
+                            List.of("개발", "디자인"),
+                            null
                     ));
 
             // when & then
@@ -222,7 +223,7 @@ class UserControllerTest {
             // given
             given(userService.getUserProfile(1L))
                     .willReturn(new UserProfileResult(
-                            "홍길동", null, null, null, Collections.emptyList()
+                            "홍길동", null, null, null, Collections.emptyList(), null
                     ));
 
             // when & then
@@ -244,7 +245,7 @@ class UserControllerTest {
             // given
             given(userService.getUserProfile(1L))
                     .willReturn(new UserProfileResult(
-                            "홍길동", null, "자기소개입니다", "ENFP", Collections.emptyList()
+                            "홍길동", null, "자기소개입니다", "ENFP", Collections.emptyList(), null
                     ));
 
             // when & then
@@ -268,13 +269,13 @@ class UserControllerTest {
         void failWithUserNotFound() throws Exception {
             // given
             given(userService.getUserProfile(999L))
-                    .willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                    .willThrow(new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
             // when & then
             mockMvc.perform(get("/users/999")
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(4201));
+                    .andExpect(jsonPath("$.code").value(9001));
         }
     }
 
@@ -427,21 +428,21 @@ class UserControllerTest {
             mockMvc.perform(delete("/users/me")
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isForbidden())
-                    .andExpect(jsonPath("$.code").value(4203));
+                    .andExpect(jsonPath("$.code").value(4202));
         }
 
         @Test
         @DisplayName("실패: 존재하지 않는 사용자")
         void failWithUserNotFound() throws Exception {
             // given
-            willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND))
+            willThrow(new BusinessException(CommonErrorCode.USER_NOT_FOUND))
                     .given(userService).withdraw(eq(999L));
 
             // when & then
             mockMvc.perform(delete("/users/me")
                             .with(jwt().jwt(j -> j.subject("999"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(4201));
+                    .andExpect(jsonPath("$.code").value(9001));
         }
     }
 
@@ -492,21 +493,6 @@ class UserControllerTest {
                     .andExpect(status().isUnauthorized());
         }
 
-        @Test
-        @DisplayName("실패: 이미 사용 중인 닉네임")
-        void failWithNicknameAlreadyExists() throws Exception {
-            // given
-            given(userService.updateProfile(eq(1L), any(UpdateProfileParam.class)))
-                    .willThrow(new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS));
-
-            // when & then
-            mockMvc.perform(patch("/users/me/profile")
-                            .with(jwt().jwt(j -> j.subject("1")))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"nickname\":\"듀플러\"}"))
-                    .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.code").value(4103));
-        }
     }
 
     @Nested
@@ -586,27 +572,11 @@ class UserControllerTest {
         }
 
         @Test
-        @DisplayName("실패: 닉네임 중복")
-        void failWithNicknameAlreadyExists() throws Exception {
-            // given
-            given(userService.editMyProfile(eq(1L), any(EditMyProfileParam.class)))
-                    .willThrow(new BusinessException(UserErrorCode.NICKNAME_ALREADY_EXISTS));
-
-            // when & then
-            mockMvc.perform(patch("/users/me")
-                            .with(jwt().jwt(j -> j.subject("1")))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"nickname\":\"중복닉네임\"}"))
-                    .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.code").value(4103));
-        }
-
-        @Test
         @DisplayName("실패: 존재하지 않는 카테고리")
         void failWithCategoryNotFound() throws Exception {
             // given
             given(userService.editMyProfile(eq(1L), any(EditMyProfileParam.class)))
-                    .willThrow(new BusinessException(UserErrorCode.CATEGORY_NOT_FOUND));
+                    .willThrow(new BusinessException(CommonErrorCode.CATEGORY_NOT_FOUND));
 
             // when & then
             mockMvc.perform(patch("/users/me")
@@ -614,7 +584,7 @@ class UserControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"categoryIds\":[999]}"))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(4400));
+                    .andExpect(jsonPath("$.code").value(9002));
         }
 
         @Test

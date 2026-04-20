@@ -24,10 +24,10 @@ class VerificationSendListenerTest {
     private VerificationSendListener verificationSendListener;
 
     @Test
-    @DisplayName("성공: PHONE 메시지 수신 시 SmsSender 호출")
+    @DisplayName("성공: PHONE 인증 코드 메시지 수신 시 SmsSender.send 호출")
     void handlePhoneMessage() {
         // given
-        VerificationSendMessage message = new VerificationSendMessage(
+        VerificationSendMessage message = VerificationSendMessage.verificationCode(
                 VerificationType.PHONE, "01012345678", "123456");
 
         // when
@@ -38,10 +38,10 @@ class VerificationSendListenerTest {
     }
 
     @Test
-    @DisplayName("성공: EMAIL 메시지 수신 시 EmailSender 호출")
+    @DisplayName("성공: EMAIL 인증 코드 메시지 수신 시 EmailSender.send 호출")
     void handleEmailMessage() {
         // given
-        VerificationSendMessage message = new VerificationSendMessage(
+        VerificationSendMessage message = VerificationSendMessage.verificationCode(
                 VerificationType.EMAIL, "test@example.com", "654321");
 
         // when
@@ -49,5 +49,19 @@ class VerificationSendListenerTest {
 
         // then
         verify(emailSender).send("test@example.com", "654321");
+    }
+
+    @Test
+    @DisplayName("성공: 임시 비밀번호 메시지 수신 시 SmsSender.sendTemporaryPassword 호출")
+    void handleTemporaryPasswordMessage() {
+        // given
+        VerificationSendMessage message = VerificationSendMessage.temporaryPassword(
+                "01012345678", "TempPw1!abcd");
+
+        // when
+        verificationSendListener.handle(message);
+
+        // then
+        verify(smsSender).sendTemporaryPassword("01012345678", "TempPw1!abcd");
     }
 }

@@ -109,7 +109,7 @@ class RecruitmentControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(createValidRequest())))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5001));
+                    .andExpect(jsonPath("$.code").value(5101));
         }
     }
 
@@ -175,7 +175,7 @@ class RecruitmentControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(createValidRequest())))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5008));
+                    .andExpect(jsonPath("$.code").value(5108));
         }
     }
 
@@ -212,7 +212,7 @@ class RecruitmentControllerTest {
             mockMvc.perform(post("/clubs/{clubId}/recruitment-posts/{postingId}/publish", 1L, 999L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5007));
+                    .andExpect(jsonPath("$.code").value(5107));
         }
     }
 
@@ -253,24 +253,9 @@ class RecruitmentControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(createValidUpdateRequest())))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5010));
+                    .andExpect(jsonPath("$.code").value(5110));
         }
 
-        @Test
-        @DisplayName("실패: 서비스에서 FORM_COMPONENT_REMOVAL_NOT_ALLOWED → 400, code=5009")
-        void failWithFormComponentRemovalNotAllowed() throws Exception {
-            // given
-            willThrow(new BusinessException(RecruitmentErrorCode.FORM_COMPONENT_REMOVAL_NOT_ALLOWED))
-                    .given(recruitmentService).updateRecruitment(eq(1L), eq(1L), eq(10L), any());
-
-            // when & then
-            mockMvc.perform(patch("/clubs/{clubId}/recruitment-posts/{postingId}", 1L, 10L)
-                            .with(jwt().jwt(j -> j.subject("1")))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(createValidUpdateRequest())))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5009));
-        }
     }
 
     @Nested
@@ -327,7 +312,7 @@ class RecruitmentControllerTest {
         void success() throws Exception {
             // given
             RecruitmentPosting posting = createMockPosting(10L, 1L);
-            given(recruitmentService.closeRecruitment(1L, 1L, 10L)).willReturn(posting);
+            given(recruitmentService.closeRecruitment(eq(1L), eq(1L), eq(10L), any())).willReturn(posting);
 
             // when & then
             mockMvc.perform(post("/clubs/{clubId}/recruitment-posts/{postingId}/close", 1L, 10L)
@@ -337,7 +322,7 @@ class RecruitmentControllerTest {
                     .andExpect(jsonPath("$.result.postingId").value(10))
                     .andExpect(jsonPath("$.result.version").value(1));
 
-            verify(recruitmentService).closeRecruitment(1L, 1L, 10L);
+            verify(recruitmentService).closeRecruitment(eq(1L), eq(1L), eq(10L), any());
         }
 
         @Test
@@ -345,13 +330,13 @@ class RecruitmentControllerTest {
         void failWithPostingAlreadyClosed() throws Exception {
             // given
             willThrow(new BusinessException(RecruitmentErrorCode.POSTING_ALREADY_CLOSED))
-                    .given(recruitmentService).closeRecruitment(1L, 1L, 10L);
+                    .given(recruitmentService).closeRecruitment(eq(1L), eq(1L), eq(10L), any());
 
             // when & then
             mockMvc.perform(post("/clubs/{clubId}/recruitment-posts/{postingId}/close", 1L, 10L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5011));
+                    .andExpect(jsonPath("$.code").value(5111));
         }
     }
 
@@ -380,7 +365,7 @@ class RecruitmentControllerTest {
             // when & then
             mockMvc.perform(post("/recruitment-posts/{postingId}/view", 999L))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5007));
+                    .andExpect(jsonPath("$.code").value(5107));
         }
     }
 
@@ -416,7 +401,7 @@ class RecruitmentControllerTest {
             mockMvc.perform(get("/clubs/{clubId}/recruitment-posts", 1L)
                             .param("status", "INVALID"))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5013));
+                    .andExpect(jsonPath("$.code").value(5113));
         }
     }
 
@@ -450,7 +435,7 @@ class RecruitmentControllerTest {
             // when & then
             mockMvc.perform(get("/clubs/{clubId}/recruitment-posts/{postingId}", 1L, 999L))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5007));
+                    .andExpect(jsonPath("$.code").value(5107));
         }
     }
 
@@ -487,7 +472,7 @@ class RecruitmentControllerTest {
             mockMvc.perform(delete("/clubs/{clubId}/recruitment-posts/{postingId}", 1L, 999L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5007));
+                    .andExpect(jsonPath("$.code").value(5107));
         }
     }
 
@@ -497,12 +482,10 @@ class RecruitmentControllerTest {
         RecruitmentPosting posting = RecruitmentPosting.builder()
                 .title("테스트 공고")
                 .recentRecruitmentVersion(version)
-                .startAt(java.time.OffsetDateTime.now())
-                .endAt(java.time.OffsetDateTime.now().plusDays(30))
-                .editWindowBasis(com.dewple.common.enums.EditWindowBasis.SUBMITTED)
-                .editWindowDays(0)
+                .startAt(java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC))
+                .endAt(java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).plusDays(30))
                 .recruitmentStatus(com.dewple.common.enums.RecruitmentStatus.OPEN)
-                .isInterviewRequired(false)
+                .hasSecondInterview(false)
                 .build();
         ReflectionTestUtils.setField(posting, "id", id);
         return posting;
@@ -512,9 +495,10 @@ class RecruitmentControllerTest {
         return new com.dewple.recruitment.service.PublicPostingDetailResult(
                 id, 1L, "테스트 동아리", 1, "테스트 공고",
                 "[{\"text\":\"본문\"}]", null, 5,
-                java.time.OffsetDateTime.now(), java.time.OffsetDateTime.now().plusDays(30),
+                java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC), java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).plusDays(30),
                 java.time.LocalDate.of(2026, 4, 5), java.time.LocalDate.of(2026, 8, 31),
-                false, List.of(), List.of(), null, 0L,
+                false, "01012345678", java.time.LocalDate.of(2026, 4, 1),
+                List.of(), List.of(), null, 0L,
                 com.dewple.common.enums.RecruitmentStatus.OPEN
         );
     }
@@ -533,8 +517,9 @@ class RecruitmentControllerTest {
         request.put("endDate", "2026-03-15");
         request.put("resultDate", "2026-03-20");
         request.put("endOfGenerationDate", "2026-12-31");
-        request.put("isInterviewRequired", false);
+        request.put("hasSecondInterview", false);
         request.put("applicationForm", createValidApplicationForm());
+        request.put("emergencyContact", "01012345678");
         return request;
     }
 

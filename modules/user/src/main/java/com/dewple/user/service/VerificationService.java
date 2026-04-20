@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Slf4j
@@ -124,7 +125,7 @@ public class VerificationService {
                     OffsetDateTime cooldownEnd = verification.getCreatedAt()
                             .plusSeconds(REQUEST_COOLDOWN_SECONDS);
 
-                    if (OffsetDateTime.now().isBefore(cooldownEnd)) {
+                    if (OffsetDateTime.now(ZoneOffset.UTC).isBefore(cooldownEnd)) {
                         throw new BusinessException(UserErrorCode.TOO_MANY_VERIFICATION_REQUESTS);
                     }
                 });

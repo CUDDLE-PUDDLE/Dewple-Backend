@@ -46,8 +46,14 @@ public record RecruitmentPostingDetailResponse(
         @Schema(description = "활동 종료일")
         LocalDate endOfGenerationDate,
 
-        @Schema(description = "면접 필수 여부")
-        Boolean isInterviewRequired,
+        @Schema(description = "2차 면접 여부")
+        Boolean hasSecondInterview,
+
+        @Schema(description = "비상연락처", example = "01012345678")
+        String emergencyContact,
+
+        @Schema(description = "1차 합격 공고일")
+        LocalDate firstAnnouncementDate,
 
         @Schema(description = "모집 부서 목록")
         List<DepartmentInfo> departments,

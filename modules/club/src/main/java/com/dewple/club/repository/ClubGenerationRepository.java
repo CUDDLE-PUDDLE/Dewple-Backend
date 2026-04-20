@@ -10,4 +10,6 @@ import java.util.Optional;
 public interface ClubGenerationRepository extends JpaRepository<ClubGeneration, Long> {
 
     Optional<ClubGeneration> findByClubIdAndGenerationNo(Long clubId, Integer generationNo);
+
+    Optional<ClubGeneration> findFirstByClubIdOrderByGenerationNoDesc(Long clubId);
 }

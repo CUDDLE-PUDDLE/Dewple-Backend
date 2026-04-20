@@ -15,12 +15,13 @@ public interface ApplicationRepositoryCustom {
     Optional<Application> findByPostingIdAndApplicantIdAndStatuses(
             Long postingId, Long applicantId, List<ApplicationStatus> statuses);
 
-    Optional<Application> findByPostingIdAndGuestPhoneAndStatuses(
-            Long postingId, String guestPhone, List<ApplicationStatus> statuses);
-
     List<Application> findAllByApplicantIdWithPostingAndClub(Long applicantId);
 
     Optional<Application> findActiveByIdAndPostingId(Long applicationId, Long postingId);
 
     List<Application> findActiveAllByIdsAndPostingId(List<Long> applicationIds, Long postingId);
+
+    long countByPostingIdAndStatus(Long postingId, ApplicationStatus status);
+
+    List<Application> findActiveByPostingIdAndStatus(Long postingId, ApplicationStatus status);
 }

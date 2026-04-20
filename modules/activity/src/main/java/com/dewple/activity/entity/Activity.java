@@ -13,6 +13,7 @@ import com.dewple.common.entity.Category;
 import com.dewple.common.entity.Club;
 import com.dewple.common.entity.Region;
 import com.dewple.common.entity.User;
+import com.dewple.common.enums.ActivityLifecycleStatus;
 import com.dewple.common.enums.ActivityType;
 import com.dewple.common.enums.AttendanceCheckMethod;
 import com.dewple.common.enums.Gender;
@@ -110,6 +111,9 @@ public class Activity extends BaseEntity {
     @Column(name = "invite_code", length = 36, unique = true)
     private String inviteCode;
 
+    @Column(name = "manager_invite_code", length = 36, unique = true)
+    private String managerInviteCode;
+
     @Column(name = "emergency_contact", length = 100)
     private String emergencyContact;
 
@@ -128,6 +132,10 @@ public class Activity extends BaseEntity {
     @Column(name = "has_application_form", nullable = false)
     private Boolean hasApplicationForm = false;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "lifecycle_status", nullable = false, length = 20)
+    private ActivityLifecycleStatus lifecycleStatus = ActivityLifecycleStatus.RECRUITING;
+
     @Builder
     public Activity(Club club, Organization organization, User creator, OpenType openType,
                     String name, String description, Integer capacity,
@@ -137,7 +145,8 @@ public class Activity extends BaseEntity {
                     Category category, Region region, ActivityType activityType,
                     Boolean isVerificationRequired, Integer minAge, Integer maxAge,
                     Gender gender, String thumbnailUrl, String inviteCode,
-                    String emergencyContact, Integer cancelDeadlineDays,
+                    String managerInviteCode, String emergencyContact,
+                    Integer cancelDeadlineDays,
                     OffsetDateTime applicationDeadline, OffsetDateTime resultDate,
                     Boolean hasApplicationForm) {
         this.club = club;
@@ -161,11 +170,31 @@ public class Activity extends BaseEntity {
         this.gender = gender != null ? gender : Gender.ANY;
         this.thumbnailUrl = thumbnailUrl;
         this.inviteCode = inviteCode;
+        this.managerInviteCode = managerInviteCode;
         this.emergencyContact = emergencyContact;
         this.cancelDeadlineDays = cancelDeadlineDays != null ? cancelDeadlineDays : 1;
         this.applicationDeadline = applicationDeadline;
         this.resultDate = resultDate;
         this.hasApplicationForm = hasApplicationForm != null ? hasApplicationForm : false;
+        this.lifecycleStatus = ActivityLifecycleStatus.RECRUITING;
+    }
+
+    public void cancel() {
+        this.lifecycleStatus = ActivityLifecycleStatus.CANCELLED;
+        this.inactivate();
+    }
+
+    public void markEnded() {
+        this.lifecycleStatus = ActivityLifecycleStatus.ENDED;
+    }
+
+    public void markDeleted() {
+        this.lifecycleStatus = ActivityLifecycleStatus.DELETED;
+        this.inactivate();
+    }
+
+    public void startProgress() {
+        this.lifecycleStatus = ActivityLifecycleStatus.IN_PROGRESS;
     }
 
     public void increaseLikeCount() {
@@ -176,5 +205,9 @@ public class Activity extends BaseEntity {
         if (this.likeCount > 0) {
             this.likeCount--;
         }
+    }
+
+    public void changeCreator(User newCreator) {
+        this.creator = newCreator;
     }
 }

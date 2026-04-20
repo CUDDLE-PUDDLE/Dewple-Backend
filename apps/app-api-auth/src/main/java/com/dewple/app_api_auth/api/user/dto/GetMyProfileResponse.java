@@ -5,6 +5,7 @@ import com.dewple.common.enums.Mbti;
 import com.dewple.common.enums.University;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -47,6 +48,9 @@ public record GetMyProfileResponse(
         Mbti mbti,
 
         @Schema(description = "관심 분야 목록")
-        List<String> interests
+        List<String> interests,
+
+        @Schema(description = "별점 (null이면 평가 없음)", example = "4.2")
+        BigDecimal star
 ) {
 }

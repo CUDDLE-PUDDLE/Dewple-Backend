@@ -3,7 +3,6 @@ description = 'Activity Module - 활동 도메인 (공고, 지원서, 참여 관
 dependencies {
     implementation project(":modules:common")
     implementation project(":modules:club")
-    implementation project(":modules:user")
     implementation project(":modules:organization")
 
     // Web (HttpStatus - ErrorCode 구현용)

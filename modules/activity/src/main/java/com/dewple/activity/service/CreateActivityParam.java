@@ -16,6 +16,8 @@ public record CreateActivityParam(
         Boolean isSearchable,
         OffsetDateTime startAt,
         OffsetDateTime endAt,
+        String emergencyContact,
+        Integer cancelDeadlineDays,
         Long categoryId,
         Long regionId,
         ActivityType activityType,

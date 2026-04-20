@@ -10,6 +10,7 @@ import java.util.List;
 public record EditMyProfileParam(
         String nickname,
         String email,
+        String emailVerificationToken,
         LocalDate birthdate,
         Gender gender,
         University university,

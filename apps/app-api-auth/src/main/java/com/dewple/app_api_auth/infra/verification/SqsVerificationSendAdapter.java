@@ -31,8 +31,15 @@ public class SqsVerificationSendAdapter implements VerificationSendPort {
 
     @Override
     public void sendVerificationCode(VerificationType type, String target, String code) {
-        VerificationSendMessage message = new VerificationSendMessage(type, target, code);
+        VerificationSendMessage message = VerificationSendMessage.verificationCode(type, target, code);
         sqsTemplate.send(queueName, message);
         log.info("SQS 인증 코드 메시지 발행: type={}, target={}", type, target);
+    }
+
+    @Override
+    public void sendTemporaryPassword(String phone, String temporaryPassword) {
+        VerificationSendMessage message = VerificationSendMessage.temporaryPassword(phone, temporaryPassword);
+        sqsTemplate.send(queueName, message);
+        log.info("SQS 임시 비밀번호 메시지 발행: phone={}", phone);
     }
 }

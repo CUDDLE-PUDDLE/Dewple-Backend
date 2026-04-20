@@ -1,0 +1,231 @@
+package com.dewple.app_api_auth.api.club.controller;
+
+import static com.dewple.app_api_auth.global.config.SwaggerConfig.BEARER_AUTH;
+
+import com.dewple.app_api_auth.api.club.dto.CreateClubRequest;
+import com.dewple.app_api_auth.api.club.dto.CreateClubResponse;
+import com.dewple.app_api_auth.api.club.dto.GetClubDetailResponse;
+import com.dewple.app_api_auth.api.club.dto.GetClubListResponse;
+import com.dewple.app_api_auth.api.club.dto.GetClubMemberResponse;
+import com.dewple.app_api_auth.api.club.dto.InviteGuestRequest;
+import com.dewple.app_api_auth.api.club.dto.PromoteToMemberRequest;
+import com.dewple.app_api_auth.api.club.dto.UpdateClubRequest;
+import com.dewple.app_api_auth.api.club.dto.UpdateClubSettingsRequest;
+import com.dewple.app_api_auth.global.response.ApiResponse;
+import com.dewple.app_api_auth.global.response.SliceResponse;
+import com.dewple.app_api_auth.global.security.CurrentUserId;
+import com.dewple.club.service.ClubDetailResult;
+import com.dewple.club.service.ClubService;
+import com.dewple.club.service.ClubSummaryResult;
+import com.dewple.club.service.CreateClubParam;
+import com.dewple.club.service.CreateClubResult;
+import com.dewple.club.service.GetClubListParam;
+import com.dewple.club.service.ClubMemberResult;
+import com.dewple.club.service.InviteGuestParam;
+import com.dewple.club.service.PromoteToMemberParam;
+import com.dewple.club.service.UpdateClubParam;
+import com.dewple.club.service.UpdateClubSettingsParam;
+import com.dewple.common.enums.ActivityStatus;
+import com.dewple.common.enums.ActivityType;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@Tag(name = "Club", description = "동아리 API")
+@RestController
+@RequestMapping("/clubs")
+@RequiredArgsConstructor
+public class ClubController {
+
+    private final ClubService clubService;
+
+    @Operation(summary = "동아리 목록 조회", description = "동아리 목록을 조회합니다. 본인인증/카테고리/지역/활동방식으로 필터링하며, 부원+좋아요 합산순으로 정렬합니다.")
+    @GetMapping
+    public ApiResponse<SliceResponse<GetClubListResponse>> getClubList(
+            @Parameter(description = "본인인증 필수 여부") @RequestParam(required = false) Boolean isVerificationRequired,
+            @Parameter(description = "모집중 여부") @RequestParam(required = false) Boolean isRecruiting,
+            @Parameter(description = "카테고리 ID") @RequestParam(required = false) Long categoryId,
+            @Parameter(description = "지역 ID") @RequestParam(required = false) Long regionId,
+            @Parameter(description = "활동 방식") @RequestParam(required = false) ActivityType activityType,
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        GetClubListParam param = new GetClubListParam(
+                isVerificationRequired, isRecruiting, categoryId, regionId, activityType, pageable
+        );
+        Slice<ClubSummaryResult> results = clubService.getClubList(param);
+        Slice<GetClubListResponse> responseSlice = results.map(GetClubListResponse::from);
+        return ApiResponse.ok(SliceResponse.from(responseSlice));
+    }
+
+    @Operation(summary = "동아리 단건 조회", description = "동아리의 기본 정보와 소개페이지를 조회합니다.")
+    @GetMapping("/{clubId}")
+    public ApiResponse<GetClubDetailResponse> getClubDetail(@PathVariable Long clubId) {
+        ClubDetailResult result = clubService.getClubDetail(clubId);
+        return ApiResponse.ok(GetClubDetailResponse.from(result));
+    }
+
+    @Operation(summary = "동아리 회원 목록 조회", description = "동아리 회원 목록을 조회합니다. 동아리 멤버만 조회 가능하며, 상태별 필터링이 가능합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @GetMapping("/{clubId}/members")
+    public ApiResponse<List<GetClubMemberResponse>> getMembers(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @Parameter(description = "활동 상태 필터") @RequestParam(required = false) ActivityStatus activityStatus
+    ) {
+        List<GetClubMemberResponse> responses = clubService.getMembers(userId, clubId, activityStatus).stream()
+                .map(GetClubMemberResponse::from)
+                .toList();
+        return ApiResponse.ok(responses);
+    }
+
+    @Operation(summary = "GUEST 초대", description = "외부인을 GUEST로 초대합니다. 모임 지정이 필수이며, 회원관리(9번) 권한이 필요합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{clubId}/members/guest")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<GetClubMemberResponse> inviteGuest(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @Valid @RequestBody InviteGuestRequest request
+    ) {
+        InviteGuestParam param = new InviteGuestParam(request.userId(), request.activityIds());
+        ClubMemberResult result = clubService.inviteGuest(userId, clubId, param);
+        return ApiResponse.ok(GetClubMemberResponse.from(result));
+    }
+
+    @Operation(summary = "GUEST→MEMBER 승격", description = "GUEST를 정식 멤버로 승격합니다. 기수 지정 및 활동 기한 설정이 필수이며, 회원관리(9번) 권한이 필요합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/{clubId}/members/{memberId}/promote")
+    public ApiResponse<Void> promoteToMember(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @PathVariable Long memberId,
+            @Valid @RequestBody PromoteToMemberRequest request
+    ) {
+        PromoteToMemberParam param = new PromoteToMemberParam(
+                request.generationId(), request.activityEndDate());
+        clubService.promoteToMember(userId, clubId, memberId, param);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "회원 내보내기 신청", description = "회원 내보내기를 신청합니다. 회원관리(9번) 권한 보유자 전원 동의가 필요하며, 1명이면 즉시 내보내기됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{clubId}/members/{memberId}/kick")
+    public ApiResponse<Void> requestKick(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @PathVariable Long memberId
+    ) {
+        clubService.requestKick(userId, clubId, memberId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "회원 내보내기 투표", description = "내보내기 투표에 동의 또는 거부합니다. 거부 시 투표가 즉시 종료됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{clubId}/members/{memberId}/kick/vote")
+    public ApiResponse<Void> voteKick(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @PathVariable Long memberId,
+            @RequestParam boolean approved
+    ) {
+        clubService.voteKick(userId, clubId, memberId, approved);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "동아리 생성", description = "동아리를 생성합니다. 생성자가 자동으로 회장이 됩니다. 회장 동시 운영 최대 5개.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<CreateClubResponse> createClub(
+            @CurrentUserId Long userId,
+            @Valid @RequestBody CreateClubRequest request
+    ) {
+        CreateClubParam param = new CreateClubParam(
+                request.name(), request.isVerificationRequired(),
+                request.activityType(), request.foundedDate(),
+                request.categoryIds(), request.regionIds()
+        );
+
+        CreateClubResult result = clubService.createClub(userId, param);
+        return ApiResponse.ok(CreateClubResponse.from(result));
+    }
+
+    @Operation(summary = "동아리 정보 수정", description = "동아리 기본 정보를 수정합니다. 동아리관리(3번) 권한이 필요합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/{clubId}")
+    public ApiResponse<Void> updateClub(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @Valid @RequestBody UpdateClubRequest request
+    ) {
+        UpdateClubParam param = new UpdateClubParam(
+                request.name(), request.description(), request.coverImg(),
+                request.activityType(), request.foundedDate(),
+                request.categoryIds(), request.regionIds()
+        );
+
+        clubService.updateClub(userId, clubId, param);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "동아리 설정 변경", description = "본인인증 필수/연령대/성별 태그를 변경합니다. 동아리관리(3번) 권한이 필요하며, 활성 모집 공고가 있을 때는 변경 불가합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PatchMapping("/{clubId}/settings")
+    public ApiResponse<Void> updateClubSettings(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @Valid @RequestBody UpdateClubSettingsRequest request
+    ) {
+        UpdateClubSettingsParam param = new UpdateClubSettingsParam(
+                request.isVerificationRequired(), request.gender(),
+                request.minAge(), request.maxAge()
+        );
+
+        clubService.updateClubSettings(userId, clubId, param);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "동아리 삭제 신청", description = "동아리 삭제를 신청합니다. 동아리삭제(11번) 권한 보유자 전원 동의가 필요하며, 1명이면 즉시 승인됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{clubId}/deletion")
+    public ApiResponse<Void> requestDeletion(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId
+    ) {
+        clubService.requestDeletion(userId, clubId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "동아리 삭제 투표", description = "삭제 투표에 동의 또는 거부합니다. 거부 시 투표가 즉시 종료됩니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @PostMapping("/{clubId}/deletion/vote")
+    public ApiResponse<Void> voteDeletion(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId,
+            @RequestParam boolean approved
+    ) {
+        clubService.voteDeletion(userId, clubId, approved);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "동아리 삭제 취소", description = "유예 기간(1일) 중 회장만 삭제를 취소할 수 있습니다. 제재 삭제는 취소 불가합니다.")
+    @SecurityRequirement(name = BEARER_AUTH)
+    @DeleteMapping("/{clubId}/deletion")
+    public ApiResponse<Void> cancelDeletion(
+            @CurrentUserId Long userId,
+            @PathVariable Long clubId
+    ) {
+        clubService.cancelDeletion(userId, clubId);
+        return ApiResponse.ok();
+    }
+}

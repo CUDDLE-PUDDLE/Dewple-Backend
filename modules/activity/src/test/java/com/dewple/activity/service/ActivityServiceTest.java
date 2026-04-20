@@ -7,8 +7,8 @@ import com.dewple.activity.exception.ActivityErrorCode;
 import com.dewple.activity.repository.ActivityInterestRepository;
 import com.dewple.activity.repository.ActivityParticipantRepository;
 import com.dewple.activity.repository.ActivityRepository;
-import com.dewple.activity.repository.CategoryRepository;
-import com.dewple.activity.repository.RegionRepository;
+import com.dewple.common.repository.CategoryRepository;
+import com.dewple.common.repository.RegionRepository;
 import com.dewple.club.entity.ClubMember;
 import com.dewple.club.entity.ClubRole;
 import com.dewple.club.exception.ClubErrorCode;
@@ -25,8 +25,8 @@ import com.dewple.common.enums.BaseStatus;
 import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.enums.Permission;
 import com.dewple.common.exception.BusinessException;
-import com.dewple.user.exception.UserErrorCode;
-import com.dewple.user.repository.UserRepository;
+import com.dewple.common.exception.CommonErrorCode;
+import com.dewple.common.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -41,6 +41,7 @@ import org.springframework.data.domain.SliceImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -85,8 +86,8 @@ class ActivityServiceTest {
 
     private static final Long USER_ID = 1L;
     private static final Long CLUB_ID = 10L;
-    private static final OffsetDateTime START_AT = OffsetDateTime.now().plusDays(7);
-    private static final OffsetDateTime END_AT = OffsetDateTime.now().plusDays(14);
+    private static final OffsetDateTime START_AT = OffsetDateTime.now(ZoneOffset.UTC).plusDays(7);
+    private static final OffsetDateTime END_AT = OffsetDateTime.now(ZoneOffset.UTC).plusDays(14);
 
     @Nested
     @DisplayName("createActivity - 모임 생성")
@@ -102,7 +103,7 @@ class ActivityServiceTest {
             given(activityRepository.save(any(Activity.class))).willAnswer(invocation -> {
                 Activity saved = invocation.getArgument(0);
                 ReflectionTestUtils.setField(saved, "id", 100L);
-                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now());
+                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now(ZoneOffset.UTC));
                 return saved;
             });
 
@@ -117,7 +118,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "봄맞이 독서 모임", "함께 책을 읽어요",
                     20, false, true, START_AT, END_AT,
-                    1L, 1L, ActivityType.OFFLINE, true, 20, 30, Gender.ANY
+                    "010-1234-5678", 1, 1L, 1L, ActivityType.OFFLINE, true, 20, 30, Gender.ANY
             );
 
             // when
@@ -174,14 +175,14 @@ class ActivityServiceTest {
             given(activityRepository.save(any(Activity.class))).willAnswer(invocation -> {
                 Activity saved = invocation.getArgument(0);
                 ReflectionTestUtils.setField(saved, "id", 100L);
-                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now());
+                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now(ZoneOffset.UTC));
                 return saved;
             });
 
             CreateActivityParam param = new CreateActivityParam(
                     CLUB_ID, OpenType.PRIVATE, "동아리 정기 모임", "이번 주 정기 모임입니다",
                     null, true, false, START_AT, END_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when
@@ -212,14 +213,14 @@ class ActivityServiceTest {
             given(activityRepository.save(any(Activity.class))).willAnswer(invocation -> {
                 Activity saved = invocation.getArgument(0);
                 ReflectionTestUtils.setField(saved, "id", 100L);
-                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now());
+                ReflectionTestUtils.setField(saved, "createdAt", OffsetDateTime.now(ZoneOffset.UTC));
                 return saved;
             });
 
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "오픈 모임", "누구나 환영",
                     null, null, null, START_AT, END_AT,
-                    null, null, null, null, null, null, null
+                    null, null, null, null, null, null, null, null, null
             );
 
             // when
@@ -243,7 +244,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, START_AT, END_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -251,7 +252,7 @@ class ActivityServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                        assertThat(be.getErrorCode()).isEqualTo(CommonErrorCode.USER_NOT_FOUND);
                     });
         }
 
@@ -265,7 +266,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, END_AT, START_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -284,11 +285,11 @@ class ActivityServiceTest {
             User creator = createUser();
             given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
 
-            OffsetDateTime sameTime = OffsetDateTime.now().plusDays(7);
+            OffsetDateTime sameTime = OffsetDateTime.now(ZoneOffset.UTC).plusDays(7);
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, sameTime, sameTime,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -307,12 +308,12 @@ class ActivityServiceTest {
             User creator = createUser();
             given(userRepository.findById(USER_ID)).willReturn(Optional.of(creator));
 
-            OffsetDateTime pastStart = OffsetDateTime.now().minusDays(1);
-            OffsetDateTime futureEnd = OffsetDateTime.now().plusDays(1);
+            OffsetDateTime pastStart = OffsetDateTime.now(ZoneOffset.UTC).minusDays(1);
+            OffsetDateTime futureEnd = OffsetDateTime.now(ZoneOffset.UTC).plusDays(1);
             CreateActivityParam param = new CreateActivityParam(
                     null, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, pastStart, futureEnd,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -335,7 +336,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     999L, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, START_AT, END_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -364,7 +365,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     CLUB_ID, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, START_AT, END_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -399,7 +400,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     CLUB_ID, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, START_AT, END_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -440,7 +441,7 @@ class ActivityServiceTest {
             CreateActivityParam param = new CreateActivityParam(
                     CLUB_ID, OpenType.PUBLIC, "모임", "설명",
                     10, false, true, START_AT, END_AT,
-                    null, null, ActivityType.BOTH, false, null, null, Gender.ANY
+                    "010-1234-5678", 1, null, null, ActivityType.BOTH, false, null, null, Gender.ANY
             );
 
             // when & then
@@ -572,7 +573,7 @@ class ActivityServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_ALREADY_INACTIVE);
+                        assertThat(be.getErrorCode()).isEqualTo(ActivityErrorCode.ACTIVITY_NOT_FOUND);
                     });
         }
 
@@ -974,7 +975,7 @@ class ActivityServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> {
                         BusinessException be = (BusinessException) e;
-                        assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                        assertThat(be.getErrorCode()).isEqualTo(CommonErrorCode.USER_NOT_FOUND);
                     });
         }
     }
@@ -1000,8 +1001,8 @@ class ActivityServiceTest {
             given(activityRepository.findById(ACTIVITY_ID)).willReturn(Optional.of(activity));
 
             List<ParticipantResult> content = List.of(
-                    new ParticipantResult(1L, 2L, "img.jpg", "홍길동", ParticipantStatus.PENDING, OffsetDateTime.now()),
-                    new ParticipantResult(2L, 3L, null, "김철수", ParticipantStatus.APPROVED, OffsetDateTime.now())
+                    new ParticipantResult(1L, 2L, "img.jpg", "홍길동", ParticipantStatus.PENDING, OffsetDateTime.now(ZoneOffset.UTC)),
+                    new ParticipantResult(2L, 3L, null, "김철수", ParticipantStatus.APPROVED, OffsetDateTime.now(ZoneOffset.UTC))
             );
             Slice<ParticipantResult> slice = new SliceImpl<>(content, pageable, false);
             given(activityParticipantRepository.findParticipantListByActivityId(ACTIVITY_ID, pageable)).willReturn(slice);

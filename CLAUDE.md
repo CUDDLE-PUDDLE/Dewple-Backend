@@ -145,13 +145,20 @@ modules/{domain}/
 - `@RestControllerAdvice` `GlobalExceptionHandler`에서 `BusinessException`을 잡아 `ApiResponse.error()` 변환
 - 에러코드 범위
   - 1000: 성공
-  - 2000~2999: 클라이언트 오류
-  - 3000~3999: 서버 오류
-  - 4000~4099: 본인인증 (verification)
-  - 4100~4199: 회원가입 (signup)
-  - 4200~4299: 로그인 (login)
-  - 4300~4399: 토큰 (refresh token)
-  - 4400~4499: 프로필 수정 (profile edit)
+  - 2000: 클라이언트 오류
+  - 3000: 서버 오류
+  - 4000: 회원 인증 (verification)
+  - 4100: 회원가입 (signup)
+  - 4200: 로그인 (login)
+  - 4300: 토큰 (refresh token)
+  - 4400: 프로필 수정 (profile edit)
+  - 4500: 개인 자료실 (personal file)
+  - 5000: 모임 (activity)
+  - 5100: 모집 공고 (recruitment posting)
+  - 5200: 지원서 (application)
+  - 6000: 동아리 (club)
+  - 7000: 연합회 (organization)
+  - 9000: 공통 (common)
 
 ### 테스트 패턴
 
@@ -216,6 +223,7 @@ public ApiResponse<?> getMyProfile(@CurrentUserId Long userId) { ... }
 - 파일명: `V{N}__{설명}.sql` (언더스코어 2개, N은 순번)
 - 현재 DB 스키마가 V1 baseline → **V2부터** 신규 마이그레이션 작성
 - 엔티티 필드 추가/변경 시 마이그레이션 SQL도 함께 작성 (누락 시 `ddl-auto: validate`에서 실패)
+- **TIMESTAMP 대신 TIMESTAMPTZ 사용** — Hibernate가 `TIMESTAMP_UTC` 타입을 기대하므로, 마이그레이션에서 날짜/시간 컬럼은 반드시 `TIMESTAMPTZ`로 선언할 것 (`TIMESTAMP` 사용 시 스키마 검증 실패)
 - `baseline-on-migrate: true` 설정으로 첫 실행 시 자동 baseline 생성
 
 ## 설정 파일

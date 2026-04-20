@@ -16,11 +16,19 @@ public class VerificationSendListener {
 
     @SqsListener("${app.sqs.verification-send-queue}")
     public void handle(VerificationSendMessage message) {
-        log.info("인증 코드 발송 메시지 수신: type={}, target={}", message.type(), maskTarget(message.target()));
+        log.info("발송 메시지 수신: kind={}, type={}, target={}",
+                message.kind(), message.type(), maskTarget(message.target()));
 
+        switch (message.kind()) {
+            case VERIFICATION_CODE -> dispatchVerificationCode(message);
+            case TEMPORARY_PASSWORD -> smsSender.sendTemporaryPassword(message.target(), message.payload());
+        }
+    }
+
+    private void dispatchVerificationCode(VerificationSendMessage message) {
         switch (message.type()) {
-            case PHONE -> smsSender.send(message.target(), message.code());
-            case EMAIL -> emailSender.send(message.target(), message.code());
+            case PHONE -> smsSender.send(message.target(), message.payload());
+            case EMAIL -> emailSender.send(message.target(), message.payload());
         }
     }
 

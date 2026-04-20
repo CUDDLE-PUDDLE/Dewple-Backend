@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -103,7 +104,7 @@ class VerificationServiceTest {
         void successAfterCooldown() {
             // given
             Verification oldVerification = createVerification(TEST_PHONE_NORMALIZED, TEST_CODE);
-            ReflectionTestUtils.setField(oldVerification, "createdAt", OffsetDateTime.now().minusSeconds(61));
+            ReflectionTestUtils.setField(oldVerification, "createdAt", OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(61));
 
             given(verificationRepository.findLatestByDataAndType(TEST_PHONE_NORMALIZED, VerificationType.PHONE))
                     .willReturn(Optional.of(oldVerification));
@@ -123,7 +124,7 @@ class VerificationServiceTest {
         void failWithTooManyRequests() {
             // given
             Verification recentVerification = createVerification(TEST_PHONE_NORMALIZED, TEST_CODE);
-            ReflectionTestUtils.setField(recentVerification, "createdAt", OffsetDateTime.now().minusSeconds(30));
+            ReflectionTestUtils.setField(recentVerification, "createdAt", OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30));
 
             given(verificationRepository.findLatestByDataAndType(TEST_PHONE_NORMALIZED, VerificationType.PHONE))
                     .willReturn(Optional.of(recentVerification));
@@ -199,7 +200,7 @@ class VerificationServiceTest {
         void failWithTooManyRequests() {
             // given
             Verification recentVerification = createEmailVerification(TEST_EMAIL, TEST_CODE);
-            ReflectionTestUtils.setField(recentVerification, "createdAt", OffsetDateTime.now().minusSeconds(30));
+            ReflectionTestUtils.setField(recentVerification, "createdAt", OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30));
 
             given(verificationRepository.findLatestByDataAndType(TEST_EMAIL, VerificationType.EMAIL))
                     .willReturn(Optional.of(recentVerification));
@@ -302,7 +303,7 @@ class VerificationServiceTest {
         void failWithExpired() {
             // given
             Verification verification = createVerification(TEST_PHONE_NORMALIZED, TEST_CODE);
-            ReflectionTestUtils.setField(verification, "tokenExpireAt", OffsetDateTime.now().minusMinutes(1));
+            ReflectionTestUtils.setField(verification, "tokenExpireAt", OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(1));
             UUID publicId = verification.getPublicId();
 
             given(verificationRepository.findByPublicId(publicId))
@@ -381,7 +382,7 @@ class VerificationServiceTest {
             // given
             Verification verification = createVerification(TEST_PHONE_NORMALIZED, TEST_CODE);
             verification.markAsVerified();
-            ReflectionTestUtils.setField(verification, "tokenExpireAt", OffsetDateTime.now().minusMinutes(1));
+            ReflectionTestUtils.setField(verification, "tokenExpireAt", OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(1));
 
             given(verificationRepository.findByToken(verification.getToken()))
                     .willReturn(Optional.of(verification));
@@ -403,7 +404,7 @@ class VerificationServiceTest {
                 .code(code)
                 .purpose(VerificationPurpose.SIGN_UP)
                 .build();
-        ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now());
+        ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now(ZoneOffset.UTC));
         return verification;
     }
 
@@ -414,7 +415,7 @@ class VerificationServiceTest {
                 .code(code)
                 .purpose(VerificationPurpose.SIGN_UP)
                 .build();
-        ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now());
+        ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now(ZoneOffset.UTC));
         return verification;
     }
 }

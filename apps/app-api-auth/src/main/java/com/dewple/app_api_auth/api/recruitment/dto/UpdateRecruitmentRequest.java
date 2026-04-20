@@ -21,12 +21,14 @@ public record UpdateRecruitmentRequest(
 
         @NotNull(message = "지원서 양식은 필수입니다.")
         @Valid
-        ApplicationFormRequest applicationForm
+        ApplicationFormRequest applicationForm,
+
+        Boolean hasSecondInterview
 ) {
 
     public UpdateRecruitmentCommand toCommand(ObjectMapper objectMapper) throws JsonProcessingException {
         String contentJson = objectMapper.writeValueAsString(content);
         String applicationFormJson = objectMapper.writeValueAsString(applicationForm);
-        return new UpdateRecruitmentCommand(title, contentJson, applicationFormJson);
+        return new UpdateRecruitmentCommand(title, contentJson, applicationFormJson, hasSecondInterview);
     }
 }

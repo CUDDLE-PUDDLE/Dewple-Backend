@@ -10,6 +10,7 @@ import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.RefreshToken;
 import com.dewple.user.entity.Verification;
 import com.dewple.user.exception.UserErrorCode;
+import com.dewple.common.exception.CommonErrorCode;
 import com.dewple.user.service.LoginParam;
 import com.dewple.user.service.RefreshTokenService;
 import com.dewple.user.service.SignupParam;
@@ -32,6 +33,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -350,7 +352,9 @@ class AuthControllerTest {
                                     "name", "홍길동",
                                     "userId", "dewple123",
                                     "password", "Password1!",
-                                    "passwordConfirm", "Password1!"
+                                    "passwordConfirm", "Password1!",
+                                    "birthdate", "2000-01-01",
+                                    "gender", "MALE"
                             ))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(1000))
@@ -369,10 +373,12 @@ class AuthControllerTest {
                                     "name", "홍길동",
                                     "userId", "dewple123",
                                     "password", "Password1!",
-                                    "passwordConfirm", "DifferentPassword1!"
+                                    "passwordConfirm", "DifferentPassword1!",
+                                    "birthdate", "2000-01-01",
+                                    "gender", "MALE"
                             ))))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(4106));
+                    .andExpect(jsonPath("$.code").value(4105));
         }
 
         @Test
@@ -390,7 +396,9 @@ class AuthControllerTest {
                                     "name", "홍길동",
                                     "userId", "dewple123",
                                     "password", "Password1!",
-                                    "passwordConfirm", "Password1!"
+                                    "passwordConfirm", "Password1!",
+                                    "birthdate", "2000-01-01",
+                                    "gender", "MALE"
                             ))))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.code").value(4101));
@@ -411,7 +419,9 @@ class AuthControllerTest {
                                     "name", "홍길동",
                                     "userId", "dewple123",
                                     "password", "Password1!",
-                                    "passwordConfirm", "Password1!"
+                                    "passwordConfirm", "Password1!",
+                                    "birthdate", "2000-01-01",
+                                    "gender", "MALE"
                             ))))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.code").value(4102));
@@ -427,7 +437,9 @@ class AuthControllerTest {
                                     "name", "홍길동",
                                     "userId", "ab",
                                     "password", "Password1!",
-                                    "passwordConfirm", "Password1!"
+                                    "passwordConfirm", "Password1!",
+                                    "birthdate", "2000-01-01",
+                                    "gender", "MALE"
                             ))))
                     .andExpect(status().isBadRequest());
         }
@@ -482,7 +494,7 @@ class AuthControllerTest {
         void failWithUserNotFound() throws Exception {
             // given
             given(userService.login(any(LoginParam.class)))
-                    .willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                    .willThrow(new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
             // when & then
             mockMvc.perform(post("/auth/login")
@@ -492,7 +504,7 @@ class AuthControllerTest {
                                     "password", "Password1!"
                             ))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(4201));
+                    .andExpect(jsonPath("$.code").value(9001));
         }
 
         @Test
@@ -510,7 +522,7 @@ class AuthControllerTest {
                                     "password", "WrongPassword1!"
                             ))))
                     .andExpect(status().isUnauthorized())
-                    .andExpect(jsonPath("$.code").value(4202));
+                    .andExpect(jsonPath("$.code").value(4201));
         }
 
         @Test
@@ -528,7 +540,7 @@ class AuthControllerTest {
                                     "password", "Password1!"
                             ))))
                     .andExpect(status().isForbidden())
-                    .andExpect(jsonPath("$.code").value(4203));
+                    .andExpect(jsonPath("$.code").value(4202));
         }
 
         @Test
@@ -600,7 +612,7 @@ class AuthControllerTest {
             RefreshToken storedToken = RefreshToken.builder()
                     .user(user)
                     .token("valid-refresh-token")
-                    .expireAt(OffsetDateTime.now().plusDays(7))
+                    .expireAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(7))
                     .build();
 
             given(jwtDecoder.decode("valid-refresh-token")).willReturn(decodedJwt);
@@ -707,7 +719,7 @@ class AuthControllerTest {
                 .code("A1B2C3")
                 .purpose(VerificationPurpose.SIGN_UP)
                 .build();
-        ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now());
+        ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now(ZoneOffset.UTC));
         return verification;
     }
 
@@ -718,7 +730,7 @@ class AuthControllerTest {
                 .code("A1B2C3")
                 .purpose(VerificationPurpose.SIGN_UP)
                 .build();
-        ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now());
+        ReflectionTestUtils.setField(verification, "createdAt", OffsetDateTime.now(ZoneOffset.UTC));
         return verification;
     }
 

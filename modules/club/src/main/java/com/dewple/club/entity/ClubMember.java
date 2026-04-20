@@ -59,4 +59,20 @@ public class ClubMember extends BaseEntity {
         this.activityStatus = activityStatus != null ? activityStatus : ActivityStatus.ACTIVE;
         this.activityEndDate = activityEndDate;
     }
+
+    public void changeRole(ClubRole role) {
+        this.role = role;
+    }
+
+    public void updateActivityStatus(ActivityStatus activityStatus) {
+        this.activityStatus = activityStatus;
+    }
+
+    public void setJoinGeneration(ClubGeneration joinGeneration) {
+        this.joinGeneration = joinGeneration;
+    }
+
+    public void setActivityEndDate(LocalDate activityEndDate) {
+        this.activityEndDate = activityEndDate;
+    }
 }

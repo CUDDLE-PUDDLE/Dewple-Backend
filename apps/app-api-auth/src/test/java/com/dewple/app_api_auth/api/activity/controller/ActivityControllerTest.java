@@ -13,7 +13,7 @@ import com.dewple.common.enums.Gender;
 import com.dewple.common.enums.OpenType;
 import com.dewple.common.enums.ParticipantStatus;
 import com.dewple.common.exception.BusinessException;
-import com.dewple.user.exception.UserErrorCode;
+import com.dewple.common.exception.CommonErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,6 +31,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.SliceImpl;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -186,14 +187,14 @@ class ActivityControllerTest {
         void failWithUserNotFound() throws Exception {
             // given
             given(activityService.getActivityList(eq(1L), any()))
-                    .willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+                    .willThrow(new BusinessException(CommonErrorCode.USER_NOT_FOUND));
 
             // when & then
             mockMvc.perform(get("/activities")
                             .with(jwt().jwt(j -> j.subject("1")))
                             .param("section", "PERSONAL"))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(4201));
+                    .andExpect(jsonPath("$.code").value(9001));
         }
     }
 
@@ -205,7 +206,7 @@ class ActivityControllerTest {
         @DisplayName("성공: 개인 모임 생성")
         void successWithPersonalActivity() throws Exception {
             // given
-            OffsetDateTime now = OffsetDateTime.now();
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
             CreateActivityResult result = new CreateActivityResult(
                     100L, null, null, OpenType.PUBLIC,
                     "봄맞이 독서 모임", "함께 책을 읽어요", 20,
@@ -236,7 +237,8 @@ class ActivityControllerTest {
                                     Map.entry("isVerificationRequired", true),
                                     Map.entry("minAge", 20),
                                     Map.entry("maxAge", 30),
-                                    Map.entry("gender", "ANY")
+                                    Map.entry("gender", "ANY"),
+                                    Map.entry("emergencyContact", "010-1234-5678")
                             ))))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.code").value(1000))
@@ -264,7 +266,7 @@ class ActivityControllerTest {
         @DisplayName("성공: 동아리 모임 생성")
         void successWithClubActivity() throws Exception {
             // given
-            OffsetDateTime now = OffsetDateTime.now();
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
             CreateActivityResult result = new CreateActivityResult(
                     101L, 10L, "테스트 동아리", OpenType.PRIVATE,
                     "정기 모임", "이번 주 정기 모임", null,
@@ -290,7 +292,10 @@ class ActivityControllerTest {
                                     Map.entry("startAt", START_AT),
                                     Map.entry("endAt", END_AT),
                                     Map.entry("activityType", "BOTH"),
-                                    Map.entry("gender", "ANY")
+                                    Map.entry("gender", "ANY"),
+                                    Map.entry("emergencyContact", "010-1234-5678"),
+                                    Map.entry("categoryId", 1),
+                                    Map.entry("regionId", 1)
                             ))))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.code").value(1000))
@@ -453,10 +458,13 @@ class ActivityControllerTest {
                                     "description", "설명",
                                     "activityType", "BOTH",
                                     "startAt", END_AT,
-                                    "endAt", START_AT
+                                    "endAt", START_AT,
+                                    "emergencyContact", "010-1234-5678",
+                                    "categoryId", 1,
+                                    "regionId", 1
                             ))))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(5001));
+                    .andExpect(jsonPath("$.code").value(5002));
         }
 
         @Test
@@ -477,10 +485,13 @@ class ActivityControllerTest {
                                     "description", "설명",
                                     "activityType", "BOTH",
                                     "startAt", START_AT,
-                                    "endAt", END_AT
+                                    "endAt", END_AT,
+                                    "emergencyContact", "010-1234-5678",
+                                    "categoryId", 1,
+                                    "regionId", 1
                             ))))
                     .andExpect(status().isForbidden())
-                    .andExpect(jsonPath("$.code").value(6002));
+                    .andExpect(jsonPath("$.code").value(6003));
         }
 
         @Test
@@ -501,10 +512,13 @@ class ActivityControllerTest {
                                     "description", "설명",
                                     "activityType", "BOTH",
                                     "startAt", START_AT,
-                                    "endAt", END_AT
+                                    "endAt", END_AT,
+                                    "emergencyContact", "010-1234-5678",
+                                    "categoryId", 1,
+                                    "regionId", 1
                             ))))
                     .andExpect(status().isForbidden())
-                    .andExpect(jsonPath("$.code").value(6001));
+                    .andExpect(jsonPath("$.code").value(6002));
         }
 
         @Test
@@ -525,10 +539,13 @@ class ActivityControllerTest {
                                     "description", "설명",
                                     "activityType", "BOTH",
                                     "startAt", START_AT,
-                                    "endAt", END_AT
+                                    "endAt", END_AT,
+                                    "emergencyContact", "010-1234-5678",
+                                    "categoryId", 1,
+                                    "regionId", 1
                             ))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(6000));
+                    .andExpect(jsonPath("$.code").value(6001));
         }
     }
 
@@ -565,7 +582,7 @@ class ActivityControllerTest {
             mockMvc.perform(delete("/activities/{activityId}", 999L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5000));
+                    .andExpect(jsonPath("$.code").value(5001));
         }
 
         @Test
@@ -579,7 +596,7 @@ class ActivityControllerTest {
             mockMvc.perform(delete("/activities/{activityId}", 100L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isForbidden())
-                    .andExpect(jsonPath("$.code").value(5004));
+                    .andExpect(jsonPath("$.code").value(5005));
         }
     }
 
@@ -670,7 +687,7 @@ class ActivityControllerTest {
             mockMvc.perform(get("/activities/{activityId}", 999L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5000));
+                    .andExpect(jsonPath("$.code").value(5001));
         }
     }
 
@@ -730,7 +747,7 @@ class ActivityControllerTest {
             mockMvc.perform(get("/activities/{activityId}/participants", 999L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5000));
+                    .andExpect(jsonPath("$.code").value(5001));
         }
 
         @Test
@@ -744,7 +761,7 @@ class ActivityControllerTest {
             mockMvc.perform(get("/activities/{activityId}/participants", 100L)
                             .with(jwt().jwt(j -> j.subject("1"))))
                     .andExpect(status().isForbidden())
-                    .andExpect(jsonPath("$.code").value(5007));
+                    .andExpect(jsonPath("$.code").value(5006));
         }
     }
 
@@ -818,7 +835,7 @@ class ActivityControllerTest {
                                     "participantStatus", "APPROVED"
                             ))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5000));
+                    .andExpect(jsonPath("$.code").value(5001));
         }
 
         @Test
@@ -836,7 +853,7 @@ class ActivityControllerTest {
                                     "participantStatus", "APPROVED"
                             ))))
                     .andExpect(status().isForbidden())
-                    .andExpect(jsonPath("$.code").value(5009));
+                    .andExpect(jsonPath("$.code").value(5008));
         }
 
         @Test
@@ -854,7 +871,7 @@ class ActivityControllerTest {
                                     "participantStatus", "APPROVED"
                             ))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(5008));
+                    .andExpect(jsonPath("$.code").value(5007));
         }
     }
 

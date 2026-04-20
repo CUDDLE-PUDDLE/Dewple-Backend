@@ -24,23 +24,32 @@ public enum UserErrorCode implements ErrorCode {
     // 4100: 회원가입 관련 오류
     PHONE_ALREADY_EXISTS(4101, HttpStatus.CONFLICT, "이미 가입된 전화번호입니다."),
     USER_ID_ALREADY_EXISTS(4102, HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다."),
-    NICKNAME_ALREADY_EXISTS(4103, HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
-    EMAIL_ALREADY_EXISTS(4104, HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
-    WITHDRAWAL_COOLDOWN(4105, HttpStatus.BAD_REQUEST, "탈퇴 후 7일이 지나야 재가입이 가능합니다."),
-    PASSWORD_CONFIRM_MISMATCH(4106, HttpStatus.BAD_REQUEST, "비밀번호 확인이 일치하지 않습니다."),
+    EMAIL_ALREADY_EXISTS(4103, HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
+    WITHDRAWAL_COOLDOWN(4104, HttpStatus.BAD_REQUEST, "탈퇴 후 7일이 지나야 재가입이 가능합니다."),
+    PASSWORD_CONFIRM_MISMATCH(4105, HttpStatus.BAD_REQUEST, "비밀번호 확인이 일치하지 않습니다."),
 
     // 4200: 로그인 관련 오류
-    USER_NOT_FOUND(4201, HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
-    PASSWORD_MISMATCH(4202, HttpStatus.UNAUTHORIZED, "비밀번호가 일치하지 않습니다."),
-    USER_INACTIVE(4203, HttpStatus.FORBIDDEN, "비활성화된 계정입니다."),
+    PASSWORD_MISMATCH(4201, HttpStatus.UNAUTHORIZED, "비밀번호가 일치하지 않습니다."),
+    USER_INACTIVE(4202, HttpStatus.FORBIDDEN, "비활성화된 계정입니다."),
+    USER_IN_DELETION(4203, HttpStatus.FORBIDDEN, "탈퇴가 진행 중인 계정입니다."),
+    KAKAO_ONLY_NO_PASSWORD(4204, HttpStatus.BAD_REQUEST, "카카오 로그인 전용 계정입니다. 카카오 로그인을 이용해주세요."),
+    USER_NOT_FOUND_BY_PHONE(4205, HttpStatus.NOT_FOUND, "해당 전화번호로 가입된 계정을 찾을 수 없습니다."),
 
     // 4300: 토큰 관련 오류
     REFRESH_TOKEN_INVALID(4301, HttpStatus.UNAUTHORIZED, "유효하지 않은 리프레시 토큰입니다."),
     REFRESH_TOKEN_EXPIRED(4302, HttpStatus.UNAUTHORIZED, "리프레시 토큰이 만료되었습니다."),
 
     // 4400: 프로필 수정 관련 오류
-    CATEGORY_NOT_FOUND(4400, HttpStatus.NOT_FOUND, "존재하지 않는 카테고리입니다."),
     PHONE_SAME_AS_CURRENT(4401, HttpStatus.BAD_REQUEST, "현재 사용 중인 전화번호와 동일합니다."),
+    USER_ID_CHANGE_COOLDOWN(4402, HttpStatus.BAD_REQUEST, "아이디 변경은 7일에 한 번만 가능합니다."),
+    EMAIL_VERIFICATION_REQUIRED(4403, HttpStatus.BAD_REQUEST, "이메일 인증이 필요합니다."),
+    INTEREST_LIMIT_EXCEEDED(4404, HttpStatus.BAD_REQUEST, "관심 설정은 최대 20개까지 가능합니다."),
+    KAKAO_ONLY_NO_USER_ID(4405, HttpStatus.BAD_REQUEST, "카카오 로그인 전용 계정입니다. 자체 회원가입을 먼저 진행해주세요."),
+
+    // 4500: 개인 자료실 관련 오류
+    FILE_NOT_FOUND(4500, HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다."),
+    STORAGE_LIMIT_EXCEEDED(4501, HttpStatus.BAD_REQUEST, "저장 용량을 초과했습니다. 스토리지를 추가 구매해주세요."),
+    FILE_UPLOAD_FAILED(4502, HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드에 실패했습니다."),
     ;
 
     private final int code;

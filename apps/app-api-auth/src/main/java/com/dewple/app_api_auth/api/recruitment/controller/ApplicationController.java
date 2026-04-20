@@ -1,10 +1,8 @@
 package com.dewple.app_api_auth.api.recruitment.controller;
 
 import com.dewple.app_api_auth.api.recruitment.dto.ApplicationResponse;
-import com.dewple.app_api_auth.api.recruitment.dto.GuestApplicationRequest;
 import com.dewple.app_api_auth.api.recruitment.dto.MyApplicationListResponse;
 import com.dewple.app_api_auth.api.recruitment.dto.SubmitApplicationRequest;
-import com.dewple.app_api_auth.api.recruitment.dto.UpdateGuestApplicationRequest;
 import com.dewple.app_api_auth.global.response.ApiResponse;
 import com.dewple.recruitment.entity.Application;
 import com.dewple.recruitment.service.ApplicationService;
@@ -22,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "Application", description = "지원서 API")
+@Tag(name = "Recruitment - 지원서", description = "지원서 API")
 @RestController
 @RequiredArgsConstructor
 public class ApplicationController {
@@ -78,36 +76,6 @@ public class ApplicationController {
         Application application = applicationService.editApplication(
                 clubId, postingId, applicationId, applicantId,
                 new ApplicationService.SubmitApplicationCommand(request.toAnswersJson(objectMapper)));
-
-        return ResponseEntity.ok(ApiResponse.ok(toResponse(application)));
-    }
-
-    @Operation(summary = "비회원 지원서 제출", description = "인증 없이 이름과 전화번호로 지원서를 제출합니다.")
-    @PostMapping("/clubs/{clubId}/recruitment-posts/{postingId}/applications/guest")
-    public ResponseEntity<ApiResponse<ApplicationResponse>> submitGuestApplication(
-            @PathVariable Long clubId,
-            @PathVariable Long postingId,
-            @Valid @RequestBody GuestApplicationRequest request) throws JsonProcessingException {
-
-        Application application = applicationService.submitGuestApplication(
-                clubId, postingId,
-                new ApplicationService.GuestApplicationCommand(
-                        request.guestPhone(), request.toAnswersJson(objectMapper)));
-
-        return ResponseEntity.ok(ApiResponse.ok(toResponse(application)));
-    }
-
-    @Operation(summary = "비회원 지원서 수정", description = "전화번호로 기존 지원서를 찾아 답변을 수정합니다.")
-    @PatchMapping("/clubs/{clubId}/recruitment-posts/{postingId}/applications/guest")
-    public ResponseEntity<ApiResponse<ApplicationResponse>> editGuestApplication(
-            @PathVariable Long clubId,
-            @PathVariable Long postingId,
-            @Valid @RequestBody UpdateGuestApplicationRequest request) throws JsonProcessingException {
-
-        Application application = applicationService.editGuestApplication(
-                clubId, postingId,
-                new ApplicationService.GuestEditApplicationCommand(
-                        request.guestPhone(), request.toAnswersJson(objectMapper)));
 
         return ResponseEntity.ok(ApiResponse.ok(toResponse(application)));
     }
