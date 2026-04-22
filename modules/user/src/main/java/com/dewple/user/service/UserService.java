@@ -7,7 +7,7 @@ import com.dewple.common.exception.BusinessException;
 import com.dewple.user.exception.UserErrorCode;
 import com.dewple.common.exception.CommonErrorCode;import com.dewple.user.entity.UserCategory;
 import com.dewple.user.port.PasswordEncoderPort;
-import com.dewple.user.port.SmsVerificationPort;
+import com.dewple.user.port.VerificationSendPort;
 import com.dewple.user.port.WithdrawalActivityPort;
 import com.dewple.user.port.WithdrawalClubPort;
 import com.dewple.common.repository.CategoryRepository;
@@ -32,7 +32,7 @@ public class UserService {
     private final CategoryRepository categoryRepository;
     private final VerificationService verificationService;
     private final PasswordEncoderPort passwordEncoderPort;
-    private final SmsVerificationPort smsVerificationPort;
+    private final VerificationSendPort verificationSendPort;
     private final WithdrawalActivityPort withdrawalActivityPort;
     private final WithdrawalClubPort withdrawalClubPort;
     private final RandomNicknameGenerator randomNicknameGenerator;
@@ -273,7 +273,7 @@ public class UserService {
         String temporaryPassword = generateTemporaryPassword();
         user.changePassword(passwordEncoderPort.encode(temporaryPassword));
 
-        smsVerificationPort.sendTemporaryPassword(phone, temporaryPassword);
+        verificationSendPort.sendTemporaryPassword(phone, temporaryPassword);
         log.info("임시 비밀번호 발급 완료: phone={}", phone.substring(0, phone.length() - 4) + "****");
     }
 

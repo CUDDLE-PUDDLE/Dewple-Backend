@@ -1,6 +1,5 @@
-package com.dewple.app_api_auth.infra.sms;
+package com.dewple.app_worker.verification;
 
-import com.dewple.user.port.SmsVerificationPort;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import net.nurigo.sdk.NurigoApp;
@@ -10,12 +9,9 @@ import net.nurigo.sdk.message.service.DefaultMessageService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/**
- * SOLAPI를 이용한 SMS 발송 어댑터
- */
 @Slf4j
 @Component
-public class SmsVerificationAdapter implements SmsVerificationPort {
+public class SmsSender {
 
     private static final String MESSAGE_TEMPLATE = "[듀플] 인증번호 [%s]를 입력해주세요.";
     private static final String TEMP_PASSWORD_TEMPLATE = "[듀플] 임시 비밀번호: %s\n로그인 후 반드시 비밀번호를 변경해주세요.";
@@ -26,7 +22,7 @@ public class SmsVerificationAdapter implements SmsVerificationPort {
 
     private DefaultMessageService messageService;
 
-    public SmsVerificationAdapter(
+    public SmsSender(
             @Value("${solapi.api-key:}") String apiKey,
             @Value("${solapi.api-secret:}") String apiSecret,
             @Value("${solapi.sender-phone:}") String senderPhone
@@ -46,10 +42,9 @@ public class SmsVerificationAdapter implements SmsVerificationPort {
         }
     }
 
-    @Override
-    public void sendVerificationCode(String phone, String code) {
+    public void send(String phone, String code) {
         if (messageService == null) {
-            log.warn("SOLAPI 설정이 없어 실제 발송을 건너뜁니다. phone={}, code={}", phone, code);
+            log.warn("SOLAPI 설정이 없어 실제 발송을 건너뜁니다. phone={}, code={}", maskPhone(phone), code);
             return;
         }
 
@@ -67,10 +62,9 @@ public class SmsVerificationAdapter implements SmsVerificationPort {
         }
     }
 
-    @Override
     public void sendTemporaryPassword(String phone, String temporaryPassword) {
         if (messageService == null) {
-            log.warn("SOLAPI 설정이 없어 실제 발송을 건너뜁니다. phone={}, temporaryPassword={}", phone, temporaryPassword);
+            log.warn("SOLAPI 설정이 없어 실제 발송을 건너뜁니다. phone={}, temporaryPassword={}", maskPhone(phone), temporaryPassword);
             return;
         }
 

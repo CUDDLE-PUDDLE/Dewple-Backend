@@ -1,15 +1,15 @@
-package com.dewple.app_api_auth.infra.email;
+package com.dewple.app_worker.verification;
 
-import com.dewple.user.port.EmailVerificationPort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.ses.model.*;
 
 @Slf4j
 @Component
-public class EmailVerificationAdapter implements EmailVerificationPort {
+public class EmailSender {
 
     private static final String SUBJECT = "[듀플] 이메일 인증 코드";
     private static final String BODY_TEMPLATE = "[듀플] 인증번호 [%s]를 입력해주세요.";
@@ -17,18 +17,17 @@ public class EmailVerificationAdapter implements EmailVerificationPort {
     private final SesClient sesClient;
     private final String senderEmail;
 
-    public EmailVerificationAdapter(
-            SesClient sesClient,
+    public EmailSender(
+            @Nullable SesClient sesClient,
             @Value("${ses.sender-email:}") String senderEmail
     ) {
         this.sesClient = sesClient;
         this.senderEmail = senderEmail;
     }
 
-    @Override
-    public void sendVerificationCode(String email, String code) {
-        if (senderEmail == null || senderEmail.isBlank()) {
-            log.warn("SES 발신 이메일이 설정되지 않아 실제 발송을 건너뜁니다. email={}, code={}", maskEmail(email), code);
+    public void send(String email, String code) {
+        if (sesClient == null || senderEmail == null || senderEmail.isBlank()) {
+            log.warn("SES 설정이 없어 실제 발송을 건너뜁니다. email={}, code={}", maskEmail(email), code);
             return;
         }
 

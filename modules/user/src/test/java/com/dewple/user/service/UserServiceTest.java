@@ -9,7 +9,7 @@ import com.dewple.common.exception.BusinessException;
 import com.dewple.user.entity.UserCategory;
 import com.dewple.user.exception.UserErrorCode;
 import com.dewple.common.exception.CommonErrorCode;import com.dewple.user.port.PasswordEncoderPort;
-import com.dewple.user.port.SmsVerificationPort;
+import com.dewple.user.port.VerificationSendPort;
 import com.dewple.user.port.WithdrawalActivityPort;
 import com.dewple.user.port.WithdrawalClubPort;
 import com.dewple.common.repository.CategoryRepository;
@@ -58,7 +58,7 @@ class UserServiceTest {
     private PasswordEncoderPort passwordEncoderPort;
 
     @Mock
-    private SmsVerificationPort smsVerificationPort;
+    private VerificationSendPort verificationSendPort;
 
     @Mock
     private WithdrawalActivityPort withdrawalActivityPort;

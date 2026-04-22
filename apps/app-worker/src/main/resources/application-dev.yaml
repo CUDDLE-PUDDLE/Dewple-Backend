@@ -54,3 +54,29 @@ spring:
         enabled: true
       ses:
         enabled: true
+
+app:
+  sqs:
+    verification-send-queue: dewple-verification-send
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: "devSMS"
+
+solapi:
+  api-key: ${SOLAPI_API_KEY}
+  api-secret: ${SOLAPI_API_SECRET}
+  sender-phone: ${SOLAPI_SENDER_PHONE}
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: "devSES"
+
+ses:
+  sender-email: ${SES_SENDER_EMAIL}
